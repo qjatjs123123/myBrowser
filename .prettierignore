@@ -1,0 +1,9 @@
+out
+dist
+release
+coverage
+pnpm-lock.yaml
+.harness
+spec
+docs
+*.md

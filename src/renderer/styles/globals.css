@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+
+/* 디자인 토큰 — 색은 여기서만 정한다 (.claude/skills/desktop/design §0). 다크 모드는 OS 설정을 따른다 */
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.21 0.006 285.9);
+  --muted: oklch(0.967 0.001 286.4);
+  --muted-foreground: oklch(0.552 0.016 285.9);
+  --border: oklch(0.92 0.004 286.3);
+  --primary: oklch(0.488 0.217 264.4);
+  --primary-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.577 0.245 27.3);
+  --sidebar-width: 360px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.21 0.006 285.9);
+    --foreground: oklch(0.985 0 0);
+    --muted: oklch(0.274 0.006 286);
+    --muted-foreground: oklch(0.705 0.015 286.1);
+    --border: oklch(1 0 0 / 10%);
+    --primary: oklch(0.623 0.214 259.8);
+    --primary-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.2);
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
+  --spacing-sidebar: var(--sidebar-width);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans KR', sans-serif;
+}
