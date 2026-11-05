@@ -40,6 +40,14 @@ const api: IApi = {
     answer: (req) => ipcRenderer.invoke(IPC.agent.answer, req),
     onEvent: (cb) => subscribe(IPC.agent.event, cb),
   },
+  account: {
+    getStatus: () => ipcRenderer.invoke(IPC.account.getStatus),
+    startActivation: () => ipcRenderer.invoke(IPC.account.startActivation),
+    cancelActivation: () => ipcRenderer.invoke(IPC.account.cancelActivation),
+    openManage: () => ipcRenderer.invoke(IPC.account.openManage),
+    signOut: () => ipcRenderer.invoke(IPC.account.signOut),
+    onChanged: (cb) => subscribe(IPC.account.changed, cb),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

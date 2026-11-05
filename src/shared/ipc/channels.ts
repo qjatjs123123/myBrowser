@@ -25,6 +25,14 @@ export const IPC = {
     answer: 'agent:answer',
     event: 'agent:event',
   },
+  account: {
+    getStatus: 'account:getStatus',
+    startActivation: 'account:startActivation',
+    cancelActivation: 'account:cancelActivation',
+    openManage: 'account:openManage',
+    signOut: 'account:signOut',
+    changed: 'account:changed',
+  },
 } as const;
 
 type TValues<T> = T extends string ? T : { [K in keyof T]: TValues<T[K]> }[keyof T];

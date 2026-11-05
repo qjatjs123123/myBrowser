@@ -1,3 +1,4 @@
+import type { TAccountStatus } from './account';
 import type {
   TAgentEvent,
   TAnswerAgentRequest,
@@ -52,5 +53,14 @@ export interface IApi {
     approve: (req: TApproveAgentRequest) => Promise<TIpcResult<null>>;
     answer: (req: TAnswerAgentRequest) => Promise<TIpcResult<null>>;
     onEvent: (cb: (e: TAgentEvent) => void) => TUnsubscribe;
+  };
+  /** 구독 계정 (spec 005) — 요청 인자 없음. 기기 토큰은 싣지 않는다 */
+  account: {
+    getStatus: () => Promise<TIpcResult<TAccountStatus>>;
+    startActivation: () => Promise<TIpcResult<TAccountStatus>>;
+    cancelActivation: () => Promise<TIpcResult<TAccountStatus>>;
+    openManage: () => Promise<TIpcResult<null>>;
+    signOut: () => Promise<TIpcResult<TAccountStatus>>;
+    onChanged: (cb: (e: TAccountStatus) => void) => TUnsubscribe;
   };
 }
