@@ -1,6 +1,6 @@
 # Spec: 크롬형 브라우저 — 탭·주소창·뒤로/앞으로·프로필 영속
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-05
 > **묶음**: 기반, main-tabs, renderer-chrome
 > **관련 spec**: 001
@@ -161,7 +161,7 @@ ShortcutPressedEventSchema = z.strictObject({ action: z.enum(['focusAddressBar',
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 > 묶음 순서: `기반`(Task 1) → `main-tabs`(Task 2~4) ∥ `renderer-chrome`(Task 5~7). main 조립은 Task 4 의 공유 파일 요청(5단계), e2e 는 Task 7 검증(7단계).
 
-- [ ] **Task 1: IPC 계약·주소 해석·preload·UI 부품·toast·테스트 mock**
+- [x] **Task 1: IPC 계약·주소 해석·preload·UI 부품·toast·테스트 mock**
   - **묶음**: 기반
   - **작업**: shadcn 초기화 — `components.json`(alias `@/components`, `@/lib/utils`, Tailwind 4, css `src/renderer/styles/globals.css`), `src/renderer/lib/utils.ts` 의 `cn`, 의존성 `clsx`·`tailwind-merge`·`class-variance-authority`·`lucide-react`·`sonner`, `pnpm dlx shadcn@latest add button input` 으로 `src/renderer/components/ui/{button,input}.tsx` (CLI 가 globals.css 토큰을 덮어쓰면 기존 토큰을 유지하도록 되돌린다). `IPC` 에 `tabs`·`shortcut` 채널 추가, `src/shared/ipc/tabs.ts`·`shortcut.ts` 스키마·추론 타입(위 계약 그대로), `IApi` 확장. `src/shared/utils/addressInput.ts` — `resolveAddressInput`, `buildSearchUrl`, `TSearchEngine = 'naver' | 'google'`, `SEARCH_ENGINE_LIST`(`[{ engine: 'naver', label: '네이버' }, { engine: 'google', label: '구글' }]`). preload 에 `tabs.*`·`shortcut.onPressed`(`subscribe` 헬퍼, 해제 함수 반환). `lib/toast.ts`(sonner 래퍼 `toast.error/success`), `main.tsx` 에 `<Toaster/>`. `index.html` CSP `img-src 'self' data: http: https:`. `vitest.setup.ts` 의 `window.api` mock 에 `tabs.*`(vi.fn, `onChanged` 는 해제 vi.fn 반환)·`shortcut.onPressed` 추가. `vitest.setup.main.ts` 의 electron mock 에 `WebContentsView: vi.fn()` 추가 — 인스턴스는 `{ setBounds, setVisible, webContents: { on, setWindowOpenHandler, loadURL, getURL, getTitle, isLoading, stop, reload, focus, close, isDestroyed, navigationHistory: { canGoBack, canGoForward, goBack, goForward } } }` 이고 각 항목은 호출 인자를 기록하는 `vi.fn()`. `session: { fromPartition: vi.fn(() => ({ cookies: { flushStore: vi.fn() } })) }` 도 추가.
   - **파일**: `package.json`, `pnpm-lock.yaml`, `components.json`, `src/shared/ipc/{channels,api,tabs,shortcut}.ts`, `src/shared/utils/addressInput.ts`, `src/preload/index.ts`, `src/renderer/lib/{toast,utils}.ts`, `src/renderer/components/ui/{button,input}.tsx`, `src/renderer/{main.tsx,index.html}`, `vitest.setup.ts`, `vitest.setup.main.ts`
@@ -171,7 +171,7 @@ ShortcutPressedEventSchema = z.strictObject({ action: z.enum(['focusAddressBar',
   - **통과 기준**: 테스트 + 검증 통과. 기존 테스트(spec 001) 유지
   - **커밋**: `feat: 탭 IPC 계약과 주소 해석·UI 부품 추가 (spec 002 Task 1)`
 
-- [ ] **Task 2: TabManager + URL 정책**
+- [x] **Task 2: TabManager + URL 정책**
   - **묶음**: main-tabs
   - **작업**: `src/main/tabs/tabType.ts` — `ITabView`(`load(url)`, `goBack()`, `goForward()`, `reload()`, `stop()`, `getState(): { url, title, faviconUrl, isLoading, canGoBack, canGoForward }`, `onStateChanged(cb)`, `onOpenWindow(cb: (url) => void)`, `setBounds(rect)`, `setVisible(bool)`, `focus()`, `destroy()`, `nativeView: unknown`), `ITabHost`(`addChildView(view)`, `removeChildView(view)`), `TTabViewFactory = () => ITabView`. `urlPolicy.ts` — `isAllowedTabUrl(url)`(http·https·`about:blank`). `tabManager.ts` — `TabManager({ host, createView, onChanged, createId? })`: `createTab(url?)`(활성화, url 없으면 `about:blank`), `closeTab(id)`(마지막이면 새 탭 생성, 활성 탭이면 오른쪽→왼쪽 이웃 활성), `activateTab(id)`, `cycleTab(+1|-1)`(순환), `navigate(id,url)`, `goBack/goForward/reload/stop(id)`, `setBounds(rect)`(활성 View 에만 적용, 이후 활성 전환에도 재적용), `getActiveTabId()`, `getSnapshot(): TTabsSnapshot`(isNewTab·제목 '새 탭' 계산), `hasTab(id)`. View 상태 변경·생성·닫기·전환마다 `onChanged(snapshot)`. 새 탭(isNewTab) View 는 `setVisible(false)`. `onOpenWindow` url 이 허용이면 `createTab(url)`. id 기본 `tab-{n}`.
   - **파일**: `src/main/tabs/{tabType,urlPolicy,tabManager}.ts`
@@ -181,7 +181,7 @@ ShortcutPressedEventSchema = z.strictObject({ action: z.enum(['focusAddressBar',
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 탭 관리자와 탭 URL 정책 추가 (spec 002 Task 2)`
 
-- [ ] **Task 3: WebContentsView 어댑터 + 단축키 판정·실행**
+- [x] **Task 3: WebContentsView 어댑터 + 단축키 판정·실행**
   - **묶음**: main-tabs
   - **작업**: `electronTabView.ts` — `createTabViewOptions()`(webPreferences: partition `persist:browsing`, contextIsolation·sandbox true, nodeIntegration false, preload 없음 — SR-1), `createElectronTabView({ onInput })`: `new WebContentsView(createTabViewOptions())`, `did-start-loading`·`did-stop-loading`·`did-navigate`·`did-navigate-in-page`·`page-title-updated`·`page-favicon-updated` → `onStateChanged`, `setWindowOpenHandler(({ url }) => { 허용이면 onOpenWindow(url); return { action: 'deny' } })`, `will-navigate` 정책 위반 `preventDefault`, `before-input-event` → `onInput(event, input)`, 상태는 `webContents.navigationHistory.canGoBack()` 등에서 읽기. `shortcuts.ts` — `toShortcutAction(input, platform)` → `'newTab' | 'closeTab' | 'focusAddressBar' | 'reload' | 'goBack' | 'goForward' | 'nextTab' | 'prevTab' | null` (keyDown 만, darwin 은 meta, 그 외 control; 추가 수식키가 섞이면 null — 단 Ctrl+Shift+Tab 은 prevTab), `createShortcutRunner({ tabManager, emitShortcut, focusChrome })` → `(action) => void`(newTab 은 `createTab()` 후 `focusChrome()`+`emitShortcut('focusNewTabSearch')`, focusAddressBar 는 `focusChrome()`+`emitShortcut('focusAddressBar')`, 나머지는 활성 탭 대상), `createShortcutInputHandler(runner, platform)` → `(event, input) => void`(액션이 있으면 `event.preventDefault()` 후 `runner(action)`), `attachShortcuts(webContentsLike, runner, platform)`(before-input-event 에 위 핸들러를 붙인다 — 내부에서 `createShortcutInputHandler` 사용). 탭 View 는 `createElectronTabView({ onInput: createShortcutInputHandler(…) })` 로, 메인 창은 `attachShortcuts` 로 — 판정 경로는 하나. 메뉴 accelerator 는 등록하지 않는다.
   - **파일**: `src/main/tabs/{electronTabView,shortcuts}.ts`
@@ -191,7 +191,7 @@ ShortcutPressedEventSchema = z.strictObject({ action: z.enum(['focusAddressBar',
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 탭 WebContentsView 어댑터와 단축키 추가 (spec 002 Task 3)`
 
-- [ ] **Task 4: tabs IPC 핸들러 + 이벤트 발신**
+- [x] **Task 4: tabs IPC 핸들러 + 이벤트 발신**
   - **묶음**: main-tabs
   - **작업**: `src/main/ipc/emit.ts` — `createSidebarEmitter(getWebContents: () => IWebContentsLike | null)` → `emitToSidebar(channel, schema, payload)`(schema.parse 후 `send`, 대상 없거나 destroyed 면 무시). `src/main/ipc/handlers/tabs.ts` — `createTabsHandlers(tabManager)`: 계약의 invoke 10채널, 각 핸들러 safeParse → `hasTab` 확인(NOT_FOUND) → TabManager 호출 → `ok`.
   - **파일**: `src/main/ipc/emit.ts`, `src/main/ipc/handlers/tabs.ts`
@@ -206,7 +206,7 @@ ShortcutPressedEventSchema = z.strictObject({ action: z.enum(['focusAddressBar',
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 탭 IPC 핸들러와 이벤트 발신 추가 (spec 002 Task 4)`
 
-- [ ] **Task 5: renderer 훅 — useTabs·useContentBounds·useShortcut**
+- [x] **Task 5: renderer 훅 — useTabs·useContentBounds·useShortcut**
   - **묶음**: renderer-chrome
   - **작업**: `hooks/useTabs.ts` — 마운트 시 `tabs.list`, `tabs.onChanged` 구독(cleanup 해제) → `{ tabList, activeTab, listError: { code, message } | null, create, close, activate, navigate, goBack, goForward, reload, stop }` (액션은 `window.api.tabs.*` 의 `Promise<TIpcResult>` 를 그대로 반환, toast 안 함). `hooks/useContentBounds.ts` — ref 를 받아 `ResizeObserver`·`window resize` 로 `getBoundingClientRect` 를 반올림해 `tabs.setBounds`(같은 값이면 생략). `hooks/useShortcut.ts` — `shortcut.onPressed(e => 콜백(e.action))` 구독, 해제.
   - **파일**: `src/renderer/hooks/{useTabs,useContentBounds,useShortcut}.ts`
@@ -216,7 +216,7 @@ ShortcutPressedEventSchema = z.strictObject({ action: z.enum(['focusAddressBar',
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 탭 상태·콘텐츠 영역·단축키 훅 추가 (spec 002 Task 5)`
 
-- [ ] **Task 6: TabBar·NavButtons·AddressBar 컴포넌트**
+- [x] **Task 6: TabBar·NavButtons·AddressBar 컴포넌트**
   - **묶음**: renderer-chrome
   - **작업**: `.claude/skills/desktop/design` 과 이 spec 의 「크롬 시각 규칙」을 따른다 (단, 단축키는 이 spec 의 설계 변경대로 main 이 처리 — renderer 는 키 등록 안 함). shadcn `Button`·`Input`, `lucide-react` 아이콘, `cn()`. 모든 `on*` 콜백은 `Promise<TIpcResult<…>>` 를 반환하고 컴포넌트가 `ok:false` 면 `toast.error(error.message)`. `chrome/TabBar` — `role="tablist"`, 탭마다 `role="tab"`(`aria-selected`, 이름 = 제목만), 파비콘 `<img alt="">`(onError → 기본 아이콘), 로딩 스피너(`aria-label="로딩 중"`), 닫기 버튼은 `role="tab"` 의 **형제**(`aria-label="{제목} 탭 닫기"`), ＋ 버튼(`aria-label="새 탭 열기"`). `chrome/NavButtons` — `aria-label` "뒤로"·"앞으로"·"새로고침"/"중지", disabled 처리. `chrome/AddressBar` — `role="combobox"` 입력(`aria-label="주소창"`, placeholder "검색어 또는 주소 입력", `aria-expanded`), 포커스 시 전체 선택, 활성 탭 URL 동기화(편집 중이 아닐 때, 새 탭이면 빈 값), `resolveAddressInput` 결과가 search 면 `role="listbox"` 두 `option`("'{q}' — 네이버에서 검색" / "'{q}' — 구글에서 검색", `aria-selected`) 을 입력 아래 문서 흐름에 표시, ↑/↓·Enter·클릭·Esc(FR-3), url 이면 Enter 로 `onNavigate(url)`. `focusSignal`(숫자 prop) 이 바뀌면 포커스+전체 선택.
   - **파일**: `src/renderer/chrome/{TabBar,NavButtons,AddressBar}/index.tsx` (+ 필요 시 같은 폴더 하위 부품)
@@ -226,7 +226,7 @@ ShortcutPressedEventSchema = z.strictObject({ action: z.enum(['focusAddressBar',
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 탭 바·탐색 버튼·주소창 컴포넌트 추가 (spec 002 Task 6)`
 
-- [ ] **Task 7: NewTabPage + BrowserChrome 조립 + App 레이아웃**
+- [x] **Task 7: NewTabPage + BrowserChrome 조립 + App 레이아웃**
   - **묶음**: renderer-chrome
   - **작업**: 「크롬 시각 규칙」의 새 탭 페이지·툴바 배치를 따른다. `chrome/NewTabPage` — 제목 `h1` "새 탭"(`sr-only`), 검색 입력(`aria-label="새 탭 검색"`), 버튼 "네이버에서 검색"·"구글에서 검색"(빈 입력이면 아무 것도 안 함), 입력에서 Enter = 네이버, 바로가기 버튼 "네이버"(`https://www.naver.com/`)·"구글"(`https://www.google.com/`), `focusSignal` 로 검색창 포커스, `onNavigate(url)` 은 `Promise<TIpcResult>` → 실패 toast. `chrome/BrowserChrome` — `useTabs`·`useShortcut`·`useContentBounds` 를 쓰는 화면 조립: 헤더(TabBar + NavButtons + AddressBar) + 콘텐츠 영역 div(`aria-label="탭 콘텐츠"`, bounds ref) — 활성 탭 `isNewTab` 이면 그 안에 NewTabPage. `listError` 가 있으면 `toast.error(message)`. 단축키 `focusAddressBar`→AddressBar focusSignal, `focusNewTabSearch`→NewTabPage focusSignal. `App.tsx` — 기존 브라우징 영역 헤더·자리 문구를 `<BrowserChrome/>` 로 교체 (사이드바 유지).
   - **파일**: `src/renderer/chrome/{NewTabPage,BrowserChrome}/index.tsx`, `src/renderer/App.tsx`
@@ -246,3 +246,10 @@ ShortcutPressedEventSchema = z.strictObject({ action: z.enum(['focusAddressBar',
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-05 | 1 | 54 단위 통과 | 7c5c987 | 기반 — shadcn CLI 경로 오류 수동 보정, radix-ui 추가 |
+| 2026-11-05 | 2 | 27 단위 통과 | 26bc2b4 | main-tabs |
+| 2026-11-05 | 3 | 41 단위 통과 | 89d29aa | main-tabs |
+| 2026-11-05 | 4 | 27 단위 통과 | 5606e69 | main-tabs — 공유 파일 요청은 6e8d4d4 로 메인 반영 (+ 875262f 타입 계약 테스트) |
+| 2026-11-05 | 5 | 16 단위 통과 | 952135c | renderer-chrome |
+| 2026-11-05 | 6 | 30 단위 통과 | 8d6734c | renderer-chrome — globals.css 토큰 추가 |
+| 2026-11-05 | 7 | 19 단위 통과 · e2e 12/12 (xvfb) | 8203e38 | renderer-chrome · e2e/app-check 는 메인 7단계 |

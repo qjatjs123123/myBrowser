@@ -59,3 +59,17 @@ Claude 는 에러를 만나면 이 문서를 먼저 확인한다. 새 문제를 
 - 원인: 저장소에 커밋이 하나도 없다.
 - 해결: 첫 커밋을 한 뒤 `make setup` 을 다시 실행한다.
 
+## e2e 에서 크롬 창 요소를 못 찾음 / 탭 수가 0 — `app.firstWindow()` 가 탭 View 를 잡음
+- 증상: `getByRole('combobox', { name: '주소창' })` 이 30초 대기 후 실패, 또는 탭 count 0. 가끔만 재현.
+- 원인: 탭(WebContentsView, `about:blank`)도 Playwright 의 window(Page)라, 크롬 renderer 보다 먼저 잡히는 경쟁이 있다.
+- 해결: `e2e/fixtures.ts` 의 `findChromeWindow` — URL 이 `/renderer/index.html` 인 Page 를 고른다. `firstWindow()` 를 직접 쓰지 않는다.
+
+## e2e 에서 단축키(Ctrl+T 등)가 안 먹음
+- 원인: Playwright `page.keyboard`(CDP `Input.dispatchKeyEvent`)는 Electron 의 `before-input-event` 를 거치지 않는다 — main 의 단축키 처리는 OS 입력 경로에만 걸린다.
+- 해결: `e2e/fixtures.ts` 의 `pressKeyInTab(app, { urlPart, keyCode, modifierList })` — `webContents.sendInputEvent` 로 보낸다.
+
+## WSLg(`DISPLAY=:0`)에서 e2e 탭이 저절로 늘어나거나 외부 사이트가 열림
+- 증상: 시작 직후 탭이 14~18개, 아무 입력 없이 `https://google.com/` 로드 경고.
+- 원인: 테스트 창이 실제 데스크톱에 떠서 사용자·다른 세션의 입력이 섞인다.
+- 해결: `xvfb-run -a make e2e …` 로 격리해 판정한다.
+
