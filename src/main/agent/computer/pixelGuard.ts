@@ -59,20 +59,14 @@ export function isTextEntryTarget(target: IGuardTarget): boolean {
 }
 
 /**
- * type 매핑 — 글 입력칸이면 type_text(줄바꿈이 있으면 submit), 아니면 click.
- * 포커스 해석은 폼 안 입력칸이면 그 폼의 submit 버튼을 돌려주므로(spec 003 규칙), 폼 submit 버튼으로 보이는 대상은
- * 실제 포커스가 입력칸(비밀번호일 수도 있음)인지 버튼인지 알 수 없다 → 대상 미상(null)으로 넘겨 승인을 받는다 (fail-closed).
+ * type 매핑 — 글 입력칸이면 type_text(줄바꿈이 있으면 submit — 가드가 그 칸의 formSubmitText 로 확정 검사), 아니면 click.
+ * target 은 포커스된 요소 그 자체(`resolveTarget({ focused: 'element' })`)라 폼 안 비밀번호 칸도 비밀 입력으로 판정된다.
  */
 function toTypeGuardCall(text: string, target: IGuardTarget | null): IPixelGuardCall {
   const typeInput = { text, submit: /[\n\r]/.test(text) };
   if (!target) return { tool: 'type_text', input: typeInput, target: null };
   if (isTextEntryTarget(target)) return { tool: 'type_text', input: typeInput, target };
-  if (isPossiblySubmitSubstitute(target)) return { tool: 'type_text', input: typeInput, target: null };
   return { tool: 'click', input: {}, target };
-}
-
-function isPossiblySubmitSubstitute(target: IGuardTarget): boolean {
-  return target.role === 'button' && target.formSubmitText !== '';
 }
 
 function readString(input: unknown, key: string): string {

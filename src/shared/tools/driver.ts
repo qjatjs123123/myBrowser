@@ -54,10 +54,14 @@ export type TOverlayCommand =
   | { kind: 'highlight'; point: IPoint }
   | { kind: 'clear' };
 
-/** resolveTarget 요청 — ref 요소 또는 포커스된 요소(press_key 용) */
+/**
+ * resolveTarget 요청 — ref 요소 또는 포커스된 요소.
+ * focused: true = Enter 가 누를 대상(폼 안 입력칸이면 그 폼의 submit 버튼, press_key 용),
+ * 'element' = 포커스된 요소 그 자체(픽셀 type 이 비밀 입력칸을 판정할 때, spec 004).
+ */
 export interface IResolveTargetRequest {
   ref?: string;
-  focused?: boolean;
+  focused?: boolean | 'element';
 }
 
 /**

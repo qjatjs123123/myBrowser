@@ -203,9 +203,12 @@ export class BrowserComputerToolset extends BetaAbstractComputerToolset20260801 
     });
   }
 
-  /** type 의 대상 해석 — 포커스 대상으로 가드 매핑을 다시 정하고(guard 를 갱신), 가드가 판정할 대상을 돌려준다 */
+  /**
+   * type 의 대상 해석 — 포커스된 요소 **그 자체**(submit 대체 없음)로 가드 매핑을 다시 정하고(guard 를 갱신), 판정 대상을 돌려준다.
+   * 그래야 폼 안의 비밀번호 칸을 비밀 입력으로 막고, 줄바꿈 제출은 그 칸의 formSubmitText 로 확정 검사한다.
+   */
   async #resolveTypeTarget(guard: IGuardCall, input: BetaComputerTypeInput): Promise<IGuardTarget | null> {
-    const focused = await this.#ctx.driver.resolveTarget({ focused: true }).catch(() => null);
+    const focused = await this.#ctx.driver.resolveTarget({ focused: 'element' }).catch(() => null);
     const call = toGuardCall('type', input, focused);
     if (!call) return null;
     guard.tool = call.tool;

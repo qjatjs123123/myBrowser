@@ -79,13 +79,9 @@ describe('toGuardCall — type', () => {
     expect(toGuardCall('type', { text: ' ' }, checkbox)?.tool).toBe('click');
   });
 
-  it('폼 submit 버튼으로 보이는 포커스는 실제 포커스를 알 수 없어 대상 null 인 type_text 다', () => {
+  it('포커스된 요소가 폼의 submit 버튼 자체면 type 은 그 버튼의 click 판정이다 (포커스 요소 그대로 해석)', () => {
     const submit = createTarget({ role: 'button', name: '로그인', formSubmitText: '로그인' });
-    expect(toGuardCall('type', { text: 'pw' }, submit)).toEqual({
-      tool: 'type_text',
-      input: { text: 'pw', submit: false },
-      target: null,
-    });
+    expect(toGuardCall('type', { text: ' ' }, submit)).toEqual({ tool: 'click', input: {}, target: submit });
   });
 
   it('포커스 대상이 없으면 대상 null 인 type_text 다', () => {

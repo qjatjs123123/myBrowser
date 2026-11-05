@@ -263,6 +263,14 @@ describe('type', () => {
     expect(harness.stepList[0]?.statusList).toEqual(['blocked']);
   });
 
+  it('type 은 submit 대체 없이 포커스된 요소 그 자체로 대상을 해석한다', async () => {
+    const harness = createHarness('agent');
+    vi.mocked(harness.driver.resolveTarget).mockResolvedValue(PASSWORD);
+    await runScenario(harness, [pixel('type', { text: 'hunter2' })]);
+    expect(harness.driver.resolveTarget).toHaveBeenCalledWith({ focused: 'element' });
+    expect(harness.driver.resolveTarget).not.toHaveBeenCalledWith({ focused: true });
+  });
+
   it('step 에 type 의 글자를 저장하지 않는다', async () => {
     const harness = createHarness();
     vi.mocked(harness.driver.resolveTarget).mockResolvedValue(PASSWORD);

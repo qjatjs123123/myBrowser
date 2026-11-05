@@ -97,6 +97,16 @@ describe('resolveTarget focused', () => {
   it('포커스된 요소가 없으면(body) null 이다', async () => {
     await expect(resolveTarget(page, { focused: true })).resolves.toBeNull();
   });
+
+  it("focused 'element' 면 폼 안 비밀번호 칸이어도 submit 버튼으로 바꾸지 않고 그 칸을 돌려준다", async () => {
+    await page.locator('#password').focus();
+    const target = await resolveTarget(page, { focused: 'element' });
+    expect(target).toMatchObject({ inputType: 'password', fieldName: 'pw', value: '', formSubmitText: '결제하기' });
+  });
+
+  it("focused 'element' 도 포커스된 요소가 없으면 null 이다", async () => {
+    await expect(resolveTarget(page, { focused: 'element' })).resolves.toBeNull();
+  });
 });
 
 describe('resolvePointTarget', () => {
