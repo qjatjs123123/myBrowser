@@ -29,6 +29,7 @@ service-account*.json
 userData/
 
 # Test / Coverage
+eval/results/*.json
 coverage/
 test-results/
 playwright-report/

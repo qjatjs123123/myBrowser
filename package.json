@@ -15,7 +15,11 @@
     "test:watch": "vitest",
     "test:e2e": "electron-vite build && playwright test",
     "format": "prettier --write .",
-    "dist": "electron-vite build && electron-builder"
+    "dist": "electron-vite build && electron-builder",
+    "dist:linux": "electron-vite build && electron-builder --linux dir AppImage",
+    "check:asar": "node --experimental-strip-types scripts/checkAsar.ts",
+    "e2e:packaged": "pnpm dist:linux && pnpm check:asar && playwright test -c playwright.packaged.config.ts",
+    "eval": "electron-vite build && node eval/cli.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.5.0",
@@ -35,6 +39,7 @@
     "pnpm": "10.34.4"
   },
   "devDependencies": {
+    "@electron/asar": "^4.3.1",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.4",

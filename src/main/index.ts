@@ -13,7 +13,7 @@ import { TabsChangedEventSchema } from '@shared/ipc/tabs';
 
 import { createModelClient } from './agent/modelClient';
 import { createAgentService } from './agent/service';
-import { getCdpSwitches } from './app/cdp';
+import { getCdpSwitches, removeStaleActivePort } from './app/cdp';
 import { createAppMenuTemplate } from './app/menu';
 import { createMainWindow } from './app/window';
 import { createCdpConnection } from './browser/cdp';
@@ -39,16 +39,16 @@ const DATABASE_FILE_NAME = 'mybrowser.db';
 const FAKE_SCENARIO_DIR = 'e2e/fixtures/model';
 const DEFAULT_FAKE_SCENARIO = 'default';
 
-loadDotEnv({ path: join(app.getAppPath(), '.env') });
-const env = readEnv(process.env, { isPackaged: app.isPackaged });
+/** 게이트웨이 기본 주소 — electron.vite.config.ts 의 define 이 빌드 시 넣는다 (spec 005 FR-3) */
+declare const __GATEWAY_URL__: string;
 
-// ready 전에만 적용되는 설정 — 프로필 경로와 원격 디버깅 스위치
+loadDotEnv({ path: join(app.getAppPath(), '.env'), isPackaged: app.isPackaged });
+const env = readEnv(process.env, { isPackaged: app.isPackaged, defaultGatewayUrl: __GATEWAY_URL__ });
+
+// ready 전에만 적용되는 설정 — 프로필 경로, 지난 실행의 CDP 포트 파일 정리, 원격 디버깅 스위치
 if (env.userDataDir) app.setPath('userData', env.userDataDir);
-for (const [name, value] of getCdpSwitches({
-  port: env.cdpPort,
-  isPackaged: app.isPackaged,
-  isPortExplicit: env.isCdpPortExplicit,
-})) {
+removeStaleActivePort(app.getPath('userData'));
+for (const [name, value] of getCdpSwitches({ port: env.cdpPort })) {
   app.commandLine.appendSwitch(name, value);
 }
 
@@ -84,9 +84,13 @@ function startBrowser(): void {
   tabManager.createTab();
 }
 
-/** 가짜 모델 모드의 시나리오 — e2e/fixtures/model/{이름}.json, 파일이 없으면 빈 시나리오 */
+/**
+ * 가짜 모델 모드의 시나리오 — {폴더}/{이름}.json, 파일이 없으면 빈 시나리오.
+ * 폴더는 env.fakeScenarioDir(test 모드, 패키징 e2e) 우선, 없으면 e2e/fixtures/model
+ */
 function readFakeScenario(): TFakeScenario | undefined {
-  const path = join(app.getAppPath(), FAKE_SCENARIO_DIR, `${env.fakeScenario ?? DEFAULT_FAKE_SCENARIO}.json`);
+  const dir = env.fakeScenarioDir ?? join(app.getAppPath(), FAKE_SCENARIO_DIR);
+  const path = join(dir, `${env.fakeScenario ?? DEFAULT_FAKE_SCENARIO}.json`);
   if (!existsSync(path)) return undefined;
   return FakeScenarioSchema.parse(JSON.parse(readFileSync(path, 'utf8')));
 }

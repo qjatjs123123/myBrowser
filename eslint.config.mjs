@@ -34,6 +34,9 @@ export default tseslint.config(
       'src/main/**/*.ts',
       'src/preload/**/*.ts',
       'e2e/**/*.ts',
+      'e2e-packaged/**/*.ts',
+      'scripts/**/*.{ts,mjs}',
+      'eval/**/*.{ts,mjs}',
       '*.config.ts',
       '*.config.mts',
       '*.config.mjs',
@@ -43,7 +46,7 @@ export default tseslint.config(
   },
   {
     // Playwright 픽스처는 의존 없는 픽스처를 `async ({}, use) =>` 로 선언해야 한다
-    files: ['e2e/**/*.ts'],
+    files: ['e2e/**/*.ts', 'e2e-packaged/**/*.ts', 'eval/**/*.ts'],
     rules: { 'no-empty-pattern': 'off' },
   },
   {
