@@ -10,9 +10,13 @@ const LEGAL_LIST: [TRunStatus, TRunEvent, TRunStatus][] = [
   ['running', 'fail', 'failed'],
   ['running', 'stop', 'stopped'],
   ['running', 'guardStop', 'stopped_before_confirm'],
+  ['running', 'wait', 'waiting_user'],
+  ['waiting_user', 'resume', 'running'],
+  ['waiting_user', 'stop', 'stopped'],
+  ['waiting_user', 'fail', 'failed'],
 ];
 
-const EVENT_LIST: TRunEvent[] = ['start', 'finish', 'fail', 'stop', 'guardStop'];
+const EVENT_LIST: TRunEvent[] = ['start', 'finish', 'fail', 'stop', 'wait', 'resume', 'guardStop'];
 
 const ILLEGAL_LIST = RunStatusSchema.options.flatMap((from) =>
   EVENT_LIST.filter((event) => !LEGAL_LIST.some(([f, e]) => f === from && e === event)).map(
@@ -26,6 +30,16 @@ describe('transition', () => {
   });
 
   it.each(ILLEGAL_LIST)('%s 에서 %s 하면 throw 한다', (from, event) => {
+    expect(() => transition(from, event)).toThrow(/허용되지 않은 run 전이/);
+  });
+
+  it.each([
+    ['done', 'wait'],
+    ['waiting_user', 'wait'],
+    ['running', 'resume'],
+    ['waiting_user', 'finish'],
+    ['stopped', 'resume'],
+  ] as const)('대표 불법 전이 %s --%s--> 는 throw 한다', (from, event) => {
     expect(() => transition(from, event)).toThrow(/허용되지 않은 run 전이/);
   });
 });
