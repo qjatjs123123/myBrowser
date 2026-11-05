@@ -5,6 +5,9 @@ import { toActionFailure } from './actions';
 /** 스크린샷 상한 — 모델 비전 입력 크기 (spec 004 FR-6) */
 export const SCREENSHOT_MAX_WIDTH = 1280;
 export const SCREENSHOT_MAX_HEIGHT = 800;
+/** PNG IHDR 의 가로·세로 위치 (바이트, big-endian uint32) */
+const PNG_WIDTH_OFFSET = 16;
+const PNG_HEIGHT_OFFSET = 20;
 
 /** 스크린샷 결과 + 좌표 변환 비율(scale = CSS px / 스크린샷 px) — 드라이버가 scale 을 보관한다 */
 export type TScreenshotCapture =
@@ -67,5 +70,5 @@ async function capturePng(page: Page, viewport: IViewportInfo, scale: number): P
 /** PNG IHDR 의 가로·세로 (바이트 16~23, big-endian) */
 export function readPngSize(pngBase64: string): { width: number; height: number } {
   const buffer = Buffer.from(pngBase64, 'base64');
-  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+  return { width: buffer.readUInt32BE(PNG_WIDTH_OFFSET), height: buffer.readUInt32BE(PNG_HEIGHT_OFFSET) };
 }

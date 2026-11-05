@@ -4,6 +4,8 @@ import type { Page } from 'playwright-core';
 export const OVERLAY_ATTRIBUTE = 'data-mybrowser-overlay';
 const HIGHLIGHT_POINT_SIZE = 40;
 const HIGHLIGHT_PADDING = 4;
+/** 강조 영역을 읽을 때 기다리는 최대 시간 — 오버레이는 보조 표시라 짧게 */
+const REF_RECT_TIMEOUT_MS = 1000;
 
 /** CSS px 좌표 (탭 뷰포트 기준) */
 export interface ICssPoint {
@@ -66,7 +68,7 @@ async function getRefRect(page: Page, ref: string): Promise<ICssRect | null> {
   try {
     const locator = page.locator(`aria-ref=${ref}`);
     if ((await locator.count()) === 0) return null;
-    return await locator.first().boundingBox({ timeout: 1000 });
+    return await locator.first().boundingBox({ timeout: REF_RECT_TIMEOUT_MS });
   } catch {
     return null;
   }

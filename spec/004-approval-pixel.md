@@ -1,6 +1,6 @@
 # Spec: 승인·질문·예약 시나리오 + 픽셀 도구·커서 오버레이
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-05
 > **묶음**: 기반, main-browser, agent-approval, agent-computer, renderer-sidebar
 > **관련 spec**: 003
@@ -188,7 +188,7 @@ showOverlay(cmd: { kind: 'cursor'; point: IPoint } | { kind: 'highlight'; ref: s
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 > 묶음 순서: `기반`(Task 1) → `main-browser`(Task 2~3) ∥ `agent-approval`(Task 4~6) ∥ `renderer-sidebar`(Task 8) → `agent-approval` 이 끝나면 `agent-computer`(Task 7, agent-approval 브랜치 기반). 조립(index.ts)은 변경 없음 예상 — 있으면 공유 파일 요청. e2e 는 Task 8 검증(7단계).
 
-- [ ] **Task 1: 계약 — 승인·질문 IPC, step 상태, 가드 입력, 드라이버 확장, 사람 개입 도구 스키마, UI 부품**
+- [x] **Task 1: 계약 — 승인·질문 IPC, step 상태, 가드 입력, 드라이버 확장, 사람 개입 도구 스키마, UI 부품**
   - **묶음**: 기반
   - **작업**: 「IPC 계약」·「도구 계약」 그대로. `run.ts`(StepStatus 확장, RequestId·ApprovalDecision·ModelApprovalDecision·ApprovalRequest·Question 스키마·타입), `agent.ts`(Approve·Answer 요청, 이벤트 4종 **추가** — `guard_stopped` 는 아직 남긴다), `channels.ts`(`IPC.agent.approve`·`answer`), `api.ts`·preload(`approve`·`answer`). `src/shared/tools/askUser.ts`·`requestApproval.ts` + `index.ts`(`HUMAN_TOOL_NAME_LIST = ['ask_user','request_approval']`·`ALL_TOOL_NAME_LIST`(15) 추가, `THumanToolName`·`TAllToolName` 타입 export, **`TOOL_NAME_LIST`·`TToolName` 은 13개 그대로**, `STATEFUL_TOOL_NAME_LIST` 그대로). `driver.ts`(IPoint·확장 메서드). `guard/types.ts`(`tool: TToolName | 'request_approval'`, `source`·`approvalCount`·`point?: IPoint` 를 **optional 로 추가**해 기존 호출부가 깨지지 않게 — 기본값은 가드가 `'structure'`·`0`). `fakeScenario.ts`(tool_use 에 `toolset_name?: z.literal('computer')`). `pnpm dlx shadcn@latest add textarea`(CLI 가 globals.css 를 덮으면 기존 토큰 유지), `globals.css` 에 `--warning`·`--warning-foreground`(light·dark) + Tailwind 테마 매핑. `vitest.setup.ts` mock 에 `agent.approve/answer`. **소비자 green 유지**: `IBrowserDriver` 확장으로 깨지는 곳은 이 Task 에서 최소 수정 — `src/main/browser/driver.ts` 에 새 메서드를 `{ ok:false, reason:'아직 지원하지 않습니다' }`/`null`/`false`/no-op 로 임시 구현(`// TODO(spec 004 Task 3)`), 가짜 드라이버 2곳(`src/main/agent/tools/__tests__/fakeDriver.ts`, `src/main/agent/__tests__/service.test.ts`)에 vi.fn 추가. `TOOL_NAME_LIST` 가 13개 그대로라 기존 도구 테스트는 깨지지 않는다. 그 밖에 type-check 가 깨지는 소비자도 이 Task 에서 최소 수정: `src/renderer/sidebar/Timeline/StepRow.tsx`(waiting “확인 대기”·denied “거부됨” 최소 항목), `src/renderer/hooks/useAgentRun.ts`(새 이벤트 4종은 reduce 에서 state 를 그대로 돌려주고 `toRunResult` 는 null — 실제 처리는 Task 8), 세 번째 가짜 드라이버 `src/main/agent/tools/__tests__/index.test.ts`(새 메서드 vi.fn).
   - **파일**: `src/shared/{agent/run,agent/fakeScenario,ipc/channels,ipc/api,ipc/agent,guard/types,tools/askUser,tools/requestApproval,tools/index,tools/driver}.ts`, `src/preload/index.ts`, `src/renderer/components/ui/textarea.tsx`, `src/renderer/styles/globals.css`, `vitest.setup.ts`, (green 유지용 최소 수정) `src/main/browser/driver.ts`·`src/main/agent/tools/__tests__/{fakeDriver,index.test}.ts`·`src/main/agent/__tests__/service.test.ts`·`src/renderer/sidebar/Timeline/StepRow.tsx`·`src/renderer/hooks/useAgentRun.ts`
@@ -198,7 +198,7 @@ showOverlay(cmd: { kind: 'cursor'; point: IPoint } | { kind: 'highlight'; ref: s
   - **통과 기준**: 전체 단위·e2e green, 동작 변화 없음(새 계약만 추가)
   - **커밋**: `feat: 승인·질문 IPC 계약과 픽셀 드라이버 계약 추가 (spec 004 Task 1)`
 
-- [ ] **Task 2: 커서 오버레이 + 좌표 target 해석**
+- [x] **Task 2: 커서 오버레이 + 좌표 target 해석**
   - **묶음**: main-browser
   - **작업**: `browser/overlay.ts`(「커서 오버레이」), `target.ts` 에 `resolvePointTarget(page, point, scale)` + 오버레이 제외, `snapshot.ts` 오버레이 제외 확인(ariaSnapshot 이 shadow 내용을 포함하면 `aria-hidden="true"` 로 숨긴다).
   - **파일**: `src/main/browser/{overlay,target,snapshot}.ts`, `e2e/fixtures/pages/browser-pointer.html`
@@ -208,7 +208,7 @@ showOverlay(cmd: { kind: 'cursor'; point: IPoint } | { kind: 'highlight'; ref: s
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 탭 커서 오버레이와 좌표 대상 해석 추가 (spec 004 Task 2)`
 
-- [ ] **Task 3: 스크린샷·포인터 행동 + 드라이버 확장**
+- [x] **Task 3: 스크린샷·포인터 행동 + 드라이버 확장**
   - **묶음**: main-browser
   - **작업**: `browser/screenshot.ts`(`page.screenshot({ type:'png' })` 후 1280×800 이하로 축소 — 뷰포트를 줄이지 않고 `clip`+`scale:'css'` 또는 축소 비율 계산, 비율 반환), `browser/pointer.ts`(clickAt·typeRaw·pressRaw(xdotool 키 이름 → Playwright 키 변환표)·scrollAt·moveTo — 좌표 × scale → CSS px, `page.mouse`/`page.keyboard`), `driver.ts` 에 확장 메서드(마지막 scale 보관, 클릭·이동 시 `showCursor`, `showOverlay` 위임, 구조 `click` 도 요소 중심에 커서 표시).
   - **파일**: `src/main/browser/{screenshot,pointer,driver}.ts`, `e2e/fixtures/pages/browser-pointer.html`
@@ -218,7 +218,7 @@ showOverlay(cmd: { kind: 'cursor'; point: IPoint } | { kind: 'highlight'; ref: s
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 스크린샷·좌표 입력과 드라이버 확장 추가 (spec 004 Task 3)`
 
-- [ ] **Task 4: 가드 확장 + 상태 머신 + 대기 레지스트리**
+- [x] **Task 4: 가드 확장 + 상태 머신 + 대기 레지스트리**
   - **묶음**: agent-approval
   - **작업**: `guard.ts` — source·approvalCount 반영: 승인 요청이 될 판정에서 `approvalCount >= 5` 면 `block(too_many_approvals)`, pixel 의 target null/이름 없음 → require_approval(display `좌표 (x, y) — 요소를 확인할 수 없음` — 좌표는 `point` 에서). **source='pixel' 이면 type_text·press_key·click 의 입력 스키마 parse 를 건너뛰고 「픽셀 → 가드 도구 매핑」 input 모양(`{ text, submit }`·`{ key:'Enter' }`·`{}`)만 본다**, `request_approval` 도구는 상한만 검사. `isSameDisplay`. `runs.ts` — wait·resume 추가, stop/fail 출발 상태 확장(**guardStop 삭제는 Task 5 에서 service.ts 와 함께**). `waits.ts` — 「대기 요청 레지스트리」. `rules/agent/guard.md` 는 9단계에서 메인이 갱신(도우미는 수정하지 않는다).
   - **파일**: `src/main/agent/{guard,runs,waits}.ts`
@@ -228,7 +228,7 @@ showOverlay(cmd: { kind: 'cursor'; point: IPoint } | { kind: 'highlight'; ref: s
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 승인 상한·픽셀 판정 가드와 대기 상태 추가 (spec 004 Task 4)`
 
-- [ ] **Task 5: 래퍼 승인 흐름 + ask_user·request_approval + 서비스·IPC**
+- [x] **Task 5: 래퍼 승인 흐름 + ask_user·request_approval + 서비스·IPC**
   - **묶음**: agent-approval
   - **작업**: `tools/toolType.ts` 에 사람 개입 도구 타입, `tools/askUser.ts`·`requestApproval.ts`, `tools/index.ts` — 「승인 흐름(래퍼)」, 사람 개입 분기, `IToolRunContext` 에 `approvalCount`·`waitForUser(request)`·`overlay(cmd)`·`runExclusive` 추가하고 「공통 파이프라인 `runGuardedAction`」을 그 시그니처 그대로 export, 구조 도구 13개도 이것으로 돈다. `summary.ts` — ask_user “질문: {question 40자}”, request_approval “확인 요청: {action}”. `service.ts` — guard_stopped 발신·stopBeforeConfirm 제거 + `runs.ts` 의 guardStop 사건 삭제(같은 커밋), waits 연결, 상태 전이·이벤트, `approve(runId, requestId, decision)`·`answer(…)`(kind 불일치 → INVALID_INPUT 코드), stop 시 cancelAll, 답변 원문 미저장, `shutdown()`(활성 run 을 cancelAll 후 fail(“앱이 종료됐습니다”) — 5단계에서 메인이 `src/main/index.ts` before-quit 에서 호출, 공유 파일). `prompts/system.ts` — FR-9 예약 섹션, ask_user·request_approval 사용 규칙, 픽셀 도구는 폴백(트리로 안 될 때만, 스크린샷 연속 금지), 안전 규칙 갱신(확정 버튼은 시도하면 사용자가 승인 창에서 결정) + 스냅샷 갱신. `fake/fakeFetch.ts` — toolset_name 전달. `ipc/handlers/agent.ts` — approve·answer.
   - **파일**: `src/main/agent/tools/{toolType,index,askUser,requestApproval}.ts`, `src/main/agent/{summary,service,runs}.ts`, `src/main/agent/tools/__tests__/{toolType,index}.test.ts`, `src/main/agent/__tests__/{runs,service}.test.ts`, `src/main/agent/prompts/system.ts`, `src/main/agent/fake/fakeFetch.ts`, `src/main/ipc/handlers/agent.ts`
@@ -238,7 +238,7 @@ showOverlay(cmd: { kind: 'cursor'; point: IPoint } | { kind: 'highlight'; ref: s
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 승인 대기·질문 도구와 승인 IPC 추가 (spec 004 Task 5)`
 
-- [ ] **Task 6: 루프에 승인 상태 반영 확인 (회귀)**
+- [x] **Task 6: 루프에 승인 상태 반영 확인 (회귀)**
   - **묶음**: agent-approval
   - **작업**: `loop.ts` 는 변경 없음이 목표 — 대기 중 runner 가 기다리는지, abort(stop) 시 대기 해제와 aborted 가 겹쳐도 종료 1회인지 통합 테스트로 확인. 필요한 최소 수정만.
   - **파일**: `src/main/agent/__tests__/loop.test.ts`(+ 필요 시 `loop.ts`)
@@ -248,7 +248,7 @@ showOverlay(cmd: { kind: 'cursor'; point: IPoint } | { kind: 'highlight'; ref: s
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `test: 승인 대기 중 루프·중지 회귀 테스트 추가 (spec 004 Task 6)` — `loop.ts` 를 고쳤으면 `fix: 승인 대기 중 루프 종료 처리 수정 (spec 004 Task 6)`
 
-- [ ] **Task 7: 픽셀 도구 (computer toolset)**
+- [x] **Task 7: 픽셀 도구 (computer toolset)**
   - **묶음**: agent-computer (agent-approval 의 마지막 커밋 기반)
   - **작업**: `agent/computer/toolset.ts` — `class BrowserComputerToolset extends BetaAbstractComputerToolset20260801`, 생성자에 `ctx: IToolRunContext`, `configs: { zoom: { enabled: false } }`, `confirm: () => true`(「SDK 제약」). 멤버 8개(`screenshot`·`left_click`·`double_click`·`type_`·`key`·`scroll`·`mouse_move`·`wait`, `protected override`) — 각자 `runGuardedAction`(stepTool `computer.{member}`) 으로(screenshot·wait·mouse_move·scroll 은 가드 없음, 좌표 멤버는 `isInViewport` 거짓이면 block(SR-6)). screenshot 은 SDK 결과 타입(이미지)으로 반환. `agent/computer/pixelGuard.ts` — `toGuardCall(member, input): { tool, input } | null`(「픽셀 → 가드 도구 매핑」, 순수). `tools/index.ts` 의 `createToolList` 가 toolset 인스턴스를 목록 끝에 추가(이 Task 가 그 한 줄을 고친다 — agent-approval 이 끝난 뒤라 충돌 없음). `summary.ts` 에 픽셀 요약(“화면 보기”, “좌표 클릭”, “키 {key}”, “글자 입력”…). step 저장 시 `type` 의 text 생략.
   - **파일**: `src/main/agent/computer/{toolset,pixelGuard}.ts`, `src/main/agent/tools/index.ts`, `src/main/agent/summary.ts`
@@ -258,7 +258,7 @@ showOverlay(cmd: { kind: 'cursor'; point: IPoint } | { kind: 'highlight'; ref: s
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 픽셀 도구와 좌표 가드 추가 (spec 004 Task 7)`
 
-- [ ] **Task 8: 사이드바 — 승인 창·질문 카드·상태 표시**
+- [x] **Task 8: 사이드바 — 승인 창·질문 카드·상태 표시**
   - **묶음**: renderer-sidebar
   - **작업**: `.claude/skills/desktop/design`·`error-toast` 를 따른다. `useAgentRun` — 새 이벤트 4종(pending approval/question 상태), `approve(decision)`·`answer(text)`(봉투 반환, 실패 toast), guard_stopped 는 받아도 기존대로 표시(5단계에서 메인이 삭제), status `waiting_user` → “확인 필요”. `sidebar/ApprovalPanel` — `role="alertdialog"` `aria-label="승인 필요"`, 행동·대상·이유, kind=guard: [직접 누를게요]→ 안내 문구 + [계속](=`user_done`) / [에이전트가 누르기](=`agent`) / [거부](=`denied`), kind=model: “에이전트 설명”(modelNote) + [승인]/[거부], `--warning` 톤, 열리면 **[거부]에 포커스**(Enter 로 실수 승인 방지), approval_resolved 면 닫힘. `sidebar/QuestionCard` — `role="dialog"` `aria-label="에이전트 질문"`, 선택지 버튼, `textbox` “답변”(기본 포커스) + [보내기](빈 값 비활성), SR-5 안내 문구. `AgentPanel` — 패널들을 입력칸 위에 배치, 입력칸을 shadcn `Textarea` 로 교체(접근 이름 “할 일” 유지). `Timeline` — waiting(“확인 대기”)·denied(“거부됨”) 아이콘. `StatusBadge`·`RunResult` — `--warning` 사용.
   - **파일**: `src/renderer/hooks/useAgentRun.ts`, `src/renderer/sidebar/{ApprovalPanel,QuestionCard}/index.tsx`, `src/renderer/sidebar/{AgentPanel,Timeline,RunResult}/**`
@@ -277,3 +277,11 @@ showOverlay(cmd: { kind: 'cursor'; point: IPoint } | { kind: 'highlight'; ref: s
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-05 | 1 | 809 단위 통과 · e2e 16 | 9ca3883 | 기반 — 계약만, 동작 변화 없음. shadcn CLI alias 문제 수동 보정 |
+| 2026-11-05 | 2 | 17 단위 | 57ac431 | main-browser — 오버레이 aria-hidden |
+| 2026-11-05 | 3 | 35 단위 | ebc1f03 | main-browser — CDP captureScreenshot + clip.scale, 좌표 클릭 후 300ms 이동 대기 |
+| 2026-11-05 | 4 | 138 단위 | a271301 | agent-approval |
+| 2026-11-05 | 5 | 230 단위 | e40ec76 | agent-approval — runGuardedAction 반환 T｜string, summary 함수 허용 |
+| 2026-11-05 | 6 | 7 단위 | 2515ef7 | agent-approval — loop.ts 변경 없음 |
+| 2026-11-05 | 7 | 75 단위 | ebe8a14, b2f08d4 | agent-computer — 픽셀 미실행은 is_error, 수식키 클릭 block · 메인이 focused:'element' 추가로 폼 안 type 임시 승인 제거 |
+| 2026-11-05 | 8 | 33 단위 · e2e 23/23 (xvfb) | 3ed26ef | renderer-sidebar — alertdialog·기본 포커스 [거부] · 5단계 7cbe76d(guard_stopped 삭제·shutdown 연결) |

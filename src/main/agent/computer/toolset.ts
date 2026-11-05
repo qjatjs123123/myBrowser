@@ -226,11 +226,12 @@ export class BrowserComputerToolset extends BetaAbstractComputerToolset20260801 
 
   /** 가드 없는 기본 명세 — 멤버가 필요한 것만 덮어쓴다 */
   #plain(member: TPixelMember, input: unknown) {
+    const stepTool = toStepTool(member);
     return {
-      stepTool: toStepTool(member),
+      stepTool,
       guard: null,
       resolveTarget: () => Promise.resolve(null),
-      summary: summarizeStep(toStepTool(member), input),
+      summary: summarizeStep(stepTool, input),
       storedInput: input ?? {},
       overlayTarget: null,
     };
@@ -244,11 +245,8 @@ export class BrowserComputerToolset extends BetaAbstractComputerToolset20260801 
   async #blockInQueue(member: TPixelMember, input: unknown, reason: string): Promise<never> {
     const ctx = this.#ctx;
     if (ctx.isHalted() || !ctx.countToolCall()) throw new ToolError(HALTED_RESULT);
-    const n = ctx.beginStep({
-      tool: toStepTool(member),
-      storedInput: input ?? {},
-      summary: summarizeStep(toStepTool(member), input),
-    });
+    const stepTool = toStepTool(member);
+    const n = ctx.beginStep({ tool: stepTool, storedInput: input ?? {}, summary: summarizeStep(stepTool, input) });
     ctx.endStep(n, 'blocked', reason);
     throw new ToolError(reason);
   }

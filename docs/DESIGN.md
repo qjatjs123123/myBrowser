@@ -58,12 +58,12 @@ Electron 45 · electron-vite 6 · Vite 8 · React 19.3 · Tailwind 4.3 · Zod 4 
 | 층 | 도구 | 구현 |
 |---|---|---|
 | 구조 도구 (기본) | `navigate`, `snapshot`(접근성 트리 + ref), `click(ref)`, `type(ref, text)`, `select`, `scroll`, `wait_for`, `back`, `tabs`, `read_text` | playwright-core locator/ariaSnapshot. 싸고 안정적 |
-| 픽셀 도구 (폴백) | `computer_toolset_20260801` | 달력·지도처럼 트리로 못 잡는 UI. Phase 4 |
-| 사람 개입 | `ask_user(question, options?)`, `request_approval(summary, action)` | 루프 pause → 사이드바 모달 → 답/승인 후 resume |
+| 픽셀 도구 (폴백) | `computer_toolset_20260801` | 달력·지도처럼 트리로 못 잡는 UI. SDK `BetaAbstractComputerToolset20260801` 하위 클래스, 멤버 8개(screenshot·left/double_click·type·key·scroll·mouse_move·wait), 좌표의 요소로 같은 가드 (spec 004) |
+| 사람 개입 | `ask_user(question, optionList?)`, `request_approval(action, target, reason)` | 도구 `run` 안에서 대기(루프는 그대로) → 사이드바 안 승인 창·질문 카드 → 답/결정 후 재개 (spec 004) |
 
 ### 안전 게이트 (2중)
-1. 프롬프트 규칙: 결제·예약 확정·주문·전송 전에 반드시 `request_approval`.
-2. `guard.ts` 결정적 가드: `click` 대상 텍스트·URL 이 패턴(예약 확정, 결제, 주문, confirm, pay, checkout …)이면 모델 판단과 무관하게 pause. 기본 모드는 "최종 확정은 사용자가 직접 클릭".
+1. 프롬프트 규칙: 결제·예약 확정·주문·전송은 가드의 승인 창에 맡긴다(모델이 스스로 확인받고 싶으면 `request_approval`).
+2. `guard.ts` 결정적 가드: 구조·픽셀 클릭·Enter·제출 대상의 텍스트·URL 이 패턴(예약 확정, 결제, 주문, confirm, pay, checkout …)이면 모델 판단과 무관하게 run 을 `waiting_user` 로 두고 **사이드바 승인 창**을 띄운다. 사용자는 매번 **[직접 누를게요]**(에이전트는 실행 안 함, 사용자가 탭에서 누른 뒤 [계속]) / **[에이전트가 누르기]**(실행 직전 대상 재확인 후 그 호출 1회) / **[거부]** 중 고른다 (사용자 결정 2026-11-05, spec 004 — 이전 기본값 "최종 확정은 사용자가 직접 클릭" 을 대체). 자동 승인·항상 허용은 없고, run 당 승인 요청 5회를 넘으면 block. 픽셀 클릭에서 요소를 확인할 수 없으면(canvas 등) 승인을 받는다(fail-closed).
 3. 비밀번호·카드번호는 입력하지 않고 `ask_user` 로 사용자에게 넘긴다.
 
 ### 상태·기록
@@ -93,8 +93,8 @@ myBrowser/
 | 0 | 레포 뼈대 + `.claude` 하네스 적용(§6) | `pnpm check`(lint·tsc·vitest) 통과, `pnpm dev` 로 빈 창 |
 | 1 | 크롬형 브라우저: 탭·주소창·뒤로/앞으로·프로필 영속 — **구현 (spec 002, 2026-11-05)**: e2e 는 로컬 픽스처 쿠키로 재실행 영속 확인, 실제 네이버 로그인은 수동 확인 | 네이버 로그인 후 재실행해도 세션 유지 |
 | 2 | CDP 연결 + 구조 도구 + 루프 MVP + 사이드바 타임라인 — **구현 (spec 003, 2026-11-05)**: 가드 규칙 1~4 포함(확정·결제는 승인 UI 전까지 run 정지), e2e 는 가짜 모델·로컬 픽스처. 실제 사이트 완료 기준은 수동 확인(API 비용) · 패키징 앱의 CDP 경로는 5단계 | "네이버에서 ○○ 검색해 전화번호 알려줘" 성공 |
-| 3 | 예약 시나리오: 날짜·시간·인원 폼, ask/approval, 확정 직전 가드 | 확정 모달 직전 정지 100% |
-| 4 | computer_toolset 폴백 + 커서 오버레이 | 달력 위젯 선택 성공 |
+| 3 | 예약 시나리오: 날짜·시간·인원 폼, ask/approval, 확정 직전 가드 — **구현 (spec 004, 2026-11-05)**: e2e 로 거부·직접·에이전트 누르기·중지 경로의 승인 전 미실행 확인 | 확정 모달 직전 정지 100% |
+| 4 | computer_toolset 폴백 + 커서 오버레이 — **구현 (spec 004, 2026-11-05)**: 로컬 canvas 달력 픽셀 선택 e2e 통과, 실제 사이트는 수동 확인 | 달력 위젯 선택 성공 |
 | 5 | electron-builder 패키징 + 평가 세트 | 설치 파일 더블클릭 실행, 회귀 측정 |
 
 ## 6. boilerplate `.claude` 적용 — 완료 (2026-11-05)

@@ -76,3 +76,6 @@ Claude 는 에러를 만나면 이 문서를 먼저 확인한다. 새 문제를 
 - 원인: 테스트 창이 실제 데스크톱에 떠서 사용자·다른 세션의 입력이 섞인다.
 - 해결: `xvfb-run -a make e2e …` 로 격리해 판정한다.
 
+## `pnpm dlx shadcn@latest add {부품}` 가 `./@/components/...` 를 만들고 `cn` 패키지를 추가함
+- 원인: CLI 가 `components.json` 의 `@/` alias 를 풀지 못함 (spec 004 textarea).
+- 해결: `package.json`·lock 을 되돌리고 `pnpm install --frozen-lockfile`, 파일을 `src/renderer/components/ui/{부품}.tsx` 로 옮겨 `import { cn } from '@/lib/utils'` 로 고친다.

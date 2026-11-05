@@ -108,7 +108,9 @@ interface IDomDocument {
 function readGuardTarget(element: unknown, focusMode: TFocusMode): IGuardTarget | null {
   const SUBMIT_SELECTOR = 'button[type=submit], button:not([type]), input[type=submit], input[type=image]';
   const NON_TEXT_INPUT_TYPE_LIST = ['submit', 'button', 'image', 'reset', 'checkbox', 'radio', 'file'];
-  const clean = (value: unknown, max = 200) =>
+  const TEXT_MAX_LENGTH = 200;
+  const URL_MAX_LENGTH = 2000;
+  const clean = (value: unknown, max = TEXT_MAX_LENGTH) =>
     (typeof value === 'string' ? value : '').replace(/\s+/g, ' ').trim().slice(0, max);
   const getForm = (el: IDomElement) => el.form ?? el.closest('form');
   const isTextEntry = (el: IDomElement) =>
@@ -163,8 +165,8 @@ function readGuardTarget(element: unknown, focusMode: TFocusMode): IGuardTarget 
       text: getText(el),
       // 비밀 필드의 입력값은 읽지 않는다 (SR-2·SR-6)
       value: inputType === 'password' ? '' : clean(el.value),
-      href: clean(el.href, 2000),
-      formAction: form?.hasAttribute('action') ? clean(form.action, 2000) : '',
+      href: clean(el.href, URL_MAX_LENGTH),
+      formAction: form?.hasAttribute('action') ? clean(form.action, URL_MAX_LENGTH) : '',
       formSubmitText: getFormSubmitText(form),
       inputType,
       autocomplete: clean(el.getAttribute('autocomplete')),
