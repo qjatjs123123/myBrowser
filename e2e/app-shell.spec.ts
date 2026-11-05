@@ -18,5 +18,5 @@ test('renderer 에는 window.api 의 app·tabs·shortcut 만 노출되고 Node �
     hasRequire: typeof (globalThis as { require?: unknown }).require !== 'undefined',
     hasProcess: typeof (globalThis as { process?: unknown }).process !== 'undefined',
   }));
-  expect(exposure).toEqual({ apiKeyList: ['app', 'tabs', 'shortcut'], appKeyList: ['getInfo'], hasRequire: false, hasProcess: false });
+  expect(exposure).toEqual({ apiKeyList: ['app', 'tabs', 'shortcut', 'agent'], appKeyList: ['getInfo'], hasRequire: false, hasProcess: false });
 });

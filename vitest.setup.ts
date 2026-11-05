@@ -27,6 +27,7 @@ Object.defineProperty(window, 'api', {
       onChanged: createSubscribeMock(),
     },
     shortcut: { onPressed: createSubscribeMock() },
+    agent: { start: vi.fn(), stop: vi.fn(), onEvent: createSubscribeMock() },
   },
 });
 

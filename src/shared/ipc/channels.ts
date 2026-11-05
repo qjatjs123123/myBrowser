@@ -18,6 +18,7 @@ export const IPC = {
     changed: 'tabs:changed',
   },
   shortcut: { pressed: 'shortcut:pressed' },
+  agent: { start: 'agent:start', stop: 'agent:stop', event: 'agent:event' },
 } as const;
 
 type TValues<T> = T extends string ? T : { [K in keyof T]: TValues<T[K]> }[keyof T];
