@@ -237,526 +237,520 @@ describe('AgentService — 정상 흐름 ①', () => {
 });
 
 /** 이벤트 type 이 count 번 나올 때까지 기다린다 */
-async function waitForEventCount(
-  eventList: TAgentEvent[],
-  type: TAgentEvent["type"],
-  count = 1,
-) {
-  await vi.waitFor(() =>
-    expect(
-      eventList.filter((e) => e.type === type).length,
-    ).toBeGreaterThanOrEqual(count),
-  );
+async function waitForEventCount(eventList: TAgentEvent[], type: TAgentEvent['type'], count = 1) {
+  await vi.waitFor(() => expect(eventList.filter((e) => e.type === type).length).toBeGreaterThanOrEqual(count));
 }
 
 /** 승인 창 요청 목록 */
 function getApprovalRequestList(eventList: TAgentEvent[]) {
-  return eventList.flatMap((e) =>
-    e.type === "approval_required" ? [e.request] : [],
-  );
+  return eventList.flatMap((e) => (e.type === 'approval_required' ? [e.request] : []));
 }
 
 /** 마지막 요청의 tool_result 중 n 번째(0부터) content 문자열 */
-function getToolResultContent(
-  requestList: TFakeRequestBody[],
-  index = 0,
-): unknown {
+function getToolResultContent(requestList: TFakeRequestBody[], index = 0): unknown {
   return getLastToolResultList(requestList)[index]?.content;
 }
 
 /** “예약 확정” 클릭 + 같은 턴의 snapshot — spec 003 ② 의 픽스처를 승인 대기로 (spec 004) */
 const CONFIRM_SCENARIO = {
   turns: [
-    toolTurn("snapshot"),
+    toolTurn('snapshot'),
     {
       content: [
         {
-          type: "tool_use",
-          name: "click",
-          input: { ref: "$ref(button:예약 확정)" },
+          type: 'tool_use',
+          name: 'click',
+          input: { ref: '$ref(button:예약 확정)' },
         },
-        { type: "tool_use", name: "snapshot", input: {} },
+        { type: 'tool_use', name: 'snapshot', input: {} },
       ],
     },
-    textTurn("끝났습니다"),
+    textTurn('끝났습니다'),
   ],
 } satisfies TFakeScenario;
 
 async function startConfirm(driver = createFakeDriver()) {
   const t = setup({ scenario: CONFIRM_SCENARIO, driver });
-  await t.service.start("예약해줘");
-  await waitForEventCount(t.eventList, "approval_required");
+  await t.service.start('예약해줘');
+  await waitForEventCount(t.eventList, 'approval_required');
   return t;
 }
 
-describe("AgentService — 승인 대기 ① (가드 정지 ② 대체)", () => {
-  it("“예약 확정” 클릭이면 click 을 부르지 않고 계약 순서대로 대기 이벤트를 보낸다", async () => {
+describe('AgentService — 승인 대기 ① (가드 정지 ② 대체)', () => {
+  it('“예약 확정” 클릭이면 click 을 부르지 않고 계약 순서대로 대기 이벤트를 보낸다', async () => {
     const t = await startConfirm();
     expect(t.driver.click).not.toHaveBeenCalled();
     expect(toEventKeyList(t.eventList)).toEqual([
-      "status:running",
-      "step:1:running",
-      "step:1:ok",
-      "step:2:running",
-      "step:2:waiting",
-      "status:waiting_user",
-      "approval_required",
+      'status:running',
+      'step:1:running',
+      'step:1:ok',
+      'step:2:running',
+      'step:2:waiting',
+      'status:waiting_user',
+      'approval_required',
     ]);
-    t.service.stop("run-1");
+    t.service.stop('run-1');
     await t.waitForEnd();
   });
 
-  it("승인 창의 display 는 실제 요소 텍스트이고 kind=guard·source=structure 다", async () => {
+  it('승인 창의 display 는 실제 요소 텍스트이고 kind=guard·source=structure 다', async () => {
     const t = await startConfirm();
     expect(getApprovalRequestList(t.eventList)).toEqual([
       {
-        requestId: "req-1",
+        requestId: 'req-1',
         stepN: 2,
-        kind: "guard",
-        source: "structure",
-        reason: expect.stringContaining("예약 확정"),
-        display: { action: "클릭", target: "예약 확정" },
+        kind: 'guard',
+        source: 'structure',
+        reason: expect.stringContaining('예약 확정'),
+        display: { action: '클릭', target: '예약 확정' },
         modelNote: null,
       },
     ]);
-    expect(t.store.getRun("run-1")?.status).toBe("waiting_user");
-    t.service.stop("run-1");
+    expect(t.store.getRun('run-1')?.status).toBe('waiting_user');
+    t.service.stop('run-1');
     await t.waitForEnd();
   });
 
-  it("대기 중에는 같은 턴의 두 번째 tool_use 도 시작하지 않고 모델 요청도 더 없다 ⑬", async () => {
+  it('대기 중에는 같은 턴의 두 번째 tool_use 도 시작하지 않고 모델 요청도 더 없다 ⑬', async () => {
     const t = await startConfirm();
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect(t.driver.snapshot).toHaveBeenCalledTimes(1);
     expect(t.requestList).toHaveLength(2);
-    t.service.stop("run-1");
+    t.service.stop('run-1');
     await t.waitForEnd();
   });
 
-  it("대기 중 대상 ref 를 강조하고 결정 뒤 지운다", async () => {
+  it('대기 중 대상 ref 를 강조하고 결정 뒤 지운다', async () => {
     const t = await startConfirm();
     expect(t.driver.showOverlay).toHaveBeenCalledWith({
-      kind: "highlight",
-      ref: "e3",
+      kind: 'highlight',
+      ref: 'e3',
     });
-    t.service.approve("run-1", "req-1", "denied");
+    t.service.approve('run-1', 'req-1', 'denied');
     await t.waitForEnd();
-    expect(t.driver.showOverlay).toHaveBeenLastCalledWith({ kind: "clear" });
+    expect(t.driver.showOverlay).toHaveBeenLastCalledWith({ kind: 'clear' });
   });
 });
 
-describe("AgentService — [에이전트가 누르기] ②③⑪", () => {
-  it("agent 결정이면 재확인 후 click 을 1회 실행하고 step 은 ok 다", async () => {
+describe('AgentService — [에이전트가 누르기] ②③⑪', () => {
+  it('agent 결정이면 재확인 후 click 을 1회 실행하고 step 은 ok 다', async () => {
     const t = await startConfirm();
-    expect(t.service.approve("run-1", "req-1", "agent")).toEqual({ ok: true });
+    expect(t.service.approve('run-1', 'req-1', 'agent')).toEqual({ ok: true });
     await t.waitForEnd();
     expect(t.driver.click).toHaveBeenCalledTimes(1);
-    expect(t.driver.click).toHaveBeenCalledWith({ ref: "e3" });
+    expect(t.driver.click).toHaveBeenCalledWith({ ref: 'e3' });
     expect(toEventKeyList(t.eventList).slice(6, 10)).toEqual([
-      "approval_required",
-      "approval_resolved",
-      "status:running",
-      "step:2:ok",
+      'approval_required',
+      'approval_resolved',
+      'status:running',
+      'step:2:ok',
     ]);
-    expect(t.store.getRun("run-1")?.status).toBe("done");
+    expect(t.store.getRun('run-1')?.status).toBe('done');
   });
 
-  it("agent 결정이면 대상을 다시 해석한다 (최초 1회 + 재확인 1회)", async () => {
+  it('agent 결정이면 대상을 다시 해석한다 (최초 1회 + 재확인 1회)', async () => {
     const t = await startConfirm();
-    t.service.approve("run-1", "req-1", "agent");
+    t.service.approve('run-1', 'req-1', 'agent');
     await t.waitForEnd();
-    const e3CallList = t.driver.resolveTarget.mock.calls.filter(
-      ([req]) => req.ref === "e3",
-    );
+    const e3CallList = t.driver.resolveTarget.mock.calls.filter(([req]) => req.ref === 'e3');
     expect(e3CallList).toHaveLength(2);
   });
 
-  it("재확인 display 가 바뀌면 실행 없이 같은 step 에 새 승인 창을 띄운다", async () => {
+  it('재확인 display 가 바뀌면 실행 없이 같은 step 에 새 승인 창을 띄운다', async () => {
     const driver = createFakeDriver();
     let e3Count = 0;
-    driver.resolveTarget.mockImplementation(
-      async ({ ref }: { ref?: string }) => {
-        if (ref !== "e3")
-          return ref && TARGET_MAP[ref] ? toTarget(TARGET_MAP[ref]) : null;
-        e3Count += 1;
-        return toTarget({
-          role: "button",
-          name: e3Count === 1 ? "예약 확정" : "결제하기",
-        });
-      },
-    );
+    driver.resolveTarget.mockImplementation(async ({ ref }: { ref?: string }) => {
+      if (ref !== 'e3') return ref && TARGET_MAP[ref] ? toTarget(TARGET_MAP[ref]) : null;
+      e3Count += 1;
+      return toTarget({
+        role: 'button',
+        name: e3Count === 1 ? '예약 확정' : '결제하기',
+      });
+    });
     const t = await startConfirm(driver);
-    t.service.approve("run-1", "req-1", "agent");
-    await waitForEventCount(t.eventList, "approval_required", 2);
+    t.service.approve('run-1', 'req-1', 'agent');
+    await waitForEventCount(t.eventList, 'approval_required', 2);
     expect(driver.click).not.toHaveBeenCalled();
     expect(getApprovalRequestList(t.eventList)[1]).toMatchObject({
-      requestId: "req-2",
+      requestId: 'req-2',
       stepN: 2,
-      display: { action: "클릭", target: "결제하기" },
+      display: { action: '클릭', target: '결제하기' },
     });
-    t.service.approve("run-1", "req-2", "denied");
+    t.service.approve('run-1', 'req-2', 'denied');
     await t.waitForEnd();
     expect(driver.click).not.toHaveBeenCalled();
   });
 
-  it("agent 결정 후 재판정이 block 이면 실행 없이 step blocked + is_error 다", async () => {
+  it('agent 결정 후 재판정이 block 이면 실행 없이 step blocked + is_error 다', async () => {
     const driver = createFakeDriver();
     let e3Count = 0;
-    driver.resolveTarget.mockImplementation(
-      async ({ ref }: { ref?: string }) => {
-        if (ref !== "e3")
-          return ref && TARGET_MAP[ref] ? toTarget(TARGET_MAP[ref]) : null;
-        e3Count += 1;
-        return e3Count === 1 ? toTarget(TARGET_MAP.e3 ?? {}) : null;
-      },
-    );
+    driver.resolveTarget.mockImplementation(async ({ ref }: { ref?: string }) => {
+      if (ref !== 'e3') return ref && TARGET_MAP[ref] ? toTarget(TARGET_MAP[ref]) : null;
+      e3Count += 1;
+      return e3Count === 1 ? toTarget(TARGET_MAP.e3 ?? {}) : null;
+    });
     const t = await startConfirm(driver);
-    t.service.approve("run-1", "req-1", "agent");
+    t.service.approve('run-1', 'req-1', 'agent');
     await t.waitForEnd();
     expect(driver.click).not.toHaveBeenCalled();
-    expect(toEventKeyList(t.eventList)).toContain("step:2:blocked");
+    expect(toEventKeyList(t.eventList)).toContain('step:2:blocked');
     expect(getLastToolResultList(t.requestList)[0]).toMatchObject({
       is_error: true,
       content: expect.stringContaining(GUARD_MESSAGE.unknownTarget),
     });
   });
 
-  it("승인은 1회용 — 다음 턴의 같은 버튼 클릭도 다시 묻는다 (SR-2)", async () => {
+  it('승인은 1회용 — 다음 턴의 같은 버튼 클릭도 다시 묻는다 (SR-2)', async () => {
     const scenario = {
       turns: [
-        toolTurn("snapshot"),
-        toolTurn("click", { ref: "$ref(button:예약 확정)" }),
-        toolTurn("click", { ref: "$ref(button:예약 확정)" }),
-        textTurn("끝"),
+        toolTurn('snapshot'),
+        toolTurn('click', { ref: '$ref(button:예약 확정)' }),
+        toolTurn('click', { ref: '$ref(button:예약 확정)' }),
+        textTurn('끝'),
       ],
     };
     const t = setup({ scenario });
-    await t.service.start("예약해줘");
-    await waitForEventCount(t.eventList, "approval_required");
-    t.service.approve("run-1", "req-1", "agent");
-    await waitForEventCount(t.eventList, "approval_required", 2);
+    await t.service.start('예약해줘');
+    await waitForEventCount(t.eventList, 'approval_required');
+    t.service.approve('run-1', 'req-1', 'agent');
+    await waitForEventCount(t.eventList, 'approval_required', 2);
     expect(t.driver.click).toHaveBeenCalledTimes(1);
-    t.service.approve("run-1", "req-2", "denied");
+    t.service.approve('run-1', 'req-2', 'denied');
     await t.waitForEnd();
     expect(t.driver.click).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("AgentService — [직접 누를게요]·[거부] ④⑤", () => {
-  it("user_done 이면 click 을 부르지 않고 USER_DONE 결과가 다음 요청에 간다", async () => {
+describe('AgentService — [직접 누를게요]·[거부] ④⑤', () => {
+  it('user_done 이면 click 을 부르지 않고 USER_DONE 결과가 다음 요청에 간다', async () => {
     const t = await startConfirm();
-    t.service.approve("run-1", "req-1", "user_done");
+    t.service.approve('run-1', 'req-1', 'user_done');
     await t.waitForEnd();
     expect(t.driver.click).not.toHaveBeenCalled();
     expect(getToolResultContent(t.requestList)).toBe(USER_DONE_RESULT);
-    expect(toEventKeyList(t.eventList)).toContain("step:2:ok");
+    expect(toEventKeyList(t.eventList)).toContain('step:2:ok');
   });
 
-  it("denied 면 click 을 부르지 않고 step denied + is_error 아닌 DENIED 결과다", async () => {
+  it('denied 면 click 을 부르지 않고 step denied + is_error 아닌 DENIED 결과다', async () => {
     const t = await startConfirm();
-    t.service.approve("run-1", "req-1", "denied");
+    t.service.approve('run-1', 'req-1', 'denied');
     await t.waitForEnd();
     expect(t.driver.click).not.toHaveBeenCalled();
-    expect(toEventKeyList(t.eventList)).toContain("step:2:denied");
+    expect(toEventKeyList(t.eventList)).toContain('step:2:denied');
     expect(getLastToolResultList(t.requestList)[0]).toMatchObject({
       content: DENIED_RESULT,
     });
     expect(getLastToolResultList(t.requestList)[0]?.is_error).not.toBe(true);
   });
 
-  it("거부 뒤에는 같은 턴의 남은 도구가 실행되고 run 은 done 까지 간다", async () => {
+  it('거부 뒤에는 같은 턴의 남은 도구가 실행되고 run 은 done 까지 간다', async () => {
     const t = await startConfirm();
-    t.service.approve("run-1", "req-1", "denied");
+    t.service.approve('run-1', 'req-1', 'denied');
     await t.waitForEnd();
     expect(t.driver.snapshot).toHaveBeenCalledTimes(2);
-    expect(t.store.getRun("run-1")?.status).toBe("done");
+    expect(t.store.getRun('run-1')?.status).toBe('done');
   });
 
-  it("거부 이벤트 순서는 approval_resolved → status(running) → step(denied) 이다", async () => {
+  it('거부 이벤트 순서는 approval_resolved → status(running) → step(denied) 이다', async () => {
     const t = await startConfirm();
-    t.service.approve("run-1", "req-1", "denied");
+    t.service.approve('run-1', 'req-1', 'denied');
     await t.waitForEnd();
     expect(toEventKeyList(t.eventList).slice(6, 10)).toEqual([
-      "approval_required",
-      "approval_resolved",
-      "status:running",
-      "step:2:denied",
+      'approval_required',
+      'approval_resolved',
+      'status:running',
+      'step:2:denied',
     ]);
     expect(t.eventList).toContainEqual({
-      type: "approval_resolved",
-      runId: "run-1",
-      requestId: "req-1",
-      decision: "denied",
+      type: 'approval_resolved',
+      runId: 'run-1',
+      requestId: 'req-1',
+      decision: 'denied',
     });
   });
 });
 
-describe("AgentService — 대기 중 중지·종료 ⑥⑫", () => {
-  it("대기 중 stop 이면 click 을 부르지 않고 approval_resolved(cancelled) 후 stopped 로 끝난다", async () => {
+describe('AgentService — 대기 중 중지·종료 ⑥⑫', () => {
+  it('대기 중 stop 이면 click 을 부르지 않고 approval_resolved(cancelled) 후 stopped 로 끝난다', async () => {
     const t = await startConfirm();
-    expect(t.service.stop("run-1")).toBe(true);
+    expect(t.service.stop('run-1')).toBe(true);
     await t.waitForEnd();
     expect(t.driver.click).not.toHaveBeenCalled();
     expect(t.eventList).toContainEqual({
-      type: "approval_resolved",
-      runId: "run-1",
-      requestId: "req-1",
-      decision: "cancelled",
+      type: 'approval_resolved',
+      runId: 'run-1',
+      requestId: 'req-1',
+      decision: 'cancelled',
     });
-    expect(t.store.getRun("run-1")?.status).toBe("stopped");
+    expect(t.store.getRun('run-1')?.status).toBe('stopped');
   });
 
-  it("대기 중 shutdown 이면 click 을 부르지 않고 failed(앱 종료) 1회로 끝난다", async () => {
+  it('대기 중 stop 이면 종료 이벤트·종료 status 가 정확히 1회이고 failed 는 없다 (Task 6 회귀)', async () => {
+    const t = await startConfirm();
+    t.service.stop('run-1');
+    await t.waitForEnd();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const keyList = toEventKeyList(t.eventList);
+    expect(keyList.filter((k) => TERMINAL_TYPE_LIST.includes(k))).toEqual(['stopped']);
+    expect(keyList.filter((k) => k === 'status:stopped')).toHaveLength(1);
+    expect(keyList).not.toContain('failed');
+    expect(keyList.slice(-2)).toEqual(['stopped', 'status:stopped']);
+    expect(t.driver.click).not.toHaveBeenCalled();
+  });
+
+  it('대기 중 stop 하면 status 는 waiting_user 에서 바로 stopped 가 되고 running 으로 돌아가지 않는다', async () => {
+    const t = await startConfirm();
+    t.service.stop('run-1');
+    await t.waitForEnd();
+    const statusList = toEventKeyList(t.eventList).filter((k) => k.startsWith('status:'));
+    expect(statusList.slice(-2)).toEqual(['status:waiting_user', 'status:stopped']);
+  });
+
+  it('대기 중 shutdown 이면 click 을 부르지 않고 failed(앱 종료) 1회로 끝난다', async () => {
     const t = await startConfirm();
     t.service.shutdown();
     await t.waitForEnd();
     expect(t.driver.click).not.toHaveBeenCalled();
     const keyList = toEventKeyList(t.eventList);
-    expect(keyList.filter((k) => TERMINAL_TYPE_LIST.includes(k))).toEqual([
-      "failed",
-    ]);
+    expect(keyList.filter((k) => TERMINAL_TYPE_LIST.includes(k))).toEqual(['failed']);
     expect(t.eventList).toContainEqual({
-      type: "failed",
-      runId: "run-1",
+      type: 'failed',
+      runId: 'run-1',
       reason: AGENT_MESSAGE.appQuit,
     });
-    expect(t.store.getRun("run-1")).toMatchObject({
-      status: "failed",
+    expect(t.store.getRun('run-1')).toMatchObject({
+      status: 'failed',
       reason: AGENT_MESSAGE.appQuit,
     });
   });
 
-  it("shutdown 뒤에는 모델 요청이 더 없다", async () => {
+  it('shutdown 뒤에는 모델 요청이 더 없다', async () => {
     const t = await startConfirm();
     t.service.shutdown();
     await t.waitForEnd();
     expect(t.requestList).toHaveLength(2);
   });
 
-  it("활성 run 이 없으면 shutdown 은 아무것도 하지 않는다", () => {
+  it('활성 run 이 없으면 shutdown 은 아무것도 하지 않는다', () => {
     const t = setup();
     t.service.shutdown();
     expect(t.eventList).toEqual([]);
   });
 
-  it("취소된 요청에는 approve 가 NOT_FOUND 다", async () => {
+  it('취소된 요청에는 approve 가 NOT_FOUND 다', async () => {
     const t = await startConfirm();
-    t.service.stop("run-1");
-    expect(t.service.approve("run-1", "req-1", "agent")).toMatchObject({
+    t.service.stop('run-1');
+    expect(t.service.approve('run-1', 'req-1', 'agent')).toMatchObject({
       ok: false,
-      code: "NOT_FOUND",
+      code: 'NOT_FOUND',
     });
     await t.waitForEnd();
     expect(t.driver.click).not.toHaveBeenCalled();
   });
 });
 
-describe("AgentService — 승인 상한 ⑦", () => {
-  it("승인 6번째 요청은 대기 없이 blocked 이고 click 은 한 번도 실행되지 않는다", async () => {
-    const turnList = Array.from({ length: 6 }, () =>
-      toolTurn("click", { ref: "e3" }),
-    );
-    const t = setup({ scenario: { turns: [...turnList, textTurn("끝")] } });
-    await t.service.start("예약해줘");
+describe('AgentService — 승인 상한 ⑦', () => {
+  it('승인 6번째 요청은 대기 없이 blocked 이고 click 은 한 번도 실행되지 않는다', async () => {
+    const turnList = Array.from({ length: 6 }, () => toolTurn('click', { ref: 'e3' }));
+    const t = setup({ scenario: { turns: [...turnList, textTurn('끝')] } });
+    await t.service.start('예약해줘');
     for (let i = 1; i <= 5; i += 1) {
-      await waitForEventCount(t.eventList, "approval_required", i);
-      t.service.approve("run-1", `req-${i}`, "denied");
+      await waitForEventCount(t.eventList, 'approval_required', i);
+      t.service.approve('run-1', `req-${i}`, 'denied');
     }
     await t.waitForEnd();
     expect(getApprovalRequestList(t.eventList)).toHaveLength(5);
-    expect(toEventKeyList(t.eventList)).toContain("step:6:blocked");
-    expect(getToolResultContent(t.requestList)).toEqual(
-      expect.stringContaining("too_many_approvals"),
-    );
+    expect(toEventKeyList(t.eventList)).toContain('step:6:blocked');
+    expect(getToolResultContent(t.requestList)).toEqual(expect.stringContaining('too_many_approvals'));
     expect(t.driver.click).not.toHaveBeenCalled();
   });
 });
 
-describe("AgentService — ask_user ⑧", () => {
-  const ANSWER = "세 명이요-원문답변";
+describe('AgentService — ask_user ⑧', () => {
+  const ANSWER = '세 명이요-원문답변';
   const scenario = {
     turns: [
-      toolTurn("ask_user", {
-        question: "몇 명으로 예약할까요?",
-        optionList: ["2명", "4명"],
+      toolTurn('ask_user', {
+        question: '몇 명으로 예약할까요?',
+        optionList: ['2명', '4명'],
       }),
-      textTurn("끝"),
+      textTurn('끝'),
     ],
   };
 
   async function askAndAnswer() {
     const t = setup({ scenario });
-    await t.service.start("예약해줘");
-    await waitForEventCount(t.eventList, "question");
-    const result = t.service.answer("run-1", "req-1", ANSWER);
+    await t.service.start('예약해줘');
+    await waitForEventCount(t.eventList, 'question');
+    const result = t.service.answer('run-1', 'req-1', ANSWER);
     await t.waitForEnd();
     return { ...t, result };
   }
 
-  it("question 이벤트를 보내고 answer 뒤 “사용자 답: …” 이 다음 요청에 간다", async () => {
+  it('question 이벤트를 보내고 answer 뒤 “사용자 답: …” 이 다음 요청에 간다', async () => {
     const t = await askAndAnswer();
     expect(t.result).toEqual({ ok: true });
     expect(t.eventList).toContainEqual({
-      type: "question",
-      runId: "run-1",
+      type: 'question',
+      runId: 'run-1',
       question: {
-        requestId: "req-1",
+        requestId: 'req-1',
         stepN: 1,
-        text: "몇 명으로 예약할까요?",
-        optionList: ["2명", "4명"],
+        text: '몇 명으로 예약할까요?',
+        optionList: ['2명', '4명'],
       },
     });
     expect(getToolResultContent(t.requestList)).toBe(`사용자 답: ${ANSWER}`);
   });
 
-  it("질문 이벤트 순서는 step(waiting) → status(waiting_user) → question → question_answered → status(running) → step(ok) 이다", async () => {
+  it('질문 이벤트 순서는 step(waiting) → status(waiting_user) → question → question_answered → status(running) → step(ok) 이다', async () => {
     const t = await askAndAnswer();
     expect(toEventKeyList(t.eventList).slice(0, 8)).toEqual([
-      "status:running",
-      "step:1:running",
-      "step:1:waiting",
-      "status:waiting_user",
-      "question",
-      "question_answered",
-      "status:running",
-      "step:1:ok",
+      'status:running',
+      'step:1:running',
+      'step:1:waiting',
+      'status:waiting_user',
+      'question',
+      'question_answered',
+      'status:running',
+      'step:1:ok',
     ]);
   });
 
-  it("store·이벤트 어디에도 답 원문이 없고 step 결과는 “[답변 생략]” 이다", async () => {
+  it('store·이벤트 어디에도 답 원문이 없고 step 결과는 “[답변 생략]” 이다', async () => {
     const t = await askAndAnswer();
     expect(JSON.stringify([t.callList, t.eventList])).not.toContain(ANSWER);
-    expect(t.store.listSteps("run-1")[0]).toMatchObject({
-      tool: "ask_user",
-      resultText: "[답변 생략]",
+    expect(t.store.listSteps('run-1')[0]).toMatchObject({
+      tool: 'ask_user',
+      resultText: '[답변 생략]',
     });
   });
 
-  it("질문 요청에 approve 하면 INVALID_INPUT 이고 대기는 그대로다", async () => {
+  it('질문 요청에 approve 하면 INVALID_INPUT 이고 대기는 그대로다', async () => {
     const t = setup({ scenario });
-    await t.service.start("예약해줘");
-    await waitForEventCount(t.eventList, "question");
-    expect(t.service.approve("run-1", "req-1", "agent")).toMatchObject({
+    await t.service.start('예약해줘');
+    await waitForEventCount(t.eventList, 'question');
+    expect(t.service.approve('run-1', 'req-1', 'agent')).toMatchObject({
       ok: false,
-      code: "INVALID_INPUT",
+      code: 'INVALID_INPUT',
     });
-    expect(t.service.answer("run-1", "req-1", "2명")).toEqual({ ok: true });
+    expect(t.service.answer('run-1', 'req-1', '2명')).toEqual({ ok: true });
     await t.waitForEnd();
   });
 });
 
-describe("AgentService — request_approval ⑨⑩", () => {
+describe('AgentService — request_approval ⑨⑩', () => {
   const scenario = {
     turns: [
-      toolTurn("request_approval", {
-        action: "4명으로 변경",
-        target: "인원",
-        reason: "2명 자리 없음",
+      toolTurn('request_approval', {
+        action: '4명으로 변경',
+        target: '인원',
+        reason: '2명 자리 없음',
       }),
-      textTurn("끝"),
+      textTurn('끝'),
     ],
   };
 
   async function startRequest() {
     const t = setup({ scenario });
-    await t.service.start("예약해줘");
-    await waitForEventCount(t.eventList, "approval_required");
+    await t.service.start('예약해줘');
+    await waitForEventCount(t.eventList, 'approval_required');
     return t;
   }
 
-  it("kind=model 승인 창을 띄우고 모델 문장은 modelNote 로만 싣는다", async () => {
+  it('kind=model 승인 창을 띄우고 모델 문장은 modelNote 로만 싣는다', async () => {
     const t = await startRequest();
     expect(getApprovalRequestList(t.eventList)[0]).toEqual({
-      requestId: "req-1",
+      requestId: 'req-1',
       stepN: 1,
-      kind: "model",
-      source: "model",
+      kind: 'model',
+      source: 'model',
       reason: expect.any(String),
-      display: { action: "확인 요청", target: "" },
-      modelNote: "4명으로 변경 — 인원: 2명 자리 없음",
+      display: { action: '확인 요청', target: '' },
+      modelNote: '4명으로 변경 — 인원: 2명 자리 없음',
     });
-    t.service.approve("run-1", "req-1", "denied");
+    t.service.approve('run-1', 'req-1', 'denied');
     await t.waitForEnd();
   });
 
-  it("approved 면 “approved” 결과다", async () => {
+  it('approved 면 “approved” 결과다', async () => {
     const t = await startRequest();
-    expect(t.service.approve("run-1", "req-1", "approved")).toEqual({
+    expect(t.service.approve('run-1', 'req-1', 'approved')).toEqual({
       ok: true,
     });
     await t.waitForEnd();
-    expect(getToolResultContent(t.requestList)).toBe("approved");
+    expect(getToolResultContent(t.requestList)).toBe('approved');
   });
 
-  it("denied 면 DENIED 결과이고 step 은 denied 다", async () => {
+  it('denied 면 DENIED 결과이고 step 은 denied 다', async () => {
     const t = await startRequest();
-    t.service.approve("run-1", "req-1", "denied");
+    t.service.approve('run-1', 'req-1', 'denied');
     await t.waitForEnd();
     expect(getToolResultContent(t.requestList)).toBe(DENIED_RESULT);
-    expect(toEventKeyList(t.eventList)).toContain("step:1:denied");
+    expect(toEventKeyList(t.eventList)).toContain('step:1:denied');
   });
 
-  it.each(["agent", "user_done"] as const)(
-    "model 요청에 %s 결정은 INVALID_INPUT 이고 대기는 그대로다",
+  it.each(['agent', 'user_done'] as const)(
+    'model 요청에 %s 결정은 INVALID_INPUT 이고 대기는 그대로다',
     async (decision) => {
       const t = await startRequest();
-      expect(t.service.approve("run-1", "req-1", decision)).toEqual({
+      expect(t.service.approve('run-1', 'req-1', decision)).toEqual({
         ok: false,
-        code: "INVALID_INPUT",
+        code: 'INVALID_INPUT',
         message: AGENT_MESSAGE.invalidRequest,
       });
-      expect(t.service.approve("run-1", "req-1", "denied")).toEqual({
+      expect(t.service.approve('run-1', 'req-1', 'denied')).toEqual({
         ok: true,
       });
       await t.waitForEnd();
     },
   );
 
-  it("guard 요청에 approved 결정은 INVALID_INPUT 이고 click 은 실행되지 않는다", async () => {
+  it('guard 요청에 approved 결정은 INVALID_INPUT 이고 click 은 실행되지 않는다', async () => {
     const t = await startConfirm();
-    expect(t.service.approve("run-1", "req-1", "approved")).toMatchObject({
+    expect(t.service.approve('run-1', 'req-1', 'approved')).toMatchObject({
       ok: false,
-      code: "INVALID_INPUT",
+      code: 'INVALID_INPUT',
     });
     expect(t.driver.click).not.toHaveBeenCalled();
-    t.service.approve("run-1", "req-1", "denied");
+    t.service.approve('run-1', 'req-1', 'denied');
     await t.waitForEnd();
   });
 
-  it("승인 요청에 answer 하면 INVALID_INPUT 이다", async () => {
+  it('승인 요청에 answer 하면 INVALID_INPUT 이다', async () => {
     const t = await startRequest();
-    expect(t.service.answer("run-1", "req-1", "네")).toMatchObject({
+    expect(t.service.answer('run-1', 'req-1', '네')).toMatchObject({
       ok: false,
-      code: "INVALID_INPUT",
+      code: 'INVALID_INPUT',
     });
-    t.service.approve("run-1", "req-1", "denied");
+    t.service.approve('run-1', 'req-1', 'denied');
     await t.waitForEnd();
   });
 
   it.each([
-    ["run-1", "req-9"],
-    ["run-x", "req-1"],
-  ])("없는 요청(%s, %s)이면 NOT_FOUND 다", async (runId, requestId) => {
+    ['run-1', 'req-9'],
+    ['run-x', 'req-1'],
+  ])('없는 요청(%s, %s)이면 NOT_FOUND 다', async (runId, requestId) => {
     const t = await startRequest();
-    expect(t.service.approve(runId, requestId, "approved")).toEqual({
+    expect(t.service.approve(runId, requestId, 'approved')).toEqual({
       ok: false,
-      code: "NOT_FOUND",
+      code: 'NOT_FOUND',
       message: AGENT_MESSAGE.requestNotFound,
     });
-    expect(t.service.answer(runId, requestId, "x")).toMatchObject({
+    expect(t.service.answer(runId, requestId, 'x')).toMatchObject({
       ok: false,
-      code: "NOT_FOUND",
+      code: 'NOT_FOUND',
     });
-    t.service.approve("run-1", "req-1", "denied");
+    t.service.approve('run-1', 'req-1', 'denied');
     await t.waitForEnd();
   });
 
-  it("이미 처리한 요청에 다시 approve 하면 NOT_FOUND 다", async () => {
+  it('이미 처리한 요청에 다시 approve 하면 NOT_FOUND 다', async () => {
     const t = await startRequest();
-    t.service.approve("run-1", "req-1", "approved");
-    expect(t.service.approve("run-1", "req-1", "approved")).toMatchObject({
+    t.service.approve('run-1', 'req-1', 'approved');
+    expect(t.service.approve('run-1', 'req-1', 'approved')).toMatchObject({
       ok: false,
-      code: "NOT_FOUND",
+      code: 'NOT_FOUND',
     });
     await t.waitForEnd();
   });

@@ -41,6 +41,44 @@ async function runWith(scenario: TFakeScenario, signal = new AbortController().s
   return { outcome, run, requestList };
 }
 
+const WAIT_SCENARIO: TFakeScenario = {
+  turns: [
+    { content: [{ type: 'tool_use', name: 'wait_user', input: {} }] },
+    { content: [{ type: 'text', text: '끝' }] },
+  ],
+};
+
+function baseOptions(client: Anthropic) {
+  return {
+    client,
+    model: 'claude-opus-5-5',
+    systemPrompt: '시스템',
+    firstUserMessage: '할 일: 테스트',
+    signal: new AbortController().signal,
+  };
+}
+
+/** 사용자 대기처럼 밖에서 풀어 주는 문 */
+function createGate() {
+  let resolve: (text: string) => void = () => undefined;
+  let isStarted = false;
+  const promise = new Promise<string>((r) => (resolve = r));
+  return { promise, resolve, isStarted: () => isStarted, markStarted: () => (isStarted = true) };
+}
+
+/** run 이 문이 열릴 때까지 기다리는 도구 — 서비스의 승인 대기(waitForUser)와 같은 모양 */
+function createWaitingTool(gate: ReturnType<typeof createGate>) {
+  return betaZodTool({
+    name: 'wait_user',
+    description: 'wait for the user',
+    inputSchema: z.strictObject({}),
+    run: async () => {
+      gate.markStarted();
+      return gate.promise;
+    },
+  });
+}
+
 describe('runAgentLoop', () => {
   it('tool_use 다음 end_turn 이면 도구를 실행하고 마지막 text 를 요약으로 끝낸다', async () => {
     const { outcome, run, requestList } = await runWith({
@@ -81,6 +119,34 @@ describe('runAgentLoop', () => {
       turns: [{ content: [{ type: 'text', text: '거절' }], stop_reason: 'refusal' }],
     });
     expect(outcome).toEqual({ kind: 'failed', reason: expect.stringContaining('general_harms') });
+  });
+
+  it('도구 run 이 오래 기다려도(승인 대기) 결과가 나오기 전에는 다음 모델 요청을 보내지 않는다', async () => {
+    const gate = createGate();
+    const { client, requestList } = createClient(WAIT_SCENARIO);
+    const promise = runAgentLoop({ ...baseOptions(client), tools: [createWaitingTool(gate)] });
+    await vi.waitFor(() => expect(gate.isStarted()).toBe(true));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(requestList).toHaveLength(1);
+    gate.resolve('사용자가 승인함');
+    expect(await promise).toEqual({ kind: 'done', summary: '끝' });
+    expect(requestList).toHaveLength(2);
+  });
+
+  it('대기 중 abort 하고 대기가 풀리면 다음 요청 없이 aborted 로 끝난다', async () => {
+    const gate = createGate();
+    const controller = new AbortController();
+    const { client, requestList } = createClient(WAIT_SCENARIO);
+    const promise = runAgentLoop({
+      ...baseOptions(client),
+      tools: [createWaitingTool(gate)],
+      signal: controller.signal,
+    });
+    await vi.waitFor(() => expect(gate.isStarted()).toBe(true));
+    controller.abort();
+    gate.resolve('stopped: 실행이 멈춰 도구를 실행하지 않았습니다');
+    expect(await promise).toEqual({ kind: 'aborted' });
+    expect(requestList).toHaveLength(1);
   });
 
   it('이미 abort 된 signal 이면 요청 없이 aborted 로 끝낸다', async () => {
