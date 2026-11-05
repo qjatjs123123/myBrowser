@@ -62,4 +62,15 @@ describe('summarizeStep', () => {
     const target = createTarget({ name: '인원' });
     expect(summarizeStep('select_option', { ref: 'e1', valueList: ['2'] }, target)).toBe('‘인원’ 선택');
   });
+
+  it('ask_user 는 “질문: {question}” 을 40자로 자른다', () => {
+    expect(summarizeStep('ask_user', { question: '몇 명으로 예약할까요?' })).toBe('질문: 몇 명으로 예약할까요?');
+    expect(summarizeStep('ask_user', { question: '가'.repeat(50) })).toBe(`질문: ${'가'.repeat(40)}`);
+  });
+
+  it('request_approval 은 “확인 요청: {action}” 이다', () => {
+    expect(summarizeStep('request_approval', { action: '4명으로 변경', target: '', reason: 'r' })).toBe(
+      '확인 요청: 4명으로 변경',
+    );
+  });
 });

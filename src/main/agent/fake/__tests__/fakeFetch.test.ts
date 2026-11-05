@@ -85,4 +85,22 @@ describe('createFakeFetch', () => {
     expect(message.stop_reason).toBe('refusal');
     expect(message.stop_details?.category).toBe('general_harms');
   });
+
+  it('tool_use 에 toolset_name 이 있으면 content_block_start 에 그대로 싣는다', async () => {
+    const { client } = createClient({
+      turns: [{ content: [{ type: 'tool_use', name: 'screenshot', input: {}, toolset_name: 'computer' }] }],
+    });
+    const message = await client.beta.messages
+      .stream({ ...BASE_PARAMS, messages: [{ role: 'user', content: '할 일' }] })
+      .finalMessage();
+    expect(message.content).toMatchObject([{ type: 'tool_use', name: 'screenshot', toolset_name: 'computer' }]);
+  });
+
+  it('toolset_name 이 없으면 tool_use 에 toolset_name 을 싣지 않는다', async () => {
+    const { client } = createClient(SCENARIO);
+    const message = await client.beta.messages
+      .stream({ ...BASE_PARAMS, messages: [{ role: 'user', content: '할 일' }] })
+      .finalMessage();
+    expect(message.content[1]).not.toHaveProperty('toolset_name');
+  });
 });
