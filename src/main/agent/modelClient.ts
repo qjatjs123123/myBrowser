@@ -1,7 +1,7 @@
 /**
  * [모델 클라이언트] 실제 Anthropic SDK 클라이언트 또는 가짜 fetch 를 단 같은 SDK 클라이언트를 만든다.
  * 가짜도 SDK toolRunner·스트림 파서를 그대로 거친다 — HTTP 만 가짜 (spec 003 「가짜 모델」).
- * gateway 모드(spec 005)는 baseURL = 게이트웨이, apiKey = 기기 토큰 — SDK 가 x-api-key 로 보낸다.
+ * gateway 모드(spec 005)는 baseURL = 게이트웨이, apiKey = 기기 토큰 — SDK 1.5.0 은 Authorization: Bearer 로 보낸다(게이트웨이는 x-api-key 와 둘 다 받는다).
  * API 키·기기 토큰은 여기서만 SDK 에 넘기고 로그·이벤트·DB 에 싣지 않는다 (SR-6, spec 005 SR-1).
  */
 import Anthropic from '@anthropic-ai/sdk';

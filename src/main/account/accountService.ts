@@ -49,6 +49,7 @@ interface IActivation {
 const SCOPE = 'account';
 /** 폴링 중 다음 주기에 재시도하는 상태 — 0 은 네트워크 오류·타임아웃 */
 const RETRY_STATUS_LIST = [0, 429];
+const MS_PER_SECOND = 1000;
 const INACTIVE: TAccountStatus = { state: 'inactive' };
 const NOT_REQUIRED: TAccountStatus = { state: 'not_required' };
 
@@ -284,7 +285,7 @@ function toActivation(created: TActivationCreated): IActivation {
     id: created.activation_id,
     secret: created.poll_secret,
     expiresAtMs: Date.parse(created.expires_at),
-    intervalMs: created.poll_interval_sec * 1000,
+    intervalMs: created.poll_interval_sec * MS_PER_SECOND,
     controller: new AbortController(),
   };
 }
@@ -311,10 +312,9 @@ function isRetryable(status: number): boolean {
   return RETRY_STATUS_LIST.includes(status) || status >= 500;
 }
 
-function failure(
-  code: 'BUSY' | 'AGENT_ERROR',
-  message: string,
-): { ok: false; code: 'BUSY' | 'AGENT_ERROR'; message: string } {
+type TAccountFailure = Extract<TAccountResult<never>, { ok: false }>;
+
+function failure(code: TAccountFailure['code'], message: string): TAccountFailure {
   return { ok: false, code, message };
 }
 

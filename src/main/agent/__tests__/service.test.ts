@@ -8,7 +8,7 @@ import type { IBrowserDriver, IGuardTarget, TActionResult } from '@shared/tools'
 
 import { createFakeFetch, type TFakeRequestBody } from '../fake/fakeFetch';
 import { GUARD_MESSAGE } from '../guard';
-import { MissingApiKeyError } from '../modelClient';
+import { MissingApiKeyError, MissingCredentialError } from '../modelClient';
 import { AGENT_MESSAGE, createAgentService, type IAgentServiceDeps } from '../service';
 import { DENIED_RESULT, USER_DONE_RESULT } from '../tools';
 
@@ -1022,5 +1022,62 @@ describe('AgentService — 키 보호 ⑪ (SR-6)', () => {
     expect(t.store.getRun('run-1')).toMatchObject({ status: 'failed', reason: AGENT_MESSAGE.unexpected });
     expect(t.log.error).toHaveBeenCalled();
     expect(JSON.stringify([t.eventList, t.callList, t.log.error.mock.calls])).not.toContain(API_KEY);
+  });
+});
+
+describe('AgentService — 게이트웨이 모드 오류 문장 (spec 005 FR-6)', () => {
+  /** 상태 코드만 돌려주는 가짜 게이트웨이 fetch */
+  function createStatusClient(status: number, type: string) {
+    const fetch = async () => Response.json({ type: 'error', error: { type, message: 'x' } }, { status });
+    return () => new Anthropic({ apiKey: 'device-token', baseURL: 'http://127.0.0.1:1', fetch, maxRetries: 0 });
+  }
+
+  it.each([
+    [401, 'authentication_error', AGENT_MESSAGE.gatewayUnauthorized],
+    [402, 'insufficient_credits', AGENT_MESSAGE.gatewayNoCredits],
+    [429, 'rate_limit_error', AGENT_MESSAGE.gatewayRateLimited],
+  ])('gateway 모드 %i 이면 구독 문장으로 failed', async (status, type, reason) => {
+    const onAuthFailure = vi.fn();
+    const t = setup({ deps: { modelMode: 'gateway', onAuthFailure, createModelClient: createStatusClient(status, type) } });
+    await t.service.start('할 일');
+    await t.waitForEnd();
+    expect(t.store.getRun('run-1')).toMatchObject({ status: 'failed', reason });
+    expect(onAuthFailure).toHaveBeenCalledTimes(status === 401 ? 1 : 0);
+  });
+
+  it('direct 모드 401 은 기존 API 키 문장 그대로이고 onAuthFailure 를 부르지 않는다', async () => {
+    const onAuthFailure = vi.fn();
+    const t = setup({
+      deps: { modelMode: 'direct', onAuthFailure, createModelClient: createStatusClient(401, 'authentication_error') },
+    });
+    await t.service.start('할 일');
+    await t.waitForEnd();
+    expect(t.store.getRun('run-1')?.reason).toContain('API 키');
+    expect(onAuthFailure).not.toHaveBeenCalled();
+  });
+
+  it('MissingCredentialError 면 구독 안내 AGENT_ERROR 이고 run 을 만들지 않는다', async () => {
+    const t = setup({
+      deps: {
+        modelMode: 'gateway',
+        createModelClient: () => {
+          throw new MissingCredentialError();
+        },
+      },
+    });
+    expect(await t.service.start('할 일')).toEqual({
+      ok: false,
+      code: 'AGENT_ERROR',
+      message: AGENT_MESSAGE.missingCredential,
+    });
+    expect(t.callList).toEqual([]);
+  });
+
+  it('run 이 끝나면 onRunEnd 를 1번 부른다 (done·failed)', async () => {
+    const onRunEnd = vi.fn();
+    const t = setup({ scenario: { turns: [textTurn('끝')] }, deps: { onRunEnd } });
+    await t.service.start('할 일');
+    await t.waitForEnd();
+    await vi.waitFor(() => expect(onRunEnd).toHaveBeenCalledTimes(1));
   });
 });

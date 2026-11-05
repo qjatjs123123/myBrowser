@@ -57,19 +57,28 @@ const ACTIVATION_TTL_MS = 10 * 60_000;
 const MESSAGE_COST = 10;
 const REPLY_TEXT = '완료했습니다';
 const FAKE_TOKEN_COUNT = 10;
+const DEFAULT_POLL_INTERVAL_SEC = 1;
+const DEFAULT_INITIAL_CREDITS = 1000;
+const DEFAULT_MODEL = 'claude-opus-5-5';
+const RENEWAL_PERIOD_MS = 30 * 24 * 3_600_000;
 const ACTIVATION_PATH_PATTERN = /^\/v1\/activations\/([0-9a-f-]+)$/;
 const PURCHASE_HTML =
-  '<!doctype html><meta charset="utf-8"><title>가짜 구독 결제</title><h1>가짜 구독 결제 페이지</h1>';
+  '<!doctype html><meta charset="utf-8"><link rel="icon" href="data:,"><title>가짜 구독 결제</title><h1>가짜 구독 결제 페이지</h1>';
 
 /** 가짜 게이트웨이를 띄운다 — 테스트가 close 한다 */
 export async function startFakeGateway(options: IStartFakeGatewayOptions = {}): Promise<IFakeGateway> {
   const requestLog: IFakeGatewayRequest[] = [];
   const state: IGatewayState = {
     url: '',
-    options: { messagesStatus: 200, pollIntervalSec: 1, initialCredits: 1000, ...options },
+    options: {
+      messagesStatus: 200,
+      pollIntervalSec: DEFAULT_POLL_INTERVAL_SEC,
+      initialCredits: DEFAULT_INITIAL_CREDITS,
+      ...options,
+    },
     activationMap: new Map(),
     tokenSet: new Set(),
-    credits: options.initialCredits ?? 1000,
+    credits: options.initialCredits ?? DEFAULT_INITIAL_CREDITS,
   };
   const server = createServer((req, res) => {
     requestLog.push({ method: req.method ?? '', path: req.url ?? '', headerNameList: Object.keys(req.headers) });
@@ -126,7 +135,7 @@ function sendAccount(state: IGatewayState, req: IncomingMessage, res: ServerResp
       credits: state.credits,
       plan: 'basic',
       subscription_status: 'active',
-      renews_at: toUtcText(new Date(Date.now() + 30 * 24 * 3_600_000)),
+      renews_at: toUtcText(new Date(Date.now() + RENEWAL_PERIOD_MS)),
       manage_url: `${state.url}/account`,
     },
   });
@@ -190,9 +199,9 @@ function getModel(body: string): string {
   try {
     const parsed: unknown = JSON.parse(body);
     const model = typeof parsed === 'object' && parsed !== null ? (parsed as { model?: unknown }).model : undefined;
-    return typeof model === 'string' ? model : 'claude-opus-5-5';
+    return typeof model === 'string' ? model : DEFAULT_MODEL;
   } catch {
-    return 'claude-opus-5-5';
+    return DEFAULT_MODEL;
   }
 }
 

@@ -1,6 +1,6 @@
 # Spec: 패키징·평가 세트 + 구독 계정 활성화(게이트웨이 모드)
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-05
 > **묶음**: 기반, main-account, renderer-sidebar, agent-eval, 연결(메인 직접 — 5단계 merge 뒤)
 > **관련 spec**: 003, 004
@@ -102,8 +102,8 @@ export type TAccountStatus = z.infer<typeof AccountStatusSchema>;
 - `GET /v1/activations/{activation_id}` 헤더 `x-poll-secret` → 200 `data` 는 status 로 나뉜 union: `{ "status": "pending" }` | `{ "status": "approved", "device_token": string(32..256) }`(토큰 필수) | `{ "status": "expired" }` | `{ "status": "consumed" }` — `device_token` 은 `approved` 응답에 **딱 1번**만 실리고 그 뒤 `consumed`. 비밀이 틀리면 404. 앱은 폴링 중 429·5xx·네트워크 오류를 다음 주기에 재시도하고, `expires_at` 이 지나면 만료로 처리한다.
 - `GET /v1/account` 헤더 `x-api-key: {device_token}` → 200 `data: { "credits": int, "plan": string|null, "subscription_status": "active"|"past_due"|"canceled"|"none", "renews_at": iso|null, "manage_url": url }`; 토큰 무효 401.
 - 시각은 모두 UTC `Z` 형식(예 `2026-11-05T10:00:00Z` — `z.iso.datetime()` 기본과 일치, `+00:00` 금지).
-- `POST /v1/messages` 헤더 `x-api-key: {device_token}` → **Anthropic Messages API 호환**. 앱 SDK 는 `POST /v1/messages?beta=true` 로 부르고 `anthropic-version`·`anthropic-beta: server-side-fallback-2026-07-01,context-management-2025-06-27` 헤더와 본문 `stream`·`output_config`·`fallbacks`·`context_management`·`tools`·`system`·`messages` 를 보낸다 — 게이트웨이는 `?beta=true`·두 헤더를 upstream 에 그대로 전달한다. 허용 목록: model `claude-opus-5-5`, betas 는 위 2개(그 외 beta 400), `max_tokens ≤ 64000`(envelope 아님, SSE 그대로). 오류는 Anthropic 형식 `{ "type": "error", "error": { "type": "...", "message": "..." } }`: 401 `authentication_error`, 402 `insufficient_credits`, 429 `rate_limit_error`, 400 `invalid_request_error`(허용 안 된 model·beta·max_tokens). 응답 헤더 `x-mybrowser-credits: <int>`(남은 크레딧).
-- zod: `ActivationCreatedSchema`, `ActivationPollSchema`, `AccountInfoSchema`, `toEnvelopeSchema(data)`. 앱은 SDK 를 `new Anthropic({ apiKey: deviceToken, baseURL: gatewayUrl, maxRetries: 0 })` 로 만든다(SDK 가 `x-api-key` 로 보낸다).
+- `POST /v1/messages` 헤더 `x-api-key: {device_token}` → **Anthropic Messages API 호환**. 앱 SDK(1.5.0 실측)는 기기 토큰을 `Authorization: Bearer <token>` 으로 보내므로 게이트웨이는 `x-api-key`(우선)와 Bearer 를 둘 다 받는다. SDK 는 `POST /v1/messages`(쿼리 `?beta=true` 는 붙을 수도 안 붙을 수도 있음)로 부르고 `anthropic-version`·`anthropic-beta: server-side-fallback-2026-07-01,context-management-2025-06-27` 헤더와 본문 `stream`·`output_config`·`fallbacks`·`context_management`·`tools`·`system`·`messages` 를 보낸다 — 게이트웨이는 `?beta=true`·두 헤더를 upstream 에 그대로 전달한다. 허용 목록: model `claude-opus-5-5`, betas 는 위 2개(그 외 beta 400), `max_tokens ≤ 64000`(envelope 아님, SSE 그대로). 오류는 Anthropic 형식 `{ "type": "error", "error": { "type": "...", "message": "..." } }`: 401 `authentication_error`, 402 `insufficient_credits`, 429 `rate_limit_error`, 400 `invalid_request_error`(허용 안 된 model·beta·max_tokens). 응답 헤더 `x-mybrowser-credits: <int>`(남은 크레딧).
+- zod: `ActivationCreatedSchema`, `ActivationPollSchema`, `AccountInfoSchema`, `toEnvelopeSchema(data)`. 앱은 SDK 를 `new Anthropic({ apiKey: deviceToken, baseURL: gatewayUrl, maxRetries: 0 })` 로 만든다(SDK 1.5.0 은 `Authorization: Bearer` 로 보낸다 — 게이트웨이·가짜 게이트웨이는 둘 다 받는다).
 
 ### 도구 계약
 변경 없음.
@@ -138,7 +138,7 @@ SQLite 변경 없음. 자격은 `userData/credentials.bin`(safeStorage 암호문
 > 모든 Task 완료 후 **`desktop/refactor` 적용 모드**가 의무 실행된다 (vibe-build 에서는 6단계).
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: 계정 IPC·게이트웨이 계약 스키마 + preload**
+- [x] **Task 1: 계정 IPC·게이트웨이 계약 스키마 + preload**
   - **묶음**: 기반
   - **작업**: `src/shared/ipc/account.ts`(AccountStatusSchema), `src/shared/account/gateway.ts`(위 HTTP 계약 zod + `toEnvelopeSchema` + 실패 envelope 스키마), `channels.ts` 에 `IPC.account.*`, `api.ts` 에 `IApi.account`, `preload/index.ts` 에 래퍼. renderer `vitest.setup` 의 `window.api` mock 에 `account` 추가(getStatus → not_required).
   - **파일**: `src/shared/ipc/account.ts`, `src/shared/account/gateway.ts`, `src/shared/ipc/{channels,api}.ts`, `src/preload/index.ts`, `vitest.setup*.ts`
@@ -148,7 +148,7 @@ SQLite 변경 없음. 자격은 `userData/credentials.bin`(safeStorage 암호문
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 계정 IPC·게이트웨이 계약 스키마 (spec 005 Task 1)`
 
-- [ ] **Task 2: 실행 모드·CDP·모델 클라이언트 baseURL**
+- [x] **Task 2: 실행 모드·CDP·모델 클라이언트 baseURL**
   - **묶음**: 기반
   - **작업**: `env.ts` — `modelMode`('fake'|'gateway'|'direct', FR-3 순서), `gatewayUrl`(런타임 env → 빌드 상수 `__GATEWAY_URL__`), `fakeScenarioDir`(test 모드에서만 `MYBROWSER_FAKE_SCENARIO_DIR`), `loadDotEnv` 를 패키징 시 건너뛰는 `isPackaged` 옵션. `electron.vite.config.ts` main 에 `define: { __GATEWAY_URL__ }` + `src/main/env.d.ts`(또는 기존 d.ts) 선언. `env.ts` 가 패키징 + 포트 미지정이면 `cdpPort = 0`, `app/cdp.ts` 는 패키징이어도 항상 스위치를 낸다(포트는 `env.cdpPort` 그대로 — `resolveCdpEndpoint` 와 같은 값). `app/cdp.ts` 에 `removeStaleActivePort(userDataDir, fs?)` 추가. `modelClient.ts` — `baseURL` 옵션 + `MissingCredentialError`(gateway 모드 토큰 없음). `index.ts` — `loadDotEnv({ …, isPackaged })`, userData 설정 직후 `removeStaleActivePort`, `readFakeScenario` 가 `env.fakeScenarioDir` 우선, `createModelClient` 호출부는 기존 동작 유지(gateway 연결은 Task 10). `rules/electron/main.md` 「보안 기본값」 CDP 줄을 “항상 127.0.0.1, 설치판 기본 port 0” 으로 갱신.
   - **파일**: `src/main/env.ts`, `src/main/app/cdp.ts`, `src/main/agent/modelClient.ts`, `src/main/index.ts`, `electron.vite.config.ts`, `.claude/rules/electron/main.md`
@@ -158,7 +158,7 @@ SQLite 변경 없음. 자격은 `userData/credentials.bin`(safeStorage 암호문
   - **통과 기준**: 기존 e2e 23개 그대로 통과
   - **커밋**: `feat: 실행 모드 판정·설치판 CDP 임의 포트 (spec 005 Task 2)`
 
-- [ ] **Task 3: electron-builder 설정·스크립트·e2e 픽스처 옵션**
+- [x] **Task 3: electron-builder 설정·스크립트·e2e 픽스처 옵션**
   - **묶음**: 기반
   - **작업**: `electron-builder.yml` — `files: [out/**, package.json, "!**/.env*"]`, linux `AppImage` + `dir`, `executableName: mybrowser`, win nsis(`oneClick: false`), mac dmg, `extraMetadata` 불필요. `package.json` scripts: `dist:linux` = `electron-vite build && electron-builder --linux dir AppImage`, `eval` = `electron-vite build && node eval/cli.mjs`(`eval/cli.mjs` 는 Task 8 이 만든다 — 인자를 해석해 `playwright test -c playwright.eval.config.ts` 를 부른다). `.gitignore` 에 `release/`, `eval/results/*.json`. `e2e/fixtures.ts` — `launchApp`·기본 `app` 픽스처에 `appEnv`(env 덮어쓰기, 값이 `undefined` 면 그 키 제거)·`executablePath` 옵션(`test.use({ appEnv, executablePath })`); executablePath 를 주면 `args: [ROOT]` 를 넘기지 않는다. `launchApp({ userDataDir, appEnv? })` 호출 인자로도 `appEnv` 를 받는다(가짜 게이트웨이처럼 실행마다 바뀌는 URL 용). asar 검사: `pnpm add -D @electron/asar`(직접 의존성), 판정 로직 `scripts/checkAsar.ts` — `.env*` 는 어느 위치든 금지, `src/`·`e2e/`·`spec/` 는 **asar 최상위**(`/src/`·`/e2e/`·`/spec/` 로 시작하는 경로)만 금지(production 의존성의 `node_modules/*/src/` 는 허용), `@electron/asar` 의 목록 함수 사용 + 진입은 Node 22 type stripping(`node --experimental-strip-types scripts/checkAsar.ts`), script `check:asar`. 설치판 e2e 분리: `playwright.packaged.config.ts`(testDir `e2e-packaged`), script `e2e:packaged` = `pnpm dist:linux && pnpm check:asar && playwright test -c playwright.packaged.config.ts`. 도구 설정: `vitest.config.mts` node project include 에 `scripts/**/__tests__/**/*.test.ts`·`eval/**/__tests__/**/*.test.ts`·`e2e/fixtures/__tests__/**/*.test.ts`, `tsconfig.node.json` include 에 `scripts/**/*`·`eval/**/*`·`e2e-packaged/**/*`·`playwright.eval.config.ts`·`playwright.packaged.config.ts`, `eslint.config.mjs` node globals files 에 `scripts/**`·`eval/**`·`e2e-packaged/**`(아직 없는 폴더도 미리).
   - **파일**: `electron-builder.yml`, `package.json`, `pnpm-lock.yaml`, `.gitignore`, `e2e/fixtures.ts`, `scripts/checkAsar.ts`, `playwright.packaged.config.ts`, `vitest.config.mts`, `tsconfig.node.json`, `eslint.config.mjs`
@@ -168,7 +168,7 @@ SQLite 변경 없음. 자격은 `userData/credentials.bin`(safeStorage 암호문
   - **통과 기준**: `release/linux-unpacked/mybrowser` 생성, asar 에 `.env` 없음
   - **커밋**: `chore: electron-builder 설치판 설정·asar 검사 (spec 005 Task 3)`
 
-- [ ] **Task 4: 자격 저장소 (safeStorage)**
+- [x] **Task 4: 자격 저장소 (safeStorage)**
   - **묶음**: main-account
   - **작업**: `src/main/app/credentialStore.ts` — 위 「main 모듈 설계」 + SR-1 백엔드 판정(`allowBasicText: boolean` 옵션 — index.ts 가 test 모드면 true). safeStorage 는 주입(`{ isEncryptionAvailable, getSelectedStorageBackend, encryptString, decryptString }`), 파일 쓰기는 임시 파일 → rename, 권한 0o600.
   - **파일**: `src/main/app/credentialStore.ts`
@@ -178,7 +178,7 @@ SQLite 변경 없음. 자격은 `userData/credentials.bin`(safeStorage 암호문
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 기기 토큰 암호화 저장소 (spec 005 Task 4)`
 
-- [ ] **Task 5: 게이트웨이 클라이언트**
+- [x] **Task 5: 게이트웨이 클라이언트**
   - **묶음**: main-account
   - **작업**: `src/main/account/gatewayClient.ts` — 계약 3개 호출, envelope 해제·zod 검증, 비 2xx → `GatewayError(status, message)`, 네트워크 오류 → `GatewayError(0, '구독 서버에 연결하지 못했습니다')`. 타임아웃 10s.
   - **파일**: `src/main/account/gatewayClient.ts`, `src/main/account/types.ts`
@@ -188,7 +188,7 @@ SQLite 변경 없음. 자격은 `userData/credentials.bin`(safeStorage 암호문
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 게이트웨이 HTTP 클라이언트 (spec 005 Task 5)`
 
-- [ ] **Task 6: 계정 서비스 (활성화 폴링·상태) + IPC 핸들러**
+- [x] **Task 6: 계정 서비스 (활성화 폴링·상태) + IPC 핸들러**
   - **묶음**: main-account
   - **작업**: `src/main/account/accountService.ts` — 「main 모듈 설계」 + FR-4·FR-5·FR-7. 상태 전이: not_required(고정) / inactive → activating → active / activating → inactive(취소·만료·실패) / active → inactive(signOut·401). `startActivation` 은 `openTab(purchase_url)` 호출. 폴링 중 `consumed` 를 토큰 없이 받으면 inactive + “연결 정보를 받지 못했습니다 — 다시 시도해 주세요”. `src/main/ipc/handlers/account.ts` — 3줄 핸들러 + 봉투(`BUSY`·`AGENT_ERROR`).
   - **파일**: `src/main/account/accountService.ts`, `src/main/account/index.ts`, `src/main/ipc/handlers/account.ts`
@@ -198,7 +198,7 @@ SQLite 변경 없음. 자격은 `userData/credentials.bin`(safeStorage 암호문
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 계정 활성화 서비스·IPC 핸들러 (spec 005 Task 6)`
 
-- [ ] **Task 7: 계정 카드 (사이드바)**
+- [x] **Task 7: 계정 카드 (사이드바)**
   - **묶음**: renderer-sidebar
   - **작업**: `src/renderer/hooks/useAccount.ts` — getStatus + onChanged 구독, start/cancel/openManage/signOut 실패는 toast(`skills/desktop/error-toast`). `src/renderer/sidebar/AccountCard/index.tsx` — `role="region"` 이름 “계정”; not_required 면 렌더링 안 함; inactive: 안내 + [구독하고 시작하기] (+ message); activating: “구매 페이지에서 결제를 마치면 자동으로 연결됩니다” + 진행 표시 + [취소]; active: “준비됨” + “크레딧 {n}”(null 이면 “크레딧 확인 중”) + [구독 관리] + [연결 해제]. 디자인은 `skills/desktop/design`. `App.tsx` 사이드바 제목 아래에 배치.
   - **파일**: `src/renderer/hooks/useAccount.ts`, `src/renderer/sidebar/AccountCard/index.tsx`, `src/renderer/App.tsx`
@@ -208,7 +208,7 @@ SQLite 변경 없음. 자격은 `userData/credentials.bin`(safeStorage 암호문
   - **통과 기준**: 기존 e2e 의 `getByRole`·`getByText` 와 부분 일치하는 새 문구 없음 (기존 선택자: `작업 실행`·`작업 중지`·`거부`·`계속`·region `실행 결과` — 계정 카드는 fake 모드에서 렌더링되지 않는다)
   - **커밋**: `feat: 사이드바 계정 카드 (spec 005 Task 7)`
 
-- [ ] **Task 8: 평가 세트 러너**
+- [x] **Task 8: 평가 세트 러너**
   - **묶음**: agent-eval
   - **작업**: `eval/scenarios.ts` — 시나리오 배열 `{ id, task, startPage, fakeScenario, expect: { status, maxToolCalls?, approvals? }, onApproval?: 'denied'|'agent'|'user_done' }`: 기존 가짜 시나리오(`search-read`, `reservation-full`, `reservation-stop`, `approval-confirm`, `password-block`, `pixel-confirm`, `ask-user`)를 각각 1개씩. `playwright.eval.config.ts` + `eval/agent.eval.ts` — 시나리오마다 앱을 띄워 할 일 실행 → 승인·질문은 시나리오 지시대로 응답 → 끝 상태·도구 호출 수·승인 수·usage·시간 수집 → `eval/report.ts` 가 마크다운 표 + JSON(`eval/results/`). `--real --yes-spend`(env `MYBROWSER_EVAL_REAL=1` 로 전달) 이면 `MYBROWSER_FAKE_MODEL=0`·direct 모드, 키 없으면 즉시 실패 문장. `--real` 만이면 종료 코드 2 + 안내(FR-8).
   - **파일**: `eval/scenarios.ts`, `eval/report.ts`, `eval/cliArgs.ts`, `eval/cli.mjs`, `eval/agent.eval.ts`, `playwright.eval.config.ts`
@@ -218,7 +218,7 @@ SQLite 변경 없음. 자격은 `userData/credentials.bin`(safeStorage 암호문
   - **통과 기준**: `--real` 은 이 Task 에서 실행하지 않는다(비용)
   - **커밋**: `feat: 가짜 모델 평가 세트 러너 (spec 005 Task 8)`
 
-- [ ] **Task 9: 가짜 게이트웨이 픽스처**
+- [x] **Task 9: 가짜 게이트웨이 픽스처**
   - **묶음**: agent-eval
   - **작업**: `e2e/fixtures/gateway.ts` — `startFakeGateway({ messagesStatus?: 200|401|402 })` → `{ url, close, requestLog }`. 「결정 사항」의 동작. SSE 는 Anthropic 스트림 이벤트(`message_start` → `content_block_start/delta/stop` → `message_delta(stop_reason end_turn, usage)` → `message_stop`). `requestLog` 에는 경로·헤더 이름만(토큰 값은 마스킹).
   - **파일**: `e2e/fixtures/gateway.ts`
@@ -228,7 +228,7 @@ SQLite 변경 없음. 자격은 `userData/credentials.bin`(safeStorage 암호문
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `test: 가짜 구독 게이트웨이 픽스처 (spec 005 Task 9)`
 
-- [ ] **Task 10: 연결 — 게이트웨이 모드 run·계정 e2e·설치판 e2e**
+- [x] **Task 10: 연결 — 게이트웨이 모드 run·계정 e2e·설치판 e2e**
   - **묶음**: 연결(메인 직접 — 5단계 merge 뒤, 도우미에게 배정하지 않는다)
   - **작업**: `index.ts` — credentialStore(`safeStorage`)·gatewayClient·accountService 조립(`openTab` = `tabManager.createTab(url)`, `deviceName` = `os.hostname()` 64자 자름), `createModelClient` 에 gateway 모드면 `baseURL: env.gatewayUrl`, `apiKey: account.getDeviceToken()`, `registerIpc` 에 account 핸들러, 종료 시 `account.shutdown()`. `agent/loop.ts` — `TLoopOutcome` 의 failed 에 `apiStatus?: number`(SDK `APIError.status`)를 싣는다. `agent/service.ts` — `deps.modelMode === 'gateway'` 일 때만 401/402/429 를 FR-6 문장으로 바꾸고 401 이면 `onAuthFailure`(direct 모드 문장은 지금 그대로), `onRunEnd` 훅, `MissingCredentialError` 시작 거부. test 모드면 ready 전 `password-store=basic` 스위치(SR-1). `registry.ts` 등록. `docs/DESIGN.md` §1·§2·§5·§7 갱신(게이트웨이·계정·설치판 CDP).
   - **파일**: `src/main/index.ts`, `src/main/agent/loop.ts`, `src/main/agent/service.ts`, `src/main/ipc/registry.ts`, `docs/DESIGN.md`, `e2e/account.spec.ts`, `e2e-packaged/packaged.spec.ts`
@@ -244,3 +244,8 @@ SQLite 변경 없음. 자격은 `userData/credentials.bin`(safeStorage 암호문
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-05 | 1~3 (기반) | vitest·e2e 23 통과, dist:linux·check:asar 0 | c4eb2d4, 12b416e, d7f2e0a, 8425dc9 | `__GATEWAY_URL__` 선언은 index.ts, app-shell e2e 의 window.api 키에 account |
+| 2026-11-05 | 4~6 (main-account) | 단위 76 통과 | d7f03ed, 6975d38, d97771f | purchase_url 에 poll_secret 이 있으면 거부, 비재시도 4xx 는 inactive |
+| 2026-11-05 | 7 (renderer-sidebar) | 단위 22 통과 | 4eeaddf | toast 는 훅이 아니라 AccountCard 가 호출(error-toast 규칙) |
+| 2026-11-05 | 8~9 (agent-eval) | 단위 34, `pnpm eval` 7/7 | b1dad62, 564689e | 승인 대기 수는 DB 가 아니라 러너가 답한 승인 창 수(steps 는 최종 status 만 남음) |
+| 2026-11-05 | 10 (연결) | make check 1307, e2e 28, e2e:packaged 2, eval 7/7 | (검증 반영 커밋) | SDK 1.5.0 은 Bearer 로 보냄 → 게이트웨이 둘 다 수용, test 모드 safeStorage `setUsePlainTextEncryption`, vitest 는 WAYLAND_DISPLAY 제거 |
