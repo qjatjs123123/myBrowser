@@ -26,6 +26,8 @@ export function createWindowOptions(preloadPath: string): BrowserWindowConstruct
 /** 메인 창을 만들고 renderer 를 불러온다 — 개발 중엔 electron-vite dev 서버, 빌드 후엔 out/renderer */
 export function createMainWindow({ rendererDevUrl }: { rendererDevUrl?: string }): BrowserWindow {
   const window = new BrowserWindow(createWindowOptions(join(__dirname, '../preload/index.js')));
+  // 메뉴(편집 단축키)는 남기고 막대만 숨긴다 — autoHideMenuBar 는 Alt 로 막대가 튀어나와 Alt+←/→ 와 겹친다
+  window.setMenuBarVisibility(false);
   window.once('ready-to-show', () => window.show());
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   if (rendererDevUrl) void window.loadURL(rendererDevUrl);

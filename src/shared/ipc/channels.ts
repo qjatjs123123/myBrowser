@@ -4,6 +4,20 @@
  */
 export const IPC = {
   app: { getInfo: 'app:getInfo' },
+  tabs: {
+    list: 'tabs:list',
+    create: 'tabs:create',
+    close: 'tabs:close',
+    activate: 'tabs:activate',
+    navigate: 'tabs:navigate',
+    goBack: 'tabs:goBack',
+    goForward: 'tabs:goForward',
+    reload: 'tabs:reload',
+    stop: 'tabs:stop',
+    setBounds: 'tabs:setBounds',
+    changed: 'tabs:changed',
+  },
+  shortcut: { pressed: 'shortcut:pressed' },
 } as const;
 
 type TValues<T> = T extends string ? T : { [K in keyof T]: TValues<T[K]> }[keyof T];

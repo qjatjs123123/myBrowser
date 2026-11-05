@@ -35,7 +35,7 @@ description: 화면(크롬형 상단바·탭·주소창, 에이전트 사이드�
 - **중립·저대비**: 배경 `bg-background`, 경계 `border-border`, 아이콘 `text-muted-foreground`. 강조색은 쓰지 않는다 (페이지 콘텐츠와 경쟁 금지).
 - 주소창은 `Input` 기반, 포커스 시만 `ring`. 로딩은 주소창 왼쪽 작은 스피너, 진행 막대 금지.
 - 탭은 활성만 `bg-background`, 나머지 `bg-muted`. 닫기 버튼은 hover 시 노출. 파비콘 16px.
-- 키보드: Ctrl+T/W/L/Tab 은 main 의 메뉴 단축키로 처리하고 renderer 는 표시만.
+- 키보드: Ctrl+T/W/L/R/Tab·Alt+←/→ 는 main 이 메인 창·탭 webContents 의 `before-input-event` 로 처리한다 (`src/main/tabs/shortcuts.ts`, 탭 View 에 포커스가 있어도 동작). 메뉴 accelerator 는 등록하지 않고(메뉴 막대도 숨김, 편집 메뉴만), renderer 는 키를 등록하지 않는다 — 포커스가 필요하면 main 이 `shortcut:pressed` 이벤트로 알린다. (spec 002)
 
 ## 3. 사이드바 원칙 — 상태가 먼저 보인다
 - 맨 위에 **현재 상태 배지** 하나: `대기` / `실행 중` / `승인 필요` / `질문` / `완료` / `실패`. `승인 필요`·`질문` 은 `bg-primary` 로 유일하게 강조.

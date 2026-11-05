@@ -1,16 +1,31 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from '../App';
 
+/** jsdom 에 없는 ResizeObserver 대역 — 콘텐츠 영역 bounds 훅이 쓴다 */
+class FakeResizeObserver {
+  observe(): void {}
+  disconnect(): void {}
+}
+
 describe('App', () => {
-  it('브라우징 영역 "새 탭" 과 사이드바 "에이전트" 제목을 보여준다', async () => {
+  beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('브라우저 크롬의 탭 목록과 사이드바 "에이전트" 제목을 보여준다', async () => {
     vi.mocked(window.api.app.getInfo).mockResolvedValue({
       ok: true,
       data: { name: 'myBrowser', version: '0.1.0', mode: 'test' },
     });
+    vi.mocked(window.api.tabs.list).mockResolvedValue({ ok: true, data: { tabList: [], activeTabId: null } });
     render(<App />);
-    expect(screen.getByRole('heading', { name: '새 탭' })).toBeInTheDocument();
+    expect(screen.getByRole('tablist')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '에이전트' })).toBeInTheDocument();
     expect(await screen.findByText('myBrowser v0.1.0 · 테스트')).toBeInTheDocument();
   });
