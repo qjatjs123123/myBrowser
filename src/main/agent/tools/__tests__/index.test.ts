@@ -54,6 +54,15 @@ function createDriver(): IBrowserDriver {
       pageUrl: '',
     })),
     getPageInfo: vi.fn(async () => ({ url: 'https://example.com/', title: '예시' })),
+    takeScreenshot: vi.fn(async () => ({ ok: true as const, pngBase64: '', width: 1280, height: 800 })),
+    clickAt: ok,
+    typeRaw: ok,
+    pressRaw: ok,
+    scrollAt: ok,
+    moveTo: ok,
+    resolvePointTarget: vi.fn(async () => null),
+    isInViewport: vi.fn(async () => true),
+    showOverlay: vi.fn(async () => undefined),
     dispose: vi.fn(async () => undefined),
   };
 }

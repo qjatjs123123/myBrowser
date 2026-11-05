@@ -31,10 +31,39 @@ interface IDriverState {
  */
 export function createBrowserDriver({ tabs, cdp, startTabId, timeoutMs }: ICreateBrowserDriverOptions): IBrowserDriver {
   const state: IDriverState = { tabs, cdp, currentTabId: startTabId, options: { timeoutMs } };
-  return { ...createPageMethods(state), ...createTabMethods(state) };
+  return { ...createPageMethods(state), ...createPixelMethods(), ...createTabMethods(state) };
 }
 
-type TPageMethods = Omit<IBrowserDriver, 'listTabs' | 'switchTab' | 'openTab' | 'dispose'>;
+type TPixelMethodName =
+  | 'takeScreenshot'
+  | 'clickAt'
+  | 'typeRaw'
+  | 'pressRaw'
+  | 'scrollAt'
+  | 'moveTo'
+  | 'resolvePointTarget'
+  | 'isInViewport'
+  | 'showOverlay';
+
+type TPageMethods = Omit<IBrowserDriver, 'listTabs' | 'switchTab' | 'openTab' | 'dispose' | TPixelMethodName>;
+
+const NOT_SUPPORTED = { ok: false, reason: '아직 지원하지 않습니다' } as const;
+
+// TODO(spec 004 Task 3): screenshot·pointer·overlay 모듈로 실제 구현하면 지운다 — 지금은 계약(타입)만 맞춘다
+function createPixelMethods(): Pick<IBrowserDriver, TPixelMethodName> {
+  const notSupported = async (): Promise<TActionResult> => NOT_SUPPORTED;
+  return {
+    takeScreenshot: async () => NOT_SUPPORTED,
+    clickAt: notSupported,
+    typeRaw: notSupported,
+    pressRaw: notSupported,
+    scrollAt: notSupported,
+    moveTo: notSupported,
+    resolvePointTarget: async () => null,
+    isInViewport: async () => false,
+    showOverlay: async () => undefined,
+  };
+}
 
 function createPageMethods(state: IDriverState): TPageMethods {
   const { options } = state;

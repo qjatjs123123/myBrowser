@@ -57,6 +57,15 @@ function createFakeDriver() {
       ref && TARGET_MAP[ref] ? toTarget(TARGET_MAP[ref]) : null,
     ),
     getPageInfo: vi.fn(async () => ({ url: 'https://shop.example.com/', title: '가게' })),
+    takeScreenshot: vi.fn(async () => ({ ok: true as const, pngBase64: '', width: 1280, height: 800 })),
+    clickAt: vi.fn(() => ok('완료')),
+    typeRaw: vi.fn(() => ok('완료')),
+    pressRaw: vi.fn(() => ok('완료')),
+    scrollAt: vi.fn(() => ok('완료')),
+    moveTo: vi.fn(() => ok('완료')),
+    resolvePointTarget: vi.fn(async () => null),
+    isInViewport: vi.fn(async () => true),
+    showOverlay: vi.fn(async () => undefined),
     dispose: vi.fn(async () => undefined),
   } satisfies IBrowserDriver;
 }

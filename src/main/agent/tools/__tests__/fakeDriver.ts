@@ -27,6 +27,15 @@ export function createFakeDriver(): IBrowserDriver {
     openTab: act(),
     resolveTarget: vi.fn(async () => null),
     getPageInfo: vi.fn(async () => ({ url: 'about:blank', title: '' })),
+    takeScreenshot: vi.fn(async () => ({ ok: true as const, pngBase64: '', width: 1280, height: 800 })),
+    clickAt: act(),
+    typeRaw: act(),
+    pressRaw: act(),
+    scrollAt: act(),
+    moveTo: act(),
+    resolvePointTarget: vi.fn(async () => null),
+    isInViewport: vi.fn(async () => true),
+    showOverlay: vi.fn(async () => undefined),
     dispose: vi.fn(async () => undefined),
   };
 }

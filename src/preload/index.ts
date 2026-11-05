@@ -36,6 +36,8 @@ const api: IApi = {
   agent: {
     start: (req) => ipcRenderer.invoke(IPC.agent.start, req),
     stop: (req) => ipcRenderer.invoke(IPC.agent.stop, req),
+    approve: (req) => ipcRenderer.invoke(IPC.agent.approve, req),
+    answer: (req) => ipcRenderer.invoke(IPC.agent.answer, req),
     onEvent: (cb) => subscribe(IPC.agent.event, cb),
   },
 };
