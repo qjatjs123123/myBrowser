@@ -23,7 +23,8 @@ import type { TAgentEvent } from '@shared/ipc/agent';
 import type { IBrowserDriver, TOverlayCommand } from '@shared/tools';
 
 import { runAgentLoop, type TLoopOutcome } from './loop';
-import { MissingApiKeyError, type IModelClient } from './modelClient';
+import type { TModelMode } from '../env';
+import { MissingApiKeyError, MissingCredentialError, type IModelClient } from './modelClient';
 import { buildFirstUserMessage, SYSTEM_PROMPT } from './prompts/system';
 import { isFinalStatus, transition, type TRunEvent } from './runs';
 import { createExclusiveQueue, createToolList, type IToolRunContext, type TUserRequest } from './tools';
@@ -52,6 +53,12 @@ export interface IAgentServiceDeps {
   model: string;
   maxToolCalls: number;
   log?: IAgentLog;
+  /** 모델 호출 경로 — 'gateway' 일 때만 401/402/429 를 구독 문장으로 바꾼다 (spec 005 FR-6). 없으면 direct 와 같다 */
+  modelMode?: TModelMode;
+  /** gateway 모드 401 — 계정 서비스가 저장 토큰을 지우고 inactive 로 */
+  onAuthFailure?: () => void;
+  /** run 종료(done·failed·stopped) 직후 — 계정 서비스의 크레딧 갱신 (spec 005 FR-5) */
+  onRunEnd?: () => void;
 }
 
 export type TStartResult = { ok: true; runId: string } | { ok: false; code: 'BUSY' | 'AGENT_ERROR'; message: string };
@@ -79,6 +86,10 @@ export const AGENT_MESSAGE = {
   requestNotFound: '확인할 요청을 찾을 수 없습니다',
   invalidRequest: '요청 형식이 올바르지 않습니다',
   appQuit: '앱이 종료됐습니다',
+  missingCredential: '구독을 시작하면 쓸 수 있습니다 — 사이드바의 [구독하고 시작하기]를 눌러 주세요',
+  gatewayUnauthorized: '기기 연결이 해제됐습니다 — 다시 구독 연결을 해 주세요',
+  gatewayNoCredits: '크레딧이 부족합니다 — [구독 관리]에서 충전해 주세요',
+  gatewayRateLimited: '요청이 너무 많습니다 — 잠시 후 다시 시도해 주세요',
 } as const;
 
 type THaltReason = 'stopped' | 'shutdown' | 'failed';
@@ -176,6 +187,8 @@ async function prepareRun(deps: IAgentServiceDeps): Promise<TPrepared> {
   } catch (error) {
     if (error instanceof MissingApiKeyError)
       return { ok: false, code: 'AGENT_ERROR', message: AGENT_MESSAGE.missingApiKey };
+    if (error instanceof MissingCredentialError)
+      return { ok: false, code: 'AGENT_ERROR', message: AGENT_MESSAGE.missingCredential };
     throw error;
   }
   try {
@@ -245,7 +258,8 @@ async function runLoopFor(
 function settleOutcome(deps: IAgentServiceDeps, session: IRunSession, outcome: TLoopOutcome): void {
   if (session.haltReason === 'stopped') return endRun(deps, session, { event: 'stop' });
   if (outcome.kind === 'done') return endRun(deps, session, { event: 'finish', summary: outcome.summary });
-  if (outcome.kind === 'failed') return endRun(deps, session, { event: 'fail', reason: outcome.reason });
+  if (outcome.kind === 'failed')
+    return endRun(deps, session, { event: 'fail', reason: toFailureReason(deps, outcome) });
   if (!session.haltReason) endRun(deps, session, { event: 'fail', reason: AGENT_MESSAGE.unexpected });
 }
 
@@ -367,6 +381,22 @@ function endRun(deps: IAgentServiceDeps, session: IRunSession, payload: TEndPayl
   if (isFinalStatus(session.status)) return;
   deps.emit(toEndEvent(session.runId, payload));
   applyTransition(deps, session, payload.event, toEndPatch(deps, session, payload));
+  deps.onRunEnd?.();
+}
+
+const GATEWAY_REASON_MAP: Record<number, string> = {
+  401: AGENT_MESSAGE.gatewayUnauthorized,
+  402: AGENT_MESSAGE.gatewayNoCredits,
+  429: AGENT_MESSAGE.gatewayRateLimited,
+};
+
+/** 루프 실패 사유 — gateway 모드의 401·402·429 만 구독 문장으로 바꾸고 401 이면 계정 해제를 알린다 (direct 문장은 그대로) */
+function toFailureReason(deps: IAgentServiceDeps, outcome: Extract<TLoopOutcome, { kind: 'failed' }>): string {
+  if (deps.modelMode !== 'gateway' || outcome.apiStatus === undefined) return outcome.reason;
+  const gatewayReason = GATEWAY_REASON_MAP[outcome.apiStatus];
+  if (!gatewayReason) return outcome.reason;
+  if (outcome.apiStatus === 401) deps.onAuthFailure?.();
+  return gatewayReason;
 }
 
 function toEndEvent(runId: string, payload: TEndPayload): TAgentEvent {

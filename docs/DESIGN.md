@@ -14,7 +14,8 @@
 | UI (렌더러) | React 19 + Vite + Tailwind 4 + shadcn/ui, zustand | 크롬형 상단바(탭·뒤로/앞으로·주소창) + 오른쪽 에이전트 사이드바 |
 | 에이전트 | **`@anthropic-ai/sdk`** `client.beta.messages.toolRunner` + `betaZodTool`, zod | 도구 루프를 SDK 가 돌리고, 턴별 훅으로 승인 게이트·로그 |
 | 브라우저 제어 | **`playwright-core`** `chromium.connectOverCDP('http://127.0.0.1:9222')` (+ Electron `webContents` API) | 접근성 스냅샷(`ariaSnapshot`)·locator·click/type 을 그대로. Electron 은 `app.commandLine.appendSwitch('remote-debugging-port','9222')` 로 노출 |
-| 저장 | **내장 `node:sqlite`** (`DatabaseSync` — runs/steps/히스토리), `electron-store` (설정), `safeStorage` (API 키 암호화) | 서버·DB 서비스 없이 로컬 완결. better-sqlite3 는 Electron ABI rebuild 가 vitest(Node)와 충돌해 바꿈 (spec 003) |
+| 저장 | **내장 `node:sqlite`** (`DatabaseSync` — runs/steps/히스토리), `electron-store` (설정), `safeStorage` (구독 **기기 토큰** 암호화 — spec 005, 사용자 API 키는 받지 않는다) |
+| 과금·모델 경유 (설치판) | **게이트웨이 서버** — 별도 레포 `mybrowser-gateway`(FastAPI·Postgres·토스페이먼츠). 진짜 Anthropic 키는 서버에만, 앱은 구매 후 자동 저장된 기기 토큰으로 `/v1/messages` 를 부른다(Anthropic 호환 SSE 중계 + 원가 기준 크레딧 차감). dev 는 `.env` 키로 직접 (spec 005) | 서버·DB 서비스 없이 로컬 완결. better-sqlite3 는 Electron ABI rebuild 가 vitest(Node)와 충돌해 바꿈 (spec 003) |
 | 테스트 | vitest (unit) · Playwright `_electron.launch` (e2e) | 실제 앱을 띄워 에이전트 흐름 검증 |
 | 품질 | eslint + prettier + tsc, husky 대신 `.claude` 훅 + `.githooks` | boilerplate 하네스 재사용 |
 
@@ -41,6 +42,7 @@ Electron 45 · electron-vite 6 · Vite 8 · React 19.3 · Tailwind 4.3 · Zod 4 
 └────────────────────────────────┘
 ```
 
+- 모델 호출 경로 (spec 005, `env.modelMode`): `fake`(e2e) / `direct`(dev — `.env` 키 → api.anthropic.com) / `gateway`(설치판 — 기기 토큰 → `mybrowser-gateway` → Anthropic). 기기 토큰은 `account/` 모듈이 기기 코드 방식(구매 탭 + 폴링)으로 받아 `app/credentialStore.ts`(safeStorage)에 둔다. 원격 디버깅은 항상 127.0.0.1, 설치판 기본 port 0.
 - 에이전트 루프는 **main 프로세스**에서 돈다 (1차). 무거워지면 `utilityProcess` 로 분리.
 - 렌더러는 Node 접근 금지(`contextIsolation: true`, `nodeIntegration: false`), 모든 통신은 preload 의 타입 API.
 - 사이드바 UI 와 탭은 같은 창 안의 별도 View 라 사용자 조작과 에이전트 조작이 한 화면에서 보인다.
@@ -95,7 +97,9 @@ myBrowser/
 | 2 | CDP 연결 + 구조 도구 + 루프 MVP + 사이드바 타임라인 — **구현 (spec 003, 2026-11-05)**: 가드 규칙 1~4 포함(확정·결제는 승인 UI 전까지 run 정지), e2e 는 가짜 모델·로컬 픽스처. 실제 사이트 완료 기준은 수동 확인(API 비용) · 패키징 앱의 CDP 경로는 5단계 | "네이버에서 ○○ 검색해 전화번호 알려줘" 성공 |
 | 3 | 예약 시나리오: 날짜·시간·인원 폼, ask/approval, 확정 직전 가드 — **구현 (spec 004, 2026-11-05)**: e2e 로 거부·직접·에이전트 누르기·중지 경로의 승인 전 미실행 확인 | 확정 모달 직전 정지 100% |
 | 4 | computer_toolset 폴백 + 커서 오버레이 — **구현 (spec 004, 2026-11-05)**: 로컬 canvas 달력 픽셀 선택 e2e 통과, 실제 사이트는 수동 확인 | 달력 위젯 선택 성공 |
-| 5 | electron-builder 패키징 + 평가 세트 | 설치 파일 더블클릭 실행, 회귀 측정 |
+| 5 | electron-builder 패키징 + 평가 세트 — **구현 (spec 005, 2026-11-05)**: `pnpm dist:linux`(AppImage) + 설치판 e2e(`pnpm e2e:packaged`), `pnpm eval`(가짜 모델 7 시나리오 표, `--real --yes-spend` 는 비용 승인 후), 구독 계정 활성화(gateway 모드). Win/mac 은 설정만 | 설치 파일 더블클릭 실행, 회귀 측정 |
+| 6 | 게이트웨이 운영 — 실제 Postgres·토스 샌드박스 검증, 배포, 실측(`eval --real`)으로 가격·크레딧 확정 | 결제→활성화→run→차감 실환경 1회 |
+| 7 | 출시 — 코드 서명·자동 업데이트, 약관·개인정보처리방침, 사업자·통신판매업 | 외부 사용자 설치·결제 |
 
 ## 6. boilerplate `.claude` 적용 — 완료 (2026-11-05)
 
@@ -122,3 +126,4 @@ myBrowser/
 - SQLite 는 내장 `node:sqlite` 라 네이티브 rebuild 가 없다 (로컬 Node 22 에서는 ExperimentalWarning 출력, Electron 45 의 Node 24 는 안정).
 - 봇 차단·앱 전용 흐름은 `ask_user` 로 사용자에게 넘긴다.
 - 비용: 스냅샷(텍스트) 위주, 스크린샷은 폴백. 컨텍스트 편집 필수.
+- 과금(spec 005): 원가는 USD, 판매는 KRW → 환율 버퍼를 크레딧 환산에 둔다. 정기결제 실패(past_due)·환불 정책 필요. 게이트웨이는 웹페이지 내용을 중계하므로 본문 미로깅 + 개인정보처리방침 명시. 설치판 CDP(127.0.0.1 임의 포트)는 같은 PC 의 다른 프로세스가 접속할 수 있다 — 외부 노출은 없음.

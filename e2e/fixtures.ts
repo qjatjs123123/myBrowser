@@ -3,6 +3,7 @@
  * - 깨끗한 임시 프로필(MYBROWSER_USER_DATA), 가짜 모델 모드(MYBROWSER_FAKE_MODEL=1, 시나리오는 fakeScenario 옵션), 임의 CDP 포트(0 — 떠 있는 pnpm dev 와 충돌 방지)
  * - renderer console.error·pageerror·main 의 [main.error] 를 모아 HARNESS_RUN_DIR/console-errors.log 에 쓰고, 1건이라도 있으면 테스트를 실패시킨다
  * - 탭 페이지는 로컬 픽스처 서버(fixtureUrl)만 연다 — 외부 사이트 금지
+ * - `test.use({ appEnv, executablePath })` 로 env 를 덮어쓰거나(값 undefined = 키 제거) 설치판 실행 파일을 띄운다 (spec 005)
  * 규칙: .claude/rules/test-convention.md 「e2e」, .claude/skills/desktop/app-check
  */
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
@@ -20,6 +21,15 @@ const ROOT = resolve(__dirname, '..');
 /** 알려진 무해한 출력 — 패턴과 이유를 함께 적는다. 테스트 코드에서 개별로 무시하지 않는다 */
 const IGNORED_ERROR_LIST: { pattern: RegExp; reason: string }[] = [];
 
+/** 앱 env 덮어쓰기 — 값이 undefined 면 그 키를 env 에서 뺀다 (예: 설치판 e2e 의 MYBROWSER_CDP_PORT) */
+export type TAppEnv = Record<string, string | undefined>;
+
+/** launchApp 호출 인자 — appEnv 는 fixture 옵션 appEnv 위에 덮어쓴다 (가짜 게이트웨이처럼 실행마다 바뀌는 값) */
+export interface ILaunchAppOptions {
+  userDataDir: string;
+  appEnv?: TAppEnv;
+}
+
 /** 앱을 한 번 띄운 결과 — 같은 userData 로 여러 번 띄우는 테스트(프로필 영속)에서 쓴다 */
 export interface ILaunchedApp {
   app: ElectronApplication;
@@ -33,9 +43,22 @@ interface IFixtures {
   /** 픽스처 서버 경로의 절대 URL — 예: fixtureUrl('basic.html') */
   fixtureUrl: (path: string) => string;
   /** 같은 userData 로 앱을 띄운다 — 테스트가 닫는다. 에러는 errorList 로 모인다 */
-  launchApp: (options: { userDataDir: string }) => Promise<ILaunchedApp>;
+  launchApp: (options: ILaunchAppOptions) => Promise<ILaunchedApp>;
   /** 가짜 모델 시나리오 이름(e2e/fixtures/model/{이름}.json) — `test.use({ fakeScenario })` 로 고른다 */
   fakeScenario: string | undefined;
+  /** 기본 env 위에 덮어쓸 값 — `test.use({ appEnv })` */
+  appEnv: TAppEnv;
+  /** 설치판 실행 파일 — 주면 소스 폴더(ROOT)를 인자로 넘기지 않는다. `test.use({ executablePath })` */
+  executablePath: string | undefined;
+}
+
+/** launchElectron 입력 */
+interface ILaunchElectronOptions {
+  userDataDir: string;
+  errorList: string[];
+  fakeScenario?: string;
+  appEnv: TAppEnv;
+  executablePath?: string;
 }
 
 function isIgnored(line: string): boolean {
@@ -50,24 +73,30 @@ function writeErrorLog(testTitle: string, errorList: string[]): void {
   appendFileSync(join(runDir, 'console-errors.log'), `## ${testTitle}\n${body}\n`);
 }
 
-/** 앱을 띄우고 main 의 [main.error] 줄을 errorList 에 모은다 */
-async function launchElectron(
-  userDataDir: string,
-  errorList: string[],
-  fakeScenario?: string,
-): Promise<ElectronApplication> {
+/** 기본 env + appEnv 덮어쓰기 — undefined 값의 키는 뺀다 */
+function createAppEnv({ userDataDir, fakeScenario, appEnv }: ILaunchElectronOptions): Record<string, string> {
   const { ELECTRON_RENDERER_URL: _devServerUrl, ...baseEnv } = process.env;
+  const merged: TAppEnv = {
+    ...baseEnv,
+    NODE_ENV: 'test',
+    MYBROWSER_FAKE_MODEL: '1',
+    MYBROWSER_CDP_PORT: '0',
+    MYBROWSER_USER_DATA: userDataDir,
+    ...(fakeScenario ? { MYBROWSER_FAKE_SCENARIO: fakeScenario } : {}),
+    ...appEnv,
+  };
+  return Object.fromEntries(
+    Object.entries(merged).filter((entry): entry is [string, string] => entry[1] !== undefined),
+  );
+}
+
+/** 앱을 띄우고 main 의 [main.error] 줄을 errorList 에 모은다 */
+async function launchElectron(options: ILaunchElectronOptions): Promise<ElectronApplication> {
+  const { errorList, executablePath } = options;
   const app = await _electron.launch({
-    args: [ROOT],
+    ...(executablePath ? { executablePath } : { args: [ROOT] }),
     cwd: ROOT,
-    env: {
-      ...baseEnv,
-      NODE_ENV: 'test',
-      MYBROWSER_FAKE_MODEL: '1',
-      MYBROWSER_CDP_PORT: '0',
-      MYBROWSER_USER_DATA: userDataDir,
-      ...(fakeScenario ? { MYBROWSER_FAKE_SCENARIO: fakeScenario } : {}),
-    },
+    env: createAppEnv(options),
   });
   app.process().stderr?.on('data', (chunk: Buffer) => {
     for (const line of chunk.toString().split('\n')) {
@@ -114,7 +143,11 @@ export async function findTabPage(app: ElectronApplication, urlPart: string): Pr
  */
 export async function pressKeyInTab(
   app: ElectronApplication,
-  { urlPart, keyCode, modifierList }: { urlPart: string; keyCode: string; modifierList: ('control' | 'meta' | 'shift' | 'alt')[] },
+  {
+    urlPart,
+    keyCode,
+    modifierList,
+  }: { urlPart: string; keyCode: string; modifierList: ('control' | 'meta' | 'shift' | 'alt')[] },
 ): Promise<void> {
   await app.evaluate(
     ({ webContents }, args) => {
@@ -130,6 +163,8 @@ export async function pressKeyInTab(
 
 export const test = base.extend<IFixtures, { fixtureServer: IFixtureServer }>({
   fakeScenario: [undefined, { option: true }],
+  appEnv: [{}, { option: true }],
+  executablePath: [undefined, { option: true }],
 
   fixtureServer: [
     async ({}, use) => {
@@ -151,16 +186,17 @@ export const test = base.extend<IFixtures, { fixtureServer: IFixtureServer }>({
     if (errorList.length) throw new Error(`앱에서 에러 ${errorList.length}건 발생:\n${errorList.join('\n')}`);
   },
 
-  launchApp: async ({ errorList, fakeScenario }, use) => {
-    await use(async ({ userDataDir }) => {
-      const app = await launchElectron(userDataDir, errorList, fakeScenario);
+  launchApp: async ({ errorList, fakeScenario, appEnv, executablePath }, use) => {
+    await use(async ({ userDataDir, appEnv: callAppEnv }) => {
+      const merged = { ...appEnv, ...callAppEnv };
+      const app = await launchElectron({ userDataDir, errorList, fakeScenario, appEnv: merged, executablePath });
       return { app, win: await openChromeWindow(app, errorList) };
     });
   },
 
-  app: async ({ errorList, fakeScenario }, use) => {
+  app: async ({ errorList, fakeScenario, appEnv, executablePath }, use) => {
     const userDataDir = mkdtempSync(join(tmpdir(), 'mybrowser-e2e-'));
-    const app = await launchElectron(userDataDir, errorList, fakeScenario);
+    const app = await launchElectron({ userDataDir, errorList, fakeScenario, appEnv, executablePath });
     await use(app);
     await app.close();
     rmSync(userDataDir, { recursive: true, force: true });

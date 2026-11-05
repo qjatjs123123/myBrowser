@@ -160,3 +160,12 @@ describe('runAgentLoop', () => {
     expect(requestList).toHaveLength(0);
   });
 });
+
+describe('runAgentLoop — API 오류 상태 전달 (spec 005 FR-6)', () => {
+  it.each([401, 402, 429])('HTTP %i 오류면 failed 에 apiStatus 를 싣는다', async (status) => {
+    const fetch = async () => Response.json({ type: 'error', error: { type: 'x', message: 'x' } }, { status });
+    const client = new Anthropic({ apiKey: 'fake', fetch, maxRetries: 0 });
+    const outcome = await runAgentLoop({ ...baseOptions(client), tools: [createEchoTool().tool] });
+    expect(outcome).toMatchObject({ kind: 'failed', apiStatus: status });
+  });
+});

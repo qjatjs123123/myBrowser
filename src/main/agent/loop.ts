@@ -20,7 +20,9 @@ import type { IModelClient } from './modelClient';
 import type { TRunnableTool } from './tools';
 
 /** 루프 결과 — aborted 는 중지·가드 정지·상한 실패로 abort 된 경우 (서비스가 정지 플래그로 상태를 정한다) */
-export type TLoopOutcome = { kind: 'done'; summary: string } | { kind: 'failed'; reason: string } | { kind: 'aborted' };
+/** failed 의 apiStatus — 모델(게이트웨이) HTTP 오류 상태. 서비스가 gateway 모드 문장으로 바꿀 때 쓴다 (spec 005 FR-6) */
+export type TLoopOutcome =
+  { kind: 'done'; summary: string } | { kind: 'failed'; reason: string; apiStatus?: number } | { kind: 'aborted' };
 
 export interface IRunAgentLoopOptions {
   client: IModelClient;
@@ -105,7 +107,12 @@ function getSummary(message: BetaMessage | null): string {
 
 function toErrorOutcome(error: unknown, signal: AbortSignal): TLoopOutcome {
   if (signal.aborted || error instanceof APIUserAbortError) return { kind: 'aborted' };
-  if (error instanceof APIError) return { kind: 'failed', reason: toApiErrorReason(error) };
+  if (error instanceof APIError) {
+    const reason = toApiErrorReason(error);
+    return typeof error.status === 'number'
+      ? { kind: 'failed', reason, apiStatus: error.status }
+      : { kind: 'failed', reason };
+  }
   if (error instanceof AnthropicError && PARSE_ERROR_PATTERN.test(error.message)) {
     return { kind: 'failed', reason: '모델 응답을 해석하지 못했습니다' };
   }

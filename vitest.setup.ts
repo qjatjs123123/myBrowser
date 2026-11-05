@@ -34,6 +34,14 @@ Object.defineProperty(window, 'api', {
       answer: vi.fn(),
       onEvent: createSubscribeMock(),
     },
+    account: {
+      getStatus: vi.fn(() => Promise.resolve({ ok: true, data: { state: 'not_required' } })),
+      startActivation: vi.fn(),
+      cancelActivation: vi.fn(),
+      openManage: vi.fn(),
+      signOut: vi.fn(),
+      onChanged: createSubscribeMock(),
+    },
   },
 });
 

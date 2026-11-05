@@ -83,3 +83,15 @@ Claude 는 에러를 만나면 이 문서를 먼저 확인한다. 새 문제를 
 ## 에이전트 e2e 첫 테스트에서 주소창 값이 `nhttp://…` 가 되어 네이버 검색으로 이동
 - 원인: 앱 시작 직후 `fill` 이 주소창 포커스·값 동기화와 경합 (spec 004, 품질 게이트 e2e 에서 1회).
 - 해결: 헬퍼에서 `click` → `fill` → `toHaveValue(url)` 확인 → `Enter` (browser-chrome.spec 과 같은 순서). 타임아웃을 늘리지 않는다.
+
+## vitest 의 chromium 테스트가 전부 `Test timed out in 5000ms` — rAF·스크린샷이 영원히 대기 (spec 005)
+- 증상: `src/main/browser/__tests__` 의 click·scroll·screenshot 테스트만 실패. 레포 코드 없이 `chromium.launch()` → `requestAnimationFrame` 도 5초 안에 안 온다. 부하·플래그(`--disable-gpu`)와 무관.
+- 원인: WSL 재시작 뒤 WSLg Wayland 컴포지터가 응답하지 않는데 셸에 `WAYLAND_DISPLAY=wayland-0` 이 남아 있으면 headless chromium 이 그 Wayland 에 붙어 프레임이 멈춘다 (`env -u WAYLAND_DISPLAY` 면 바로 됨).
+- 해결: `vitest.setup.main.ts` 가 테스트 시작 전에 `WAYLAND_DISPLAY` 를 지운다(이미 반영). 직접 스크립트를 돌릴 때는 `env -u WAYLAND_DISPLAY node …`. 근본 해결은 Windows 에서 `wsl --shutdown` 후 다시 열기.
+
+## 계정 e2e 에서 재실행 후 기기 토큰이 사라짐 — `safeStorage.isEncryptionAvailable()` 이 false (spec 005)
+- 원인: Linux `password-store=basic` 백엔드(basic_text)에서 Electron 은 `setUsePlainTextEncryption(true)` 를 부르기 전까지 "암호화 불가"로 답한다 → SR-1 에 따라 디스크에 쓰지 않음.
+- 해결: test 모드에서만 `index.ts` 가 `safeStorage.setUsePlainTextEncryption(true)` 를 부른다(이미 반영). production 은 basic_text 면 메모리에만 둔다(설계대로).
+
+## `pnpm dist:linux`·`pnpm e2e:packaged` 가 사내망에서 다운로드 실패
+- electron-builder 가 AppImage 도구를 받는다 — 위 사내망 항목과 같이 `NODE_EXTRA_CA_CERTS=<회사 루트 PEM>` 을 붙여 실행한다.
