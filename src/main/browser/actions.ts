@@ -26,7 +26,7 @@ export interface IActionOptions {
 export class ActionError extends Error {}
 
 /** [실패 결과] 행동 중 생긴 오류를 `{ ok:false, reason }` 으로 — 실패는 throw 하지 않는다 (rules/electron/main.md) */
-export function toActionFailure(error: unknown): TActionResult {
+export function toActionFailure(error: unknown): { ok: false; reason: string } {
   if (error instanceof ActionError) return { ok: false, reason: error.message };
   const firstLine = (error instanceof Error ? error.message : String(error)).split('\n')[0] ?? '';
   if (error instanceof errors.TimeoutError) return { ok: false, reason: `시간 초과: ${firstLine}` };
@@ -159,7 +159,8 @@ async function waitForText(page: Page, text: string, timeout: number): Promise<v
   }
 }
 
-async function runAction(work: () => Promise<string>): Promise<TActionResult> {
+/** 행동 본문을 감싸 성공 문장은 `{ ok:true }`, 오류는 `{ ok:false, reason }` 으로 — pointer.ts 도 쓴다 */
+export async function runAction(work: () => Promise<string>): Promise<TActionResult> {
   try {
     return { ok: true, text: await work() };
   } catch (error) {
@@ -168,7 +169,7 @@ async function runAction(work: () => Promise<string>): Promise<TActionResult> {
 }
 
 /** 행동이 이동을 일으켰으면 문서가 뜰 때까지 기다리고 ` — 이동: {url}` 을, 아니면 '' */
-async function describeNavigation(page: Page, before: string, options: IActionOptions): Promise<string> {
+export async function describeNavigation(page: Page, before: string, options: IActionOptions): Promise<string> {
   await page.waitForLoadState('domcontentloaded', { timeout: getTimeout(options) }).catch(() => undefined);
   return page.url() === before ? '' : ` — 이동: ${page.url()}`;
 }

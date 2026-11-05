@@ -75,7 +75,7 @@ function startBrowser(): void {
   });
   shortcutInput = createShortcutInputHandler(runner, process.platform);
   attachShortcuts(window.webContents, runner, process.platform);
-  const agentService = createAgentRuntime(tabManager, emitToSidebar);
+  agentService = createAgentRuntime(tabManager, emitToSidebar);
   registerIpc(ipcMain, {
     ...createAppHandlers({ getName: () => app.getName(), getVersion: () => app.getVersion(), mode: env.mode }),
     ...createTabsHandlers(tabManager),
@@ -92,6 +92,7 @@ function readFakeScenario(): TFakeScenario | undefined {
 }
 
 let database: ReturnType<typeof openDatabase> | null = null;
+let agentService: ReturnType<typeof createAgentService> | null = null;
 let cdpConnection: Promise<ICdpConnection> | null = null;
 
 /** CDP 연결은 첫 run 에서 1회 만들고 앱 수명 동안 공유한다 — 실패하면 다음 run 에서 다시 시도 */
@@ -145,6 +146,8 @@ void app.whenReady().then(() => {
 // 종료 전에 로그인 쿠키를 디스크에 확실히 쓴다 (재실행 시 세션 유지 — spec 002 FR-8)
 let isCookieFlushed = false;
 app.on('before-quit', (event) => {
+  // 승인·질문 대기 중이면 실행 없이 풀고 run 을 failed(앱 종료)로 정리한다 (spec 004 SR-1) — 여러 번 불러도 안전
+  agentService?.shutdown();
   if (isCookieFlushed) return;
   event.preventDefault();
   void session

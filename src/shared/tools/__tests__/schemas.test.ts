@@ -2,7 +2,10 @@ import type { ZodType } from 'zod';
 import { describe, expect, it } from 'vitest';
 
 import {
+  ALL_TOOL_NAME_LIST,
+  AskUserInputSchema,
   ClickInputSchema,
+  HUMAN_TOOL_NAME_LIST,
   GoBackInputSchema,
   ListTabsInputSchema,
   NavigateInputSchema,
@@ -10,6 +13,7 @@ import {
   PressKeyInputSchema,
   ReadTextInputSchema,
   RefSchema,
+  RequestApprovalInputSchema,
   ScrollInputSchema,
   SelectOptionInputSchema,
   SnapshotInputSchema,
@@ -49,6 +53,18 @@ const CASE_LIST: { name: string; schema: ZodType; valid: unknown; invalid: unkno
   { name: 'list_tabs', schema: ListTabsInputSchema, valid: {}, invalid: { all: true } },
   { name: 'switch_tab', schema: SwitchTabInputSchema, valid: { tabId: 'tab-2' }, invalid: { tabId: '' } },
   { name: 'open_tab', schema: OpenTabInputSchema, valid: {}, invalid: { url: 'not a url' } },
+  {
+    name: 'ask_user',
+    schema: AskUserInputSchema,
+    valid: { question: '몇 명인가요?', optionList: ['2명', '4명'] },
+    invalid: { question: '' },
+  },
+  {
+    name: 'request_approval',
+    schema: RequestApprovalInputSchema,
+    valid: { action: '예약 확정', target: '7시 2명', reason: '최종 확인' },
+    invalid: { action: '', target: '', reason: '확인' },
+  },
 ];
 
 describe('도구 입력 스키마', () => {
@@ -83,10 +99,51 @@ describe('도구 입력 스키마', () => {
   });
 });
 
+describe('사람 개입 도구 스키마', () => {
+  it('ask_user 는 optionList 없이도 통과한다', () => {
+    expect(AskUserInputSchema.safeParse({ question: '날짜를 알려주세요' }).success).toBe(true);
+  });
+
+  it('ask_user 는 질문이 301자면 실패한다', () => {
+    expect(AskUserInputSchema.safeParse({ question: 'a'.repeat(301) }).success).toBe(false);
+  });
+
+  it('ask_user 는 선택지 7개·61자 선택지면 실패한다', () => {
+    const optionList = Array.from({ length: 7 }, (_, i) => String(i));
+    expect(AskUserInputSchema.safeParse({ question: '몇 명?', optionList }).success).toBe(false);
+    expect(AskUserInputSchema.safeParse({ question: '몇 명?', optionList: ['a'.repeat(61)] }).success).toBe(false);
+  });
+
+  it('ask_user 에 옛 이름 options 를 쓰면 실패한다', () => {
+    expect(AskUserInputSchema.safeParse({ question: '몇 명?', options: ['2명'] }).success).toBe(false);
+  });
+
+  it('request_approval 은 target 이 비어도 통과한다', () => {
+    expect(RequestApprovalInputSchema.safeParse({ action: '확인', target: '', reason: '이유' }).success).toBe(true);
+  });
+
+  it('request_approval 은 action 101자·target 201자·reason 없음이면 실패한다', () => {
+    const base = { action: '확인', target: '', reason: '이유' };
+    expect(RequestApprovalInputSchema.safeParse({ ...base, action: 'a'.repeat(101) }).success).toBe(false);
+    expect(RequestApprovalInputSchema.safeParse({ ...base, target: 'a'.repeat(201) }).success).toBe(false);
+    expect(RequestApprovalInputSchema.safeParse({ action: '확인', target: '' }).success).toBe(false);
+  });
+});
+
 describe('도구 이름 목록', () => {
   it('TOOL_NAME_LIST 는 중복 없는 13개다', () => {
     expect(TOOL_NAME_LIST).toHaveLength(13);
     expect(new Set(TOOL_NAME_LIST).size).toBe(13);
+  });
+
+  it('HUMAN_TOOL_NAME_LIST 는 사람 개입 도구 2개다', () => {
+    expect(HUMAN_TOOL_NAME_LIST).toEqual(['ask_user', 'request_approval']);
+  });
+
+  it('ALL_TOOL_NAME_LIST 는 중복 없는 15개이고 브라우저 도구 13개 뒤에 사람 개입 도구가 온다', () => {
+    expect(ALL_TOOL_NAME_LIST).toHaveLength(15);
+    expect(new Set(ALL_TOOL_NAME_LIST).size).toBe(15);
+    expect(ALL_TOOL_NAME_LIST).toEqual([...TOOL_NAME_LIST, ...HUMAN_TOOL_NAME_LIST]);
   });
 
   it('STATEFUL_TOOL_NAME_LIST 는 상태를 바꾸는 6개 도구다', () => {

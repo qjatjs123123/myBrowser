@@ -1,0 +1,7 @@
+{
+  "turns": [
+    { "content": [{ "type": "tool_use", "name": "screenshot", "input": {}, "toolset_name": "computer" }] },
+    { "content": [{ "type": "tool_use", "name": "left_click", "input": { "coordinate": [140, 80] }, "toolset_name": "computer" }] },
+    { "content": [{ "type": "text", "text": "결제 버튼은 사용자 결정에 맡겼습니다" }] }
+  ]
+}

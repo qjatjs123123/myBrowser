@@ -54,12 +54,14 @@ function createMessage({ turn, body, index, createToolUseId }: ICreateMessage) {
   const messageList = Array.isArray(body.messages) ? body.messages : [];
   const content = turn.content.map((block) =>
     block.type === 'text'
-      ? { type: 'text', text: block.text, citations: null }
+      ? { type: 'text' as const, text: block.text, citations: null }
       : {
-          type: 'tool_use',
+          type: 'tool_use' as const,
           id: createToolUseId(),
           name: block.name,
           input: resolveRefPlaceholders(block.input, messageList),
+          // 픽셀 toolset 멤버 호출 — SDK 가 toolset_name 으로 멤버를 찾는다 (spec 004)
+          ...(block.toolset_name ? { toolset_name: block.toolset_name } : {}),
         },
   );
   const hasToolUse = turn.content.some((block) => block.type === 'tool_use');

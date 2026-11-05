@@ -1,7 +1,8 @@
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { resolveTarget } from '../target';
+import { showCursor } from '../overlay';
+import { resolvePointTarget, resolveTarget } from '../target';
 
 import { findRef, getFixtureUrl, openWithSnapshot } from './helpers';
 
@@ -95,5 +96,50 @@ describe('resolveTarget focused', () => {
 
   it('포커스된 요소가 없으면(body) null 이다', async () => {
     await expect(resolveTarget(page, { focused: true })).resolves.toBeNull();
+  });
+
+  it("focused 'element' 면 폼 안 비밀번호 칸이어도 submit 버튼으로 바꾸지 않고 그 칸을 돌려준다", async () => {
+    await page.locator('#password').focus();
+    const target = await resolveTarget(page, { focused: 'element' });
+    expect(target).toMatchObject({ inputType: 'password', fieldName: 'pw', value: '', formSubmitText: '결제하기' });
+  });
+
+  it("focused 'element' 도 포커스된 요소가 없으면 null 이다", async () => {
+    await expect(resolveTarget(page, { focused: 'element' })).resolves.toBeNull();
+  });
+});
+
+describe('resolvePointTarget', () => {
+  beforeEach(async () => {
+    await page.goto(getFixtureUrl('browser-pointer.html'));
+  });
+
+  it('좌표의 버튼이면 그 버튼의 role·name 을 읽는다', async () => {
+    await expect(resolvePointTarget(page, { x: 80, y: 40 })).resolves.toMatchObject({
+      role: 'button',
+      name: '예약 확정',
+    });
+  });
+
+  it('좌표가 canvas 면 name·text 가 빈 값이다', async () => {
+    await expect(resolvePointTarget(page, { x: 300, y: 100 })).resolves.toMatchObject({
+      role: 'canvas',
+      name: '',
+      text: '',
+    });
+  });
+
+  it('오버레이 커서가 그 좌표에 있어도 아래 요소를 읽는다', async () => {
+    await showCursor(page, { x: 80, y: 40 });
+    await expect(resolvePointTarget(page, { x: 80, y: 40 })).resolves.toMatchObject({ name: '예약 확정' });
+  });
+
+  it('scale 을 곱한 CSS 좌표로 찾는다', async () => {
+    await expect(resolvePointTarget(page, { x: 40, y: 20 }, 2)).resolves.toMatchObject({ name: '예약 확정' });
+  });
+
+  it('뷰포트 밖 좌표면 null 이다', async () => {
+    await expect(resolvePointTarget(page, { x: 5000, y: 40 })).resolves.toBeNull();
+    await expect(resolvePointTarget(page, { x: -1, y: 40 })).resolves.toBeNull();
   });
 });

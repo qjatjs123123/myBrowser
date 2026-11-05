@@ -27,9 +27,10 @@ paths:
 - 도구 결과에 **사람 말 요약**(`summary`)을 함께 반환한다 — `agent:event` step 에 그대로 쓴다.
 
 ## 사람 개입 도구
-- `ask_user({ question, options? })` → run 을 `waiting_user(question)` 으로 바꾸고 `agent:event {type:'question'}` 발신 → `agent:answer` IPC 가 오면 답을 tool_result 로 돌려주고 재개.
-- `request_approval({ action, target, reason })` → `waiting_user(approval)` → `agent:approve {approved}` → 승인이면 "approved" tool_result, 거부면 "denied: 사용자가 거부함. 다른 방법을 제안하거나 종료하라".
-- 대기 중 타임아웃은 없다 (사용자가 돌아올 때까지). `agent:stop` 이 오면 `stopped` 로 종료.
+- 대기는 **도구 `run` 안의 await** 다 (`ctx.waitForUser` — `agent/waits.ts` 레지스트리). 루프를 멈추거나 다시 시작하지 않는다(히스토리 append-only). 대기는 run 당 동시에 하나(공용 큐 `ctx.runExclusive`).
+- `ask_user({ question, optionList? })` → `waiting_user` + `agent:event {type:'question'}` → `agent:answer { runId, requestId, answer }` 가 오면 "사용자 답: …" 을 돌려주고 재개. 답 원문은 DB 에 저장하지 않는다.
+- `request_approval({ action, target, reason })` → 승인 창(kind=model, 모델 문장은 "에이전트 설명" 칸에만) → `agent:approve { runId, requestId, decision: 'approved'|'denied' }`. 가드의 승인 요청은 decision `'agent'|'user_done'|'denied'` (`rules/agent/guard.md` 「판정 결과」).
+- 대기 중 타임아웃은 없다 (사용자가 돌아올 때까지). `agent:stop` 이면 `stopped`, 앱 종료면 `shutdown()` → `failed`("앱이 종료됐습니다") — 어느 쪽도 대기 중인 도구를 실행하지 않는다.
 
 ## 프롬프트 (prompts/)
 - `system.ts` 가 섹션별 상수를 합쳐 문자열 1개를 만든다: 역할 → 도구 사용 순서(항상 snapshot 먼저, 픽셀 도구는 폴백) → 안전 규칙(승인 필요 행동, 비밀번호·카드 입력 금지, 추측 금지·ask_user) → 한국 예약 사이트 참고 → 출력 형식(완료 시 한 줄 요약).
@@ -37,7 +38,7 @@ paths:
 - 프롬프트 변경은 `prompts/__tests__/system.test.ts` 의 스냅샷 테스트를 갱신해야 한다 — 의도치 않은 변경 방지.
 
 ## 상태 머신 (runs.ts)
-`queued → running → waiting_user → running → stopped_before_confirm | done | failed | stopped`. 전이는 `transition(run, event)` 함수 1곳에서만, 불법 전이는 throw. 모든 전이는 `steps` 테이블과 `agent:event` 에 기록.
+`queued → running ⇄ waiting_user → done | failed | stopped` (대기 중에도 stop·fail 가능. `stopped_before_confirm` 은 spec 003 기록 호환용 enum 으로만 남고 새 전이가 없다 — spec 004). 전이는 `transition(run, event)` 함수 1곳에서만, 불법 전이는 throw. 모든 전이는 `steps` 테이블과 `agent:event` 에 기록.
 
 ## 컨텍스트·비용
 - `snapshot` 은 12k 자 제한, 스크린샷은 뷰포트 1280×800 이하로 축소, 같은 상태에서 연속 스크린샷 금지(도구 설명에 명시).

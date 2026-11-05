@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck, CircleStop, type LucideIcon, TriangleAlert } from 'lucide-react';
+import { CircleAlert, CircleCheck, CircleStop, type LucideIcon } from 'lucide-react';
 
 import type { IRunResult } from '@/hooks/useAgentRun';
 import { cn } from '@/lib/utils';
@@ -9,16 +9,11 @@ interface IResultView {
   className: string;
 }
 
-/** 종료 종류별 톤 — 가드 정지는 경고(진한 테두리·배경), 실패는 destructive 글자 */
+/** 종료 종류별 톤 — 실패는 destructive 글자 (확인 필요는 승인 창이 --warning 으로 보여준다) */
 const RESULT_VIEW: Record<IRunResult['kind'], IResultView> = {
   done: { title: '결과', Icon: CircleCheck, className: 'border-border bg-muted text-foreground' },
   failed: { title: '실패 이유', Icon: CircleAlert, className: 'border-destructive/40 text-destructive' },
   stopped: { title: '중지', Icon: CircleStop, className: 'border-border text-muted-foreground' },
-  guard_stopped: {
-    title: '직접 확인 필요',
-    Icon: TriangleAlert,
-    className: 'border-destructive bg-destructive/10 text-foreground',
-  },
 };
 
 interface IRunResultProps {

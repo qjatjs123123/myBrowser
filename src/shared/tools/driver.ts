@@ -37,10 +37,31 @@ export interface IGuardTarget {
   pageUrl: string;
 }
 
-/** resolveTarget 요청 — ref 요소 또는 포커스된 요소(press_key 용) */
+/** 좌표 — 마지막 스크린샷의 픽셀 기준 (스크린샷 전에는 CSS px 와 같다) */
+export interface IPoint {
+  x: number;
+  y: number;
+}
+
+/** 스크린샷 결과 — 1280×800 이하로 축소한 PNG */
+export type TScreenshotResult =
+  { ok: true; pngBase64: string; width: number; height: number } | { ok: false; reason: string };
+
+/** 탭 위 커서 오버레이 명령 — 커서 이동, 승인 대기 대상 강조(ref 또는 좌표), 강조 지우기 */
+export type TOverlayCommand =
+  | { kind: 'cursor'; point: IPoint }
+  | { kind: 'highlight'; ref: string }
+  | { kind: 'highlight'; point: IPoint }
+  | { kind: 'clear' };
+
+/**
+ * resolveTarget 요청 — ref 요소 또는 포커스된 요소.
+ * focused: true = Enter 가 누를 대상(폼 안 입력칸이면 그 폼의 submit 버튼, press_key 용),
+ * 'element' = 포커스된 요소 그 자체(픽셀 type 이 비밀 입력칸을 판정할 때, spec 004).
+ */
 export interface IResolveTargetRequest {
   ref?: string;
-  focused?: boolean;
+  focused?: boolean | 'element';
 }
 
 /**
@@ -64,5 +85,18 @@ export interface IBrowserDriver {
   /** 가드용 대상 정보 — 찾을 수 없으면 null (fail-closed 판정은 가드가 한다) */
   resolveTarget(req: IResolveTargetRequest): Promise<IGuardTarget | null>;
   getPageInfo(): Promise<{ url: string; title: string }>;
+  /** [픽셀] 현재 대상 탭 뷰포트 스크린샷 — 축소 비율은 드라이버가 보관해 좌표 변환에 쓴다 */
+  takeScreenshot(): Promise<TScreenshotResult>;
+  clickAt(input: IPoint & { count: 1 | 2 }): Promise<TActionResult>;
+  typeRaw(input: { text: string }): Promise<TActionResult>;
+  /** xdotool 식 키 이름("Return", "ctrl+a") */
+  pressRaw(input: { key: string }): Promise<TActionResult>;
+  scrollAt(input: IPoint & { direction: 'up' | 'down' | 'left' | 'right'; amount: number }): Promise<TActionResult>;
+  moveTo(input: IPoint): Promise<TActionResult>;
+  /** 좌표의 요소(elementFromPoint, 오버레이 제외) — 찾을 수 없으면 null */
+  resolvePointTarget(input: IPoint): Promise<IGuardTarget | null>;
+  isInViewport(input: IPoint): Promise<boolean>;
+  /** 커서·강조 오버레이 — 실패해도 resolve (오버레이 때문에 행동이 실패하지 않는다) */
+  showOverlay(cmd: TOverlayCommand): Promise<void>;
   dispose(): Promise<void>;
 }

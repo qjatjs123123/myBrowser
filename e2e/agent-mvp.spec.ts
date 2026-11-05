@@ -47,14 +47,14 @@ test.describe('검색·읽기', () => {
 test.describe('확정 직전 정지', () => {
   test.use({ fakeScenario: 'reservation-stop' });
 
-  test('예약 확정 버튼은 클릭하지 않고 run 을 멈춘다', async ({ app, win, fixtureUrl }) => {
+  test('예약 확정 버튼은 클릭하지 않고 승인 창에서 멈춘다 (spec 004 — 대기로 바뀜)', async ({ app, win, fixtureUrl }) => {
     await openInActiveTab(win, fixtureUrl('reservation.html'), '예약 페이지');
     await runTask(win, '오늘 7시 2명 예약해줘');
 
     const sidebar = getSidebar(win);
-    await expect(sidebar.getByRole('status', { name: '실행 상태' })).toHaveText('확정 직전 정지');
-    await expect(sidebar.getByRole('region', { name: '실행 결과' })).toContainText('예약 확정');
-    await expect(sidebar.getByRole('img', { name: '차단됨' })).toHaveCount(1);
+    await expect(sidebar.getByRole('status', { name: '실행 상태' })).toHaveText('확인 필요');
+    await expect(sidebar.getByRole('alertdialog', { name: '승인 필요' })).toContainText('예약 확정');
+    await expect(sidebar.getByRole('img', { name: '확인 대기' })).toHaveCount(1);
     const tabPage = await findTabPage(app, 'reservation.html');
     const clickLog = await tabPage.evaluate(() => (globalThis as unknown as { __clickLog: string[] }).__clickLog);
     expect(clickLog).toEqual([]);

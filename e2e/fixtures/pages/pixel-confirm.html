@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>그림 결제 버튼</title>
+    <style>
+      body { margin: 0; }
+      #pay { position: absolute; left: 40px; top: 40px; }
+    </style>
+  </head>
+  <body>
+    <!-- 이름 없는 canvas 에 그린 "결제" 버튼 — 픽셀 가드가 요소를 확인할 수 없어 승인을 받아야 한다 -->
+    <canvas id="pay" width="200" height="80"></canvas>
+    <script>
+      window.__clickLog = [];
+      const canvas = document.getElementById('pay');
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#2563eb';
+      ctx.fillRect(0, 0, 200, 80);
+      ctx.fillStyle = '#fff';
+      ctx.font = '24px sans-serif';
+      ctx.fillText('결제', 75, 48);
+      canvas.addEventListener('click', () => window.__clickLog.push('pay'));
+    </script>
+  </body>
+</html>

@@ -1,4 +1,4 @@
-import { Ban, Check, CircleAlert, LoaderCircle, type LucideIcon } from 'lucide-react';
+import { Ban, Check, CircleAlert, CircleX, Hourglass, LoaderCircle, type LucideIcon } from 'lucide-react';
 
 import type { TStep, TStepStatus } from '@shared/agent/run';
 
@@ -12,9 +12,11 @@ interface IStepStatusView {
 
 const STEP_STATUS_VIEW: Record<TStepStatus, IStepStatusView> = {
   running: { label: '진행 중', Icon: LoaderCircle, className: 'animate-spin text-muted-foreground' },
+  waiting: { label: '확인 대기', Icon: Hourglass, className: 'text-warning' },
   ok: { label: '완료', Icon: Check, className: 'text-primary' },
   error: { label: '오류', Icon: CircleAlert, className: 'text-destructive' },
   blocked: { label: '차단됨', Icon: Ban, className: 'text-destructive' },
+  denied: { label: '거부됨', Icon: CircleX, className: 'text-muted-foreground' },
 };
 
 interface IStepRowProps {

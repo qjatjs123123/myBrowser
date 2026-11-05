@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { AgentEventSchema, StartAgentRequestSchema, StartAgentResponseSchema, StopAgentRequestSchema } from '../agent';
+import {
+  AgentEventSchema,
+  AnswerAgentRequestSchema,
+  ApproveAgentRequestSchema,
+  StartAgentRequestSchema,
+  StartAgentResponseSchema,
+  StopAgentRequestSchema,
+} from '../agent';
 
 describe('StartAgentRequestSchema', () => {
   it('할 일이 있으면 앞뒤 공백을 잘라 통과한다', () => {
@@ -44,6 +51,52 @@ describe('StopAgentRequestSchema', () => {
   });
 });
 
+describe('ApproveAgentRequestSchema', () => {
+  it.each(['agent', 'user_done', 'denied', 'approved'])('decision %s 는 통과한다', (decision) => {
+    expect(ApproveAgentRequestSchema.safeParse({ runId: 'r1', requestId: 'req-1', decision }).success).toBe(true);
+  });
+
+  it('없는 decision 이면 실패한다', () => {
+    const raw = { runId: 'r1', requestId: 'req-1', decision: 'always' };
+    expect(ApproveAgentRequestSchema.safeParse(raw).success).toBe(false);
+  });
+
+  it.each(['req-', 'req-a', 'request-1', '1', 'req-1 '])('requestId %j 는 실패한다', (requestId) => {
+    expect(ApproveAgentRequestSchema.safeParse({ runId: 'r1', requestId, decision: 'agent' }).success).toBe(false);
+  });
+
+  it('추가 키가 있으면 실패한다', () => {
+    const raw = { runId: 'r1', requestId: 'req-1', decision: 'agent', remember: true };
+    expect(ApproveAgentRequestSchema.safeParse(raw).success).toBe(false);
+  });
+});
+
+describe('AnswerAgentRequestSchema', () => {
+  const BASE = { runId: 'r1', requestId: 'req-3' };
+
+  it('답이 있으면 앞뒤 공백을 잘라 통과한다', () => {
+    const parsed = AnswerAgentRequestSchema.safeParse({ ...BASE, answer: ' 2명 ' });
+    expect(parsed.success && parsed.data.answer).toBe('2명');
+  });
+
+  it('빈 답이면 실패한다', () => {
+    expect(AnswerAgentRequestSchema.safeParse({ ...BASE, answer: '' }).success).toBe(false);
+  });
+
+  it('공백만 있는 답이면 실패한다', () => {
+    expect(AnswerAgentRequestSchema.safeParse({ ...BASE, answer: '   ' }).success).toBe(false);
+  });
+
+  it('1000자는 통과하고 1001자면 실패한다', () => {
+    expect(AnswerAgentRequestSchema.safeParse({ ...BASE, answer: 'a'.repeat(1000) }).success).toBe(true);
+    expect(AnswerAgentRequestSchema.safeParse({ ...BASE, answer: 'a'.repeat(1001) }).success).toBe(false);
+  });
+
+  it('requestId 형식이 틀리면 실패한다', () => {
+    expect(AnswerAgentRequestSchema.safeParse({ runId: 'r1', requestId: 'q1', answer: '네' }).success).toBe(false);
+  });
+});
+
 describe('AgentEventSchema', () => {
   const VALID_EVENT_LIST = [
     { type: 'status', runId: 'r1', status: 'running' },
@@ -52,11 +105,25 @@ describe('AgentEventSchema', () => {
     { type: 'failed', runId: 'r1', reason: '도구 호출 한도(60회)를 넘었습니다' },
     { type: 'stopped', runId: 'r1' },
     {
-      type: 'guard_stopped',
+      type: 'approval_required',
       runId: 'r1',
-      reason: '확정·결제 행동: 예약 확정',
-      display: { action: '클릭', target: '예약 확정' },
+      request: {
+        requestId: 'req-1',
+        stepN: 3,
+        kind: 'guard',
+        source: 'structure',
+        reason: '확정·결제 행동: 예약 확정',
+        display: { action: '클릭', target: '예약 확정' },
+        modelNote: null,
+      },
     },
+    { type: 'approval_resolved', runId: 'r1', requestId: 'req-1', decision: 'cancelled' },
+    {
+      type: 'question',
+      runId: 'r1',
+      question: { requestId: 'req-2', stepN: 4, text: '몇 명인가요?', optionList: ['2명', '4명'] },
+    },
+    { type: 'question_answered', runId: 'r1', requestId: 'req-2' },
   ];
 
   it.each(VALID_EVENT_LIST)('$type 이벤트가 계약대로면 통과한다', (event) => {
@@ -64,7 +131,7 @@ describe('AgentEventSchema', () => {
   });
 
   it('없는 type 이면 실패한다', () => {
-    expect(AgentEventSchema.safeParse({ type: 'approval_required', runId: 'r1' }).success).toBe(false);
+    expect(AgentEventSchema.safeParse({ type: 'auto_approved', runId: 'r1' }).success).toBe(false);
   });
 
   it('step.n 이 0 이면 실패한다', () => {
@@ -76,8 +143,39 @@ describe('AgentEventSchema', () => {
     expect(AgentEventSchema.safeParse({ type: 'status', runId: 'r1', status: 'paused' }).success).toBe(false);
   });
 
-  it('guard_stopped 에 display 가 없으면 실패한다', () => {
-    expect(AgentEventSchema.safeParse({ type: 'guard_stopped', runId: 'r1', reason: 'x' }).success).toBe(false);
+  it('guard_stopped 이벤트는 더 이상 계약에 없어 실패한다 (spec 004 — 승인 대기로 대체)', () => {
+    expect(
+      AgentEventSchema.safeParse({
+        type: 'guard_stopped',
+        runId: 'r1',
+        reason: 'x',
+        display: { action: '클릭', target: '예약 확정' },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('approval_required 에 request 가 없으면 실패한다', () => {
+    expect(AgentEventSchema.safeParse({ type: 'approval_required', runId: 'r1' }).success).toBe(false);
+  });
+
+  it.each(['agent', 'user_done', 'denied', 'approved'])('approval_resolved 의 decision %s 는 통과한다', (decision) => {
+    const event = { type: 'approval_resolved', runId: 'r1', requestId: 'req-1', decision };
+    expect(AgentEventSchema.safeParse(event).success).toBe(true);
+  });
+
+  it('approval_resolved 의 decision 이 계약 밖이면 실패한다', () => {
+    const event = { type: 'approval_resolved', runId: 'r1', requestId: 'req-1', decision: 'timeout' };
+    expect(AgentEventSchema.safeParse(event).success).toBe(false);
+  });
+
+  it('question 의 질문 문구가 비면 실패한다', () => {
+    const question = { requestId: 'req-2', stepN: 1, text: '', optionList: [] };
+    expect(AgentEventSchema.safeParse({ type: 'question', runId: 'r1', question }).success).toBe(false);
+  });
+
+  it('question_answered 에 답 원문을 실으면 실패한다', () => {
+    const event = { type: 'question_answered', runId: 'r1', requestId: 'req-2', answer: '2명' };
+    expect(AgentEventSchema.safeParse(event).success).toBe(false);
   });
 
   it('이벤트에 추가 키가 있으면 실패한다', () => {

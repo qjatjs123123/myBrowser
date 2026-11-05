@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>브라우저 포인터 픽스처</title>
+    <style>
+      body { margin: 0; height: 3000px; }
+      .abs { position: absolute; }
+    </style>
+  </head>
+  <!-- src/main/browser 단위 테스트용 (spec 004 Task 2·3) — 절대 위치 배치라 좌표를 고정값으로 쓴다 -->
+  <body>
+    <button id="confirm" class="abs" type="button" style="left: 20px; top: 20px; width: 120px; height: 40px">예약 확정</button>
+    <canvas id="calendar" class="abs" width="300" height="200" style="left: 200px; top: 20px"></canvas>
+    <label for="query" class="abs" style="left: 20px; top: 80px">검색어</label>
+    <input id="query" class="abs" type="text" style="left: 20px; top: 100px; width: 160px; height: 24px" />
+    <a id="next" class="abs" href="browser-second.html" style="left: 20px; top: 150px">두 번째 페이지</a>
+
+    <script>
+      window.__clickLog = [];
+      window.__dblclickLog = [];
+      window.__keyLog = [];
+      document.addEventListener('click', (event) => {
+        const id = event.target && event.target.id ? event.target.id : event.target.tagName.toLowerCase();
+        window.__clickLog.push({ id, x: event.clientX, y: event.clientY, detail: event.detail });
+      });
+      document.addEventListener('dblclick', (event) => {
+        window.__dblclickLog.push({ id: event.target.id || event.target.tagName.toLowerCase() });
+      });
+      document.addEventListener('keydown', (event) => {
+        const modifierList = [event.ctrlKey && 'Control', event.altKey && 'Alt', event.shiftKey && 'Shift', event.metaKey && 'Meta'];
+        window.__keyLog.push([...modifierList.filter(Boolean), event.key].join('+'));
+      });
+    </script>
+  </body>
+</html>
