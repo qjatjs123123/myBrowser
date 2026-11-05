@@ -79,3 +79,7 @@ Claude 는 에러를 만나면 이 문서를 먼저 확인한다. 새 문제를 
 ## `pnpm dlx shadcn@latest add {부품}` 가 `./@/components/...` 를 만들고 `cn` 패키지를 추가함
 - 원인: CLI 가 `components.json` 의 `@/` alias 를 풀지 못함 (spec 004 textarea).
 - 해결: `package.json`·lock 을 되돌리고 `pnpm install --frozen-lockfile`, 파일을 `src/renderer/components/ui/{부품}.tsx` 로 옮겨 `import { cn } from '@/lib/utils'` 로 고친다.
+
+## 에이전트 e2e 첫 테스트에서 주소창 값이 `nhttp://…` 가 되어 네이버 검색으로 이동
+- 원인: 앱 시작 직후 `fill` 이 주소창 포커스·값 동기화와 경합 (spec 004, 품질 게이트 e2e 에서 1회).
+- 해결: 헬퍼에서 `click` → `fill` → `toHaveValue(url)` 확인 → `Enter` (browser-chrome.spec 과 같은 순서). 타임아웃을 늘리지 않는다.

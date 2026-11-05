@@ -9,7 +9,10 @@ import { expect, findTabPage, test } from './fixtures';
 /** 주소창으로 활성 탭을 픽스처 페이지로 옮기고 탭 제목이 바뀔 때까지 기다린다 */
 async function openInActiveTab(win: Page, url: string, title: string): Promise<void> {
   const addressBar = win.getByRole('combobox', { name: '주소창' });
+  // 앱 시작 직후 포커스·값 동기화와 겹쳐 글자가 섞이는 경합을 피한다 (browser-chrome.spec 과 같은 순서 + 값 확인)
+  await addressBar.click();
   await addressBar.fill(url);
+  await expect(addressBar).toHaveValue(url);
   await addressBar.press('Enter');
   await expect(win.getByRole('tab', { name: title })).toBeVisible();
 }
