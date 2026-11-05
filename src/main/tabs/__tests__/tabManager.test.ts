@@ -31,6 +31,7 @@ function createFakeView(): IFakeTabView {
     setVisible: vi.fn(),
     focus: vi.fn(),
     destroy: vi.fn(),
+    getCdpTargetId: vi.fn(async () => `target-of-${view.state.url}`),
     nativeView: {},
     emitStateChanged: () => stateListener(),
     emitOpenWindow: (url) => openListener(url),
@@ -217,5 +218,20 @@ describe('TabManager 탐색·View 이벤트', () => {
     viewList[0]?.emitOpenWindow('file:///etc/passwd');
     expect(viewList).toHaveLength(1);
     expect(manager.getSnapshot().tabList).toHaveLength(1);
+  });
+});
+
+describe('TabManager CDP targetId', () => {
+  it('있는 탭이면 그 View 의 targetId 를 돌려준다', async () => {
+    const { manager, viewList } = setup();
+    const id = manager.createTab('https://a.com/');
+    await expect(manager.getCdpTargetId(id)).resolves.toBe('target-of-https://a.com/');
+    expect(viewList[0]?.getCdpTargetId).toHaveBeenCalledTimes(1);
+  });
+
+  it('없는 탭이면 null 을 돌려준다', async () => {
+    const { manager } = setup();
+    manager.createTab('https://a.com/');
+    await expect(manager.getCdpTargetId('tab-99')).resolves.toBeNull();
   });
 });

@@ -110,6 +110,12 @@ export class TabManager {
     return this.activeTabId;
   }
 
+  /** 탭의 CDP targetId — 없는 탭이면 null (에이전트의 탭 ↔ Page 매핑용) */
+  async getCdpTargetId(id: string): Promise<string | null> {
+    const view = this.findView(id);
+    return view ? view.getCdpTargetId() : null;
+  }
+
   hasTab(id: string): boolean {
     return this.entryList.some((entry) => entry.id === id);
   }
