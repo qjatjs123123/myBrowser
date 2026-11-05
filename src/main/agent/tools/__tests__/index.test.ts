@@ -10,6 +10,7 @@ import {
   type TAllToolName,
 } from '@shared/tools';
 
+import { BrowserComputerToolset } from '../../computer/toolset';
 import { checkGuard } from '../../guard';
 import type { TWaitAnswer } from '../../waits';
 import {
@@ -112,21 +113,30 @@ function findRunnable(ctx: IToolRunContext, name: TAllToolName): BetaRunnableToo
   return tool;
 }
 
+/** toolset 을 뺀 betaZodTool 목록 */
+function getZodToolList(ctx: IToolRunContext): BetaRunnableTool[] {
+  return createToolList(ctx).filter((item): item is BetaRunnableTool => 'name' in item && 'parse' in item);
+}
+
 describe('createToolList', () => {
   it('도구 이름 15개가 ALL_TOOL_NAME_LIST 와 같다', () => {
-    expect(createToolList(createContext()).map((tool) => ('name' in tool ? tool.name : ''))).toEqual([
-      ...ALL_TOOL_NAME_LIST,
-    ]);
+    expect(getZodToolList(createContext()).map((tool) => tool.name)).toEqual([...ALL_TOOL_NAME_LIST]);
+  });
+
+  it('목록 끝에 픽셀 computer toolset 1개가 붙는다 (spec 004 Task 7)', () => {
+    const toolList = createToolList(createContext());
+    expect(toolList).toHaveLength(ALL_TOOL_NAME_LIST.length + 1);
+    expect(toolList.at(-1)).toBeInstanceOf(BrowserComputerToolset);
   });
 
   it('모든 도구가 eager_input_streaming 을 켠다', () => {
-    for (const tool of createToolList(createContext())) {
+    for (const tool of getZodToolList(createContext())) {
       expect(tool).toMatchObject({ eager_input_streaming: true });
     }
   });
 
   it('모든 도구의 description 이 비어 있지 않다', () => {
-    for (const tool of createToolList(createContext())) {
+    for (const tool of getZodToolList(createContext())) {
       expect('description' in tool ? tool.description : '').not.toBe('');
     }
   });
