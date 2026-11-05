@@ -3,7 +3,6 @@ import { z } from 'zod';
 import {
   ApprovalDecisionSchema,
   ApprovalRequestSchema,
-  GuardDisplaySchema,
   ModelApprovalDecisionSchema,
   QuestionSchema,
   RequestIdSchema,
