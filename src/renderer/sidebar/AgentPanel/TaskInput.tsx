@@ -2,6 +2,7 @@ import { Play, Square } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
 const PLACEHOLDER = '예: 네이버에서 강남역 맛집 찾아 전화번호 알려줘';
 
@@ -29,7 +30,7 @@ export function TaskInput({ task, isBusy, canStop, onTaskChange, onStart, onStop
 
   return (
     <div className="flex flex-col gap-2 border-t border-border p-3">
-      <textarea
+      <Textarea
         aria-label="할 일"
         placeholder={PLACEHOLDER}
         value={task}
@@ -37,7 +38,7 @@ export function TaskInput({ task, isBusy, canStop, onTaskChange, onStart, onStop
         rows={3}
         onChange={(event) => onTaskChange(event.target.value)}
         onKeyDown={handleKeyDown}
-        className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+        className="max-h-40 resize-none"
       />
       <div className="flex justify-end">
         {isBusy ? (

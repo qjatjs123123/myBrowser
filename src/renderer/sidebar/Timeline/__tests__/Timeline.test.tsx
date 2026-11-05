@@ -31,4 +31,17 @@ describe('Timeline', () => {
     const nameList = screen.getAllByRole('img').map((icon) => icon.getAttribute('aria-label'));
     expect(nameList).toEqual(['진행 중', '완료', '오류', '차단됨']);
   });
+
+  it('승인 대기 step 은 “확인 대기”, 거부된 step 은 “거부됨” 아이콘을 붙인다', () => {
+    render(
+      <Timeline
+        stepList={[
+          { n: 1, tool: 'click', summary: '‘예약 확정’ 클릭', status: 'waiting' },
+          { n: 2, tool: 'click', summary: '‘결제’ 클릭', status: 'denied' },
+        ]}
+      />,
+    );
+    const nameList = screen.getAllByRole('img').map((icon) => icon.getAttribute('aria-label'));
+    expect(nameList).toEqual(['확인 대기', '거부됨']);
+  });
 });

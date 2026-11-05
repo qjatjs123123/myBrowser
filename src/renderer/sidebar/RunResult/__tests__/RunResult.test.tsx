@@ -34,4 +34,9 @@ describe('RunResult', () => {
     expect(region).toHaveTextContent('확정 직전에 멈췄습니다 — 클릭: 예약 확정. 직접 확인하고 누르세요');
     expect(region).toHaveTextContent('직접 확인 필요');
   });
+
+  it('가드 정지는 --warning 톤 테두리로 그린다', () => {
+    const region = renderResult({ kind: 'guard_stopped', text: '확정 직전에 멈췄습니다' });
+    expect(region).toHaveClass('border-warning');
+  });
 });
