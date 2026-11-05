@@ -5,3 +5,4 @@
 |---|---|---|---|---|---|---|
 | 001 | 기반 | 프로젝트 뼈대 — 창·사이드바 자리·앱 정보 IPC·테스트 하네스 | 설정 파일, src/{main,preload,renderer,shared}, e2e | — | ✅ 완료 | 2026-11-05 |
 | 002 | 기반, main-tabs, renderer-chrome | 크롬형 브라우저 — 탭·주소창(검색 선택)·뒤로/앞으로·새 탭 페이지·단축키·쿠키 영속 | src/shared/{ipc,utils}, src/main/tabs, src/main/ipc, src/renderer/chrome, e2e | 001 | ✅ 완료 | 2026-11-05 |
+| 003 | 기반, main-browser, agent-loop, main-store, renderer-sidebar | 에이전트 MVP — 사이드바 할 일 → 활성 탭에서 구조 도구로 읽기·이동·입력·클릭, 확정·결제 직전 가드 정지, 타임라인, 실행 기록 저장 | src/shared/{agent,tools,guard,ipc}, src/main/{browser,agent,store,tabs,ipc}, src/renderer/sidebar, e2e | 001, 002 | 📝 계획됨 | 2026-11-05 |
