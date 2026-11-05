@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ko">
+  <head><meta charset="utf-8" /><title>예약 페이지</title></head>
+  <body>
+    <h1>예약</h1>
+    <p>오늘 19:00 · 2명</p>
+    <button type="button" id="lookup">예약 조회</button>
+    <button type="button" id="confirm">예약 확정</button>
+    <script>
+      window.__clickLog = [];
+      document.getElementById('confirm').addEventListener('click', () => window.__clickLog.push('confirm'));
+      document.getElementById('lookup').addEventListener('click', () => window.__clickLog.push('lookup'));
+    </script>
+  </body>
+</html>

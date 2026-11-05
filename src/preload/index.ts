@@ -33,6 +33,11 @@ const api: IApi = {
   shortcut: {
     onPressed: (cb) => subscribe(IPC.shortcut.pressed, cb),
   },
+  agent: {
+    start: (req) => ipcRenderer.invoke(IPC.agent.start, req),
+    stop: (req) => ipcRenderer.invoke(IPC.agent.stop, req),
+    onEvent: (cb) => subscribe(IPC.agent.event, cb),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

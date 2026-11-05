@@ -34,13 +34,13 @@ paths:
 - `overlay.ts`: 탭에 커서·하이라이트 DOM 을 주입(`page.addInitScript` + `evaluate`). 페이지 스크립트와 충돌하지 않게 shadow DOM + `data-mybrowser-overlay`.
 
 ## 저장 (store/)
-- `better-sqlite3`, 동기 API. `db.ts` 가 열고 `migrations/NNN.sql` 을 순서대로 적용(`user_version`).
+- 내장 `node:sqlite`(`DatabaseSync`), 동기 API — better-sqlite3 는 쓰지 않는다(네이티브 rebuild 가 vitest 와 충돌, spec 003). `db.ts` 가 열고 `migrations/{NNN}_{snake}.sql` 을 `?raw` import 로 순서대로 적용(`user_version`).
 - 테이블: `runs`, `steps`, `settings`. 접근은 `repos/{table}.ts` 의 함수로만, SQL 은 repos 안에만.
 - 스크린샷은 DB 가 아니라 `userData/screenshots/{runId}/{n}.png`, DB 에는 경로만.
 
 ## 테스트
 - `__tests__/{name}.test.ts`, vitest node 환경. `electron` 은 `vitest.setup.main.ts` 에서 최소 mock (`app.getPath`).
-- `browser/`·`agent/tools/` 는 headless chromium(`chromium.launch()`)으로 `e2e/fixtures/pages/*.html` 을 열어 테스트한다.
+- `browser/` 는 headless chromium(`chromium.launch()`)으로 `e2e/fixtures/pages/*.html` 을 열어 테스트한다. `agent/tools/` 는 가짜 `IBrowserDriver` 로 위임만 검증한다(실제 행동은 browser/ 테스트가 맡는다).
 
 ## 금지
 - ❌ `nodeIntegration: true`, `contextIsolation: false`, `webSecurity: false`

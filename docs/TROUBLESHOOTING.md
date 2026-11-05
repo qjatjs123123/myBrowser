@@ -13,9 +13,12 @@ Claude 는 에러를 만나면 이 문서를 먼저 확인한다. 새 문제를 
 ## Electron 실행 시 공유 라이브러리 오류 (`libnss3.so`, `libgbm.so.1`, `libasound.so.2` 없음)
 - 해결: `sudo apt install libnss3 libgbm1 libasound2 libatk-bridge2.0-0 libgtk-3-0` (사용자가 실행). `make doctor` 가 대표 항목을 알려준다.
 
-## `better-sqlite3` 가 `NODE_MODULE_VERSION` 불일치로 실패
-- 원인: Node 용으로 빌드된 네이티브 모듈을 Electron 이 로드.
-- 해결: `pnpm exec electron-rebuild -f -w better-sqlite3` (또는 `pnpm rebuild`). electron-vite 템플릿의 `postinstall` 에 넣어 둔다.
+## (해당 없음) `better-sqlite3` 가 `NODE_MODULE_VERSION` 불일치로 실패
+- spec 003 부터 SQLite 는 내장 `node:sqlite` 를 쓴다 — 네이티브 모듈이 없어 이 문제는 생기지 않는다. 다른 네이티브 모듈을 들이면 `pnpm exec electron-rebuild -f -w {모듈}`.
+
+## vitest 에서 chromium·루프 테스트가 `Test timed out in 5000ms`
+- 원인: 다른 vitest·e2e 실행과 동시에 돌아 CPU 가 밀림 (spec 003 — 리팩토링 서브에이전트와 겹쳤을 때 cdp·driver·service 테스트 4건).
+- 해결: 단독으로 다시 돌려 통과하는지 확인한다. 동시에 여러 테스트 묶음을 돌리지 않는다. 타임아웃을 늘려 덮지 않는다.
 
 ## `connectOverCDP` 가 `ECONNREFUSED 127.0.0.1:9222`
 - 원인: `app.commandLine.appendSwitch('remote-debugging-port', …)` 가 `app.whenReady()` **이후**에 호출됐거나, 포트가 다른 프로세스에 점유.

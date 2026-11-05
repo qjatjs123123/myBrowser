@@ -1,0 +1,8 @@
+{
+  "turns": [
+    { "content": [{ "type": "tool_use", "name": "snapshot", "input": {} }] },
+    { "content": [{ "type": "tool_use", "name": "click", "input": { "ref": "$ref(link:두 번째 페이지)" } }] },
+    { "content": [{ "type": "tool_use", "name": "read_text", "input": {} }] },
+    { "content": [{ "type": "text", "text": "강남 국밥집 전화번호는 02-123-4567 입니다" }] }
+  ]
+}

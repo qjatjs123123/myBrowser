@@ -80,6 +80,7 @@ function attachNavigationPolicy(webContents: WebContents, listeners: ITabListene
 
 function toTabView(view: WebContentsView, listeners: ITabListeners): ITabView {
   const { webContents } = view;
+  const getCdpTargetId = createCachedTargetIdReader(webContents);
   return {
     nativeView: view,
     load: (url) => void loadUrl(webContents, url),
@@ -96,7 +97,29 @@ function toTabView(view: WebContentsView, listeners: ITabListeners): ITabView {
     destroy: () => {
       if (!webContents.isDestroyed()) webContents.close();
     },
+    getCdpTargetId,
   };
+}
+
+/** targetId 는 webContents 수명 동안 바뀌지 않는다 — 첫 성공 값을 캐시하고, 실패하면 다음 호출에서 다시 읽는다 */
+function createCachedTargetIdReader(webContents: WebContents): () => Promise<string> {
+  let cached: Promise<string> | null = null;
+  return () => {
+    cached ??= readCdpTargetId(webContents).catch((error: unknown) => {
+      cached = null;
+      throw error;
+    });
+    return cached;
+  };
+}
+
+/** webContents.debugger 로 자기 CDP targetId 를 읽는다 — 이미 붙어 있으면 attach 를 생략 */
+async function readCdpTargetId(webContents: WebContents): Promise<string> {
+  if (!webContents.debugger.isAttached()) webContents.debugger.attach('1.3');
+  const result = (await webContents.debugger.sendCommand('Target.getTargetInfo')) as {
+    targetInfo: { targetId: string };
+  };
+  return result.targetInfo.targetId;
 }
 
 function readState(webContents: WebContents, faviconUrl: string | null): ITabViewState {
