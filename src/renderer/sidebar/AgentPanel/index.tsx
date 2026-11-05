@@ -18,7 +18,9 @@ export function AgentPanel() {
   const { runId, status, stepList, result, start, stop } = useAgentRun();
   const [task, setTask] = useState('');
   const [isStarting, setIsStarting] = useState(false);
-  const isBusy = isStarting || (status !== null && ACTIVE_STATUS_LIST.includes(status));
+  const isRunActive = status !== null && ACTIVE_STATUS_LIST.includes(status);
+  const isBusy = isStarting || isRunActive;
+  const canStop = runId !== null && !isStarting;
 
   const handleStart = async () => {
     setIsStarting(true);
@@ -41,7 +43,7 @@ export function AgentPanel() {
       <TaskInput
         task={task}
         isBusy={isBusy}
-        canStop={runId !== null && !isStarting}
+        canStop={canStop}
         onTaskChange={setTask}
         onStart={() => void handleStart()}
         onStop={() => void handleStop()}

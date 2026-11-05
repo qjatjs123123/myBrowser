@@ -1,6 +1,6 @@
 # Spec: 에이전트 MVP — CDP 연결·구조 도구·루프·결정적 가드·사이드바 타임라인
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-05
 > **묶음**: 기반, main-browser, agent-loop, main-store, renderer-sidebar
 > **관련 spec**: 001, 002
@@ -207,7 +207,7 @@ CREATE TABLE steps (run_id TEXT NOT NULL REFERENCES runs(id), n INTEGER NOT NULL
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 > 묶음 순서: `기반`(Task 1) → `main-browser`(Task 2~3) ∥ `agent-loop`(Task 4~7) ∥ `renderer-sidebar`(Task 9) — 첫 자리가 비면 `main-store`(Task 8). agent-loop 는 store 를 `IRunStore` 가짜로, 브라우저를 `IBrowserDriver` 가짜로 테스트한다. main 조립은 Task 7 의 공유 파일 요청(5단계), e2e 는 Task 9 검증(7단계).
 
-- [ ] **Task 1: 계약 — IPC·도구 스키마·드라이버/가드 타입·가드 규칙 데이터·env·preload·패키지**
+- [x] **Task 1: 계약 — IPC·도구 스키마·드라이버/가드 타입·가드 규칙 데이터·env·preload·패키지**
   - **묶음**: 기반
   - **작업**: `pnpm add @anthropic-ai/sdk playwright-core`(playwright-core 는 `@playwright/test` 와 같은 1.64.x 로 고정). `IPC.agent = { start: 'agent:start', stop: 'agent:stop', event: 'agent:event' }`. `src/shared/agent/run.ts`(RunId·RunStatus·StepStatus·Step·GuardDisplay 스키마·타입, `IRunStore`·`TRunRecord`·`TStepRecord` 인터페이스), `src/shared/agent/fakeScenario.ts`(`FakeScenarioSchema` — 「가짜 모델」 형식), `src/shared/ipc/agent.ts`(계약 그대로 + 추론 타입 `TStartAgentRequest`·`TStartAgentResponse`·`TStopAgentRequest`·`TAgentEvent`), `IApi.agent` 추가. 도구 입력 스키마 13개 파일 `src/shared/tools/{camelName}.ts` + `src/shared/tools/index.ts`(re-export, `RefSchema`, `TOOL_NAME_LIST`, `STATEFUL_TOOL_NAME_LIST = ['navigate','open_tab','click','type_text','select_option','press_key']`), `src/shared/tools/driver.ts`(`TActionResult`·`IGuardTarget`(formSubmitText 포함)·`IBrowserDriver`). `src/shared/guard/types.ts`(`TGuardVerdict`·`IGuardInput`), `src/shared/guard/rules.ts`(guard.md 규칙 1~4 의 패턴 배열 — 각 `{ pattern, reason }`, 영어 단어 경계·한국어 부분 일치, `normalizeText()`). preload `agent.start/stop/onEvent`(`subscribe` 재사용). `src/main/env.ts`: `ANTHROPIC_API_KEY`(optional, min 1) → `IEnv.anthropicApiKey?`, `MYBROWSER_FAKE_SCENARIO`(optional, `/^[a-z0-9-]+$/`) → `fakeScenario?`, `MYBROWSER_MODEL`(optional, 날짜 접미사 거부) → `model`(기본 `'claude-opus-5-5'`), `loadDotEnv(…)`(「.env 로드」). `vitest.setup.ts` 의 `window.api` mock 에 `agent.start/stop`(vi.fn)·`agent.onEvent`(해제 vi.fn 반환). `vitest.setup.main.ts` 의 WebContentsView mock webContents 에 `debugger: { attach, isAttached, sendCommand }`(vi.fn) 추가. `e2e/app-shell.spec.ts` 의 `apiKeyList` 기대값을 `['app','tabs','shortcut','agent']` 로 (preload 변경과 같은 커밋 — e2e green 유지). `tsconfig.node.json` `compilerOptions.types` 를 `["node", "vite/client"]` 로 (main 의 `?raw` import 타입).
   - **파일**: `package.json`, `pnpm-lock.yaml`, `src/shared/ipc/{channels,api,agent}.ts`, `src/shared/agent/{run,fakeScenario}.ts`, `src/shared/tools/*.ts`, `src/shared/guard/{types,rules}.ts`, `src/preload/index.ts`, `src/main/env.ts`, `vitest.setup.ts`, `vitest.setup.main.ts`, `e2e/app-shell.spec.ts`, `tsconfig.node.json`
@@ -217,7 +217,7 @@ CREATE TABLE steps (run_id TEXT NOT NULL REFERENCES runs(id), n INTEGER NOT NULL
   - **통과 기준**: 테스트 + 검증 통과. 기존 테스트 유지
   - **커밋**: `feat: 에이전트 IPC·도구 계약과 가드 규칙 데이터 추가 (spec 003 Task 1)`
 
-- [ ] **Task 2: 탭 CDP targetId + CDP 연결·엔드포인트**
+- [x] **Task 2: 탭 CDP targetId + CDP 연결·엔드포인트**
   - **묶음**: main-browser
   - **작업**: `src/main/tabs/tabType.ts` `ITabView.getCdpTargetId(): Promise<string>`, `electronTabView.ts` 구현(「탭 ↔ Page 매핑」), `TabManager.getCdpTargetId(id)`(없는 탭 null), 기존 가짜 ITabView 테스트 갱신. `src/main/browser/types.ts` — `ITabsPort { list(): TTabsSnapshot; activate(id); create(url?): string; getCdpTargetId(id): Promise<string | null> }`. `browser/endpoint.ts` — `resolveCdpEndpoint({ port, userDataDir, readFile, sleep })`(port≠0 → URL, 0 → DevToolsActivePort 폴링 5s, 실패 throw). `browser/cdp.ts` — `createCdpConnection({ endpoint, connect = chromium.connectOverCDP, sleep, now })` → `{ getPage(targetId): Promise<Page>, close() }`(targetId 캐시·재시도 대기는 주입한 `sleep`/`now` 로·끊김 시 재연결 1회).
   - **파일**: `src/main/tabs/{tabType,electronTabView,tabManager}.ts`, `src/main/browser/{types,endpoint,cdp}.ts`
@@ -227,7 +227,7 @@ CREATE TABLE steps (run_id TEXT NOT NULL REFERENCES runs(id), n INTEGER NOT NULL
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 탭 CDP 대상 매핑과 CDP 연결 추가 (spec 003 Task 2)`
 
-- [ ] **Task 3: snapshot·target 해석·actions·BrowserDriver**
+- [x] **Task 3: snapshot·target 해석·actions·BrowserDriver**
   - **묶음**: main-browser
   - **작업**: `browser/snapshot.ts` — `takeSnapshot(page, { maxLength = 12000 })`(`page.ariaSnapshot({ mode: 'ai' })`, 첫 줄 URL·제목, 잘림 표시). `browser/target.ts` — `resolveTarget(page, { ref?, focused? })` → `IGuardTarget | null`(「가드 target 해석」). `browser/actions.ts` — 도구 계약의 각 행동 함수 `(page, input) => Promise<TActionResult>`(ref → `aria-ref=` locator, 10s 타임아웃, 실패 `{ ok:false, reason }` — throw 금지; navigate 는 `waitUntil: 'domcontentloaded'`). `browser/driver.ts` — `createBrowserDriver({ tabs: ITabsPort, cdp, startTabId })` → `IBrowserDriver`(현재 대상 탭 id 보관, switch/open 시 `tabs.activate/create` 후 대상 변경, list 는 `tabs.list()`).
   - **파일**: `src/main/browser/{snapshot,target,actions,driver}.ts`, `e2e/fixtures/pages/browser-*.html`
@@ -237,7 +237,7 @@ CREATE TABLE steps (run_id TEXT NOT NULL REFERENCES runs(id), n INTEGER NOT NULL
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 접근성 스냅샷·브라우저 행동·드라이버 추가 (spec 003 Task 3)`
 
-- [ ] **Task 4: 가드·run 상태 머신·step 요약**
+- [x] **Task 4: 가드·run 상태 머신·step 요약**
   - **묶음**: agent-loop
   - **작업**: `src/main/agent/guard.ts` `checkGuard`(순수, 「가드」·SR-1~3). `runs.ts` `transition(status, event)`(이벤트 `start|finish|fail|stop|guardStop`, 불법 전이 throw), `isFinalStatus`. `summary.ts` `summarizeStep`.
   - **파일**: `src/main/agent/{guard,runs,summary}.ts`
@@ -247,7 +247,7 @@ CREATE TABLE steps (run_id TEXT NOT NULL REFERENCES runs(id), n INTEGER NOT NULL
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 결정적 가드와 실행 상태 머신 추가 (spec 003 Task 4)`
 
-- [ ] **Task 5: 가짜 모델(fetch) + 모델 클라이언트 + 시스템 프롬프트**
+- [x] **Task 5: 가짜 모델(fetch) + 모델 클라이언트 + 시스템 프롬프트**
   - **묶음**: agent-loop
   - **작업**: `agent/fake/refPlaceholder.ts` `resolveRefPlaceholders(input, messageList)`. `agent/fake/fakeFetch.ts` `createFakeFetch(scenario)` → `{ fetch, requestList }`(「가짜 모델」 SSE). `agent/modelClient.ts` `createModelClient({ isFake, apiKey, scenario })` → Anthropic 인스턴스(가짜면 fake fetch, 실제는 키 없으면 throw `MissingApiKeyError`). `agent/prompts/system.ts` `SYSTEM_PROMPT`(섹션 상수 합침: 역할 → 도구 순서(항상 snapshot 먼저, ref 는 최신 snapshot 것만) → 안전 규칙(SR-5) → 출력 형식(끝나면 결과 한 줄 요약, 한국어)) + `buildFirstUserMessage({ today, pageUrl, pageTitle, task })`.
   - **파일**: `src/main/agent/fake/{fakeFetch,refPlaceholder}.ts`, `src/main/agent/modelClient.ts`, `src/main/agent/prompts/system.ts`
@@ -257,7 +257,7 @@ CREATE TABLE steps (run_id TEXT NOT NULL REFERENCES runs(id), n INTEGER NOT NULL
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 가짜 모델과 시스템 프롬프트 추가 (spec 003 Task 5)`
 
-- [ ] **Task 6: 도구 13종 + 루프 + AgentService**
+- [x] **Task 6: 도구 13종 + 루프 + AgentService**
   - **묶음**: agent-loop
   - **작업**: `agent/tools/{snapshot,readText,navigate,goBack,click,typeText,selectOption,pressKey,scroll,waitFor,listTabs,switchTab,openTab}.ts` — 각 파일 `{ name, description, inputSchema, execute(driver, input) }` 한 개. `agent/tools/index.ts` `createToolList(ctx)` — 「도구 래퍼」 공통 run 으로 betaZodTool 13개(`eager_input_streaming: true`). `agent/loop.ts` `runAgentLoop({ client, model, tools, systemPrompt, firstUserMessage, signal, onFinal })` — 「모델 호출」 그대로 toolRunner·stop_reason 검사. `agent/service.ts` `createAgentService(…)` — start/stop, 상태 전이·store 기록·이벤트 발신, 가드 정지 시 `guard_stopped` 이벤트와 `stopped_before_confirm`, 호출 60회 상한, 예외 → failed, 끝나면 `driver.dispose()`.
   - **파일**: `src/main/agent/tools/*.ts`, `src/main/agent/{loop,service}.ts`
@@ -267,7 +267,7 @@ CREATE TABLE steps (run_id TEXT NOT NULL REFERENCES runs(id), n INTEGER NOT NULL
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 에이전트 도구·루프·실행 서비스 추가 (spec 003 Task 6)`
 
-- [ ] **Task 7: agent IPC 핸들러**
+- [x] **Task 7: agent IPC 핸들러**
   - **묶음**: agent-loop
   - **작업**: `src/main/ipc/handlers/agent.ts` `createAgentHandlers(service)` — start/stop: safeParse → service → 봉투(「IPC 계약」 실패 봉투 문장 그대로).
   - **파일**: `src/main/ipc/handlers/agent.ts`
@@ -279,7 +279,7 @@ CREATE TABLE steps (run_id TEXT NOT NULL REFERENCES runs(id), n INTEGER NOT NULL
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 에이전트 IPC 핸들러 추가 (spec 003 Task 7)`
 
-- [ ] **Task 8: 실행 기록 저장소 (node:sqlite)**
+- [x] **Task 8: 실행 기록 저장소 (node:sqlite)**
   - **묶음**: main-store
   - **작업**: `src/main/store/migrations/001_runs_steps.sql`(「데이터」 version 1), `db.ts` `openDatabase(path)` → `DatabaseSync`(WAL, foreign_keys ON, `?raw` 로 읽은 마이그레이션 적용), `repos/runs.ts` `createRunRepo(db): IRunStore`(SQL 은 repos 안에만, prepared statement).
   - **파일**: `src/main/store/db.ts`, `src/main/store/migrations/001_runs_steps.sql`, `src/main/store/repos/runs.ts`
@@ -289,7 +289,7 @@ CREATE TABLE steps (run_id TEXT NOT NULL REFERENCES runs(id), n INTEGER NOT NULL
   - **통과 기준**: 테스트 + 검증 통과 (Node 22 ExperimentalWarning 출력은 허용)
   - **커밋**: `feat: 실행 기록 저장소 추가 (spec 003 Task 8)`
 
-- [ ] **Task 9: 사이드바 — useAgentRun·AgentPanel·Timeline·RunResult**
+- [x] **Task 9: 사이드바 — useAgentRun·AgentPanel·Timeline·RunResult**
   - **묶음**: renderer-sidebar
   - **작업**: `.claude/skills/desktop/design`·`error-toast` 를 따른다. `hooks/useAgentRun.ts` — `agent.onEvent` 구독(현재 runId 이벤트만 반영. `start` 를 부른 순간부터 응답이 올 때까지 runId 를 모르는 이벤트는 버퍼에 모으고, 응답으로 받은 runId 와 같은 이벤트를 순서대로 적용한 뒤 버퍼를 비운다. start 성공 시 hook 이 `status: 'running'` 을 직접 세운다) → `{ runId, status, stepList, result: { kind:'done'|'failed'|'stopped'|'guard_stopped', text } | null, start(task), stop() }`(start/stop 은 봉투 반환, 실패면 호출부 toast). step 은 n 으로 갱신(같은 n 이면 교체). `sidebar/AgentPanel` — `textarea`(`aria-label="할 일"`, placeholder “예: 네이버에서 강남역 맛집 찾아 전화번호 알려줘”), [실행](빈 입력 비활성, Ctrl/Cmd+Enter) / 실행 중 [중지] — 접근 이름은 `aria-label="작업 실행"`·`"작업 중지"`(보이는 글자는 실행/중지; 크롬의 로딩 “중지” 버튼과 이름 겹침 방지), AgentPanel 은 “에이전트” 를 포함한 heading 을 추가하지 않는다(app-shell e2e 의 heading 선택자 보호), 상태 표시(`role="status"`: “실행 중…”/“완료”/“실패”/“중지됨”/“확정 직전 정지”). `sidebar/Timeline` — `role="list"` `aria-label="진행 단계"`, 항목 = 상태 아이콘(lucide, `aria-label` “진행 중”/“완료”/“오류”/“차단됨”) + 요약. `sidebar/RunResult` — FR-5 문구(가드 정지는 경고 톤 + display). `App.tsx` 사이드바 자리 문구를 `<AgentPanel/>` 로 교체(헤더 “에이전트”·`AppInfoFooter` 유지, run 이 없을 때 안내 문구 “할 일을 입력하면 여기에 진행 상황이 표시됩니다” 는 AgentPanel 안 빈 상태로 유지).
   - **파일**: `src/renderer/hooks/useAgentRun.ts`, `src/renderer/sidebar/{AgentPanel,Timeline,RunResult}/index.tsx`, `src/renderer/App.tsx`
@@ -308,3 +308,12 @@ CREATE TABLE steps (run_id TEXT NOT NULL REFERENCES runs(id), n INTEGER NOT NULL
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-05 | 1 | 148 단위 통과 | 3d08d68, e493ad5 | 기반 — SDK 1.5.0, playwright-core 1.64.1 |
+| 2026-11-05 | 2 | 15 단위 통과 | f4f55c7 | main-browser |
+| 2026-11-05 | 3 | 44 단위 통과 | d7051ba | main-browser |
+| 2026-11-05 | 4 | 108 단위 통과 | e273b66 | agent-loop |
+| 2026-11-05 | 5 | 25 단위 통과 | 193976f | agent-loop |
+| 2026-11-05 | 6 | 48 단위 통과 | b1e3c4e | agent-loop — thread:false, 도구 직렬 실행, 호출 상한을 실행 전 검사 |
+| 2026-11-05 | 7 | 12 단위 통과 | fdcc739 | agent-loop · index.ts 조립 9f7c801 |
+| 2026-11-05 | 8 | 15 단위 통과 | 43e8d99 | main-store — node:sqlite |
+| 2026-11-05 | 9 | 28 단위 통과 · e2e 16/16 (xvfb) | 5e7c983 | renderer-sidebar · e2e/app-check·도구 짝 테스트·loop 테스트는 검증 반영 커밋 |

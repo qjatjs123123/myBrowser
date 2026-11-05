@@ -35,6 +35,9 @@ import { TabManager } from './tabs/tabManager';
 
 const BROWSING_PARTITION = 'persist:browsing';
 const MAX_TOOL_CALLS = 60;
+const DATABASE_FILE_NAME = 'mybrowser.db';
+const FAKE_SCENARIO_DIR = 'e2e/fixtures/model';
+const DEFAULT_FAKE_SCENARIO = 'default';
 
 loadDotEnv({ path: join(app.getAppPath(), '.env') });
 const env = readEnv(process.env, { isPackaged: app.isPackaged });
@@ -83,7 +86,7 @@ function startBrowser(): void {
 
 /** 가짜 모델 모드의 시나리오 — e2e/fixtures/model/{이름}.json, 파일이 없으면 빈 시나리오 */
 function readFakeScenario(): TFakeScenario | undefined {
-  const path = join(app.getAppPath(), 'e2e/fixtures/model', `${env.fakeScenario ?? 'default'}.json`);
+  const path = join(app.getAppPath(), FAKE_SCENARIO_DIR, `${env.fakeScenario ?? DEFAULT_FAKE_SCENARIO}.json`);
   if (!existsSync(path)) return undefined;
   return FakeScenarioSchema.parse(JSON.parse(readFileSync(path, 'utf8')));
 }
@@ -104,7 +107,7 @@ function getCdp(): Promise<ICdpConnection> {
 
 /** 에이전트 실행 서비스 조립 — 저장소·탭 포트·드라이버·모델 클라이언트·이벤트 발신 */
 function createAgentRuntime(tabManager: TabManager, emitToSidebar: ReturnType<typeof createSidebarEmitter>) {
-  database = openDatabase(join(app.getPath('userData'), 'mybrowser.db'));
+  database = openDatabase(join(app.getPath('userData'), DATABASE_FILE_NAME));
   const tabsPort: ITabsPort = {
     list: () => tabManager.getSnapshot(),
     activate: (id) => tabManager.activateTab(id),

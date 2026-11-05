@@ -12,8 +12,10 @@ import type {
   TWaitForInput,
 } from '@shared/tools';
 
-const DEFAULT_TIMEOUT_MS = 10_000;
+/** 행동 함수 기본 타임아웃 — driver 의 새 탭 대기도 같은 값을 쓴다 */
+export const DEFAULT_TIMEOUT_MS = 10_000;
 const READ_TEXT_MAX_LENGTH = 4000;
+const HALF_SCROLL_RATIO = 0.5;
 
 /** 행동 함수 공통 옵션 — 테스트가 타임아웃을 줄일 때만 쓴다 */
 export interface IActionOptions {
@@ -129,7 +131,7 @@ export async function pressKey(
 /** [scroll] 한 화면(page) 또는 반 화면(half) 위·아래로 */
 export async function scroll(page: Page, input: TScrollInput): Promise<TActionResult> {
   return runAction(async () => {
-    const ratio = (input.amount === 'half' ? 0.5 : 1) * (input.direction === 'up' ? -1 : 1);
+    const ratio = (input.amount === 'half' ? HALF_SCROLL_RATIO : 1) * (input.direction === 'up' ? -1 : 1);
     await page.evaluate(scrollByViewport, ratio);
     return '스크롤함';
   });

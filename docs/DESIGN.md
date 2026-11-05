@@ -14,12 +14,12 @@
 | UI (렌더러) | React 19 + Vite + Tailwind 4 + shadcn/ui, zustand | 크롬형 상단바(탭·뒤로/앞으로·주소창) + 오른쪽 에이전트 사이드바 |
 | 에이전트 | **`@anthropic-ai/sdk`** `client.beta.messages.toolRunner` + `betaZodTool`, zod | 도구 루프를 SDK 가 돌리고, 턴별 훅으로 승인 게이트·로그 |
 | 브라우저 제어 | **`playwright-core`** `chromium.connectOverCDP('http://127.0.0.1:9222')` (+ Electron `webContents` API) | 접근성 스냅샷(`ariaSnapshot`)·locator·click/type 을 그대로. Electron 은 `app.commandLine.appendSwitch('remote-debugging-port','9222')` 로 노출 |
-| 저장 | **better-sqlite3** (runs/steps/히스토리), `electron-store` (설정), `safeStorage` (API 키 암호화) | 서버·DB 서비스 없이 로컬 완결 |
+| 저장 | **내장 `node:sqlite`** (`DatabaseSync` — runs/steps/히스토리), `electron-store` (설정), `safeStorage` (API 키 암호화) | 서버·DB 서비스 없이 로컬 완결. better-sqlite3 는 Electron ABI rebuild 가 vitest(Node)와 충돌해 바꿈 (spec 003) |
 | 테스트 | vitest (unit) · Playwright `_electron.launch` (e2e) | 실제 앱을 띄워 에이전트 흐름 검증 |
 | 품질 | eslint + prettier + tsc, husky 대신 `.claude` 훅 + `.githooks` | boilerplate 하네스 재사용 |
 
 ### 확정 버전 (spec 001, 2026-11-05)
-Electron 45 · electron-vite 6 · Vite 8 · React 19.3 · Tailwind 4.3 · Zod 4 · vitest 5 + jsdom 30 · TypeScript 5.9 · ESLint 10 · Playwright 1.64 · **Node 22 (Volta pin, Electron 40+ 설치 요건)**. better-sqlite3·Anthropic SDK·shadcn 은 쓰는 spec 에서 추가한다.
+Electron 45 · electron-vite 6 · Vite 8 · React 19.3 · Tailwind 4.3 · Zod 4 · vitest 5 + jsdom 30 · TypeScript 5.9 · ESLint 10 · Playwright 1.64 · **Node 22 (Volta pin, Electron 40+ 설치 요건)**. shadcn 은 쓰는 spec 에서 추가한다. spec 003: `@anthropic-ai/sdk` 1.5.0, `playwright-core` 1.64.1, SQLite 는 내장 `node:sqlite`.
 
 ## 2. 프로세스 구조
 
@@ -92,7 +92,7 @@ myBrowser/
 |---|---|---|
 | 0 | 레포 뼈대 + `.claude` 하네스 적용(§6) | `pnpm check`(lint·tsc·vitest) 통과, `pnpm dev` 로 빈 창 |
 | 1 | 크롬형 브라우저: 탭·주소창·뒤로/앞으로·프로필 영속 — **구현 (spec 002, 2026-11-05)**: e2e 는 로컬 픽스처 쿠키로 재실행 영속 확인, 실제 네이버 로그인은 수동 확인 | 네이버 로그인 후 재실행해도 세션 유지 |
-| 2 | CDP 연결 + 구조 도구 + 루프 MVP + 사이드바 타임라인 | "네이버에서 ○○ 검색해 전화번호 알려줘" 성공 |
+| 2 | CDP 연결 + 구조 도구 + 루프 MVP + 사이드바 타임라인 — **구현 (spec 003, 2026-11-05)**: 가드 규칙 1~4 포함(확정·결제는 승인 UI 전까지 run 정지), e2e 는 가짜 모델·로컬 픽스처. 실제 사이트 완료 기준은 수동 확인(API 비용) · 패키징 앱의 CDP 경로는 5단계 | "네이버에서 ○○ 검색해 전화번호 알려줘" 성공 |
 | 3 | 예약 시나리오: 날짜·시간·인원 폼, ask/approval, 확정 직전 가드 | 확정 모달 직전 정지 100% |
 | 4 | computer_toolset 폴백 + 커서 오버레이 | 달력 위젯 선택 성공 |
 | 5 | electron-builder 패키징 + 평가 세트 | 설치 파일 더블클릭 실행, 회귀 측정 |
@@ -119,6 +119,6 @@ myBrowser/
 ## 7. 리스크
 
 - WSL2 에서 Electron 창은 WSLg 로 뜨지만 느리다 → 개발·실사용은 Windows 쪽, WSL/CI 는 xvfb.
-- `better-sqlite3` 는 네이티브 모듈 → `electron-rebuild` 필요 (electron-vite 템플릿이 처리).
+- SQLite 는 내장 `node:sqlite` 라 네이티브 rebuild 가 없다 (로컬 Node 22 에서는 ExperimentalWarning 출력, Electron 45 의 Node 24 는 안정).
 - 봇 차단·앱 전용 흐름은 `ask_user` 로 사용자에게 넘긴다.
 - 비용: 스냅샷(텍스트) 위주, 스크린샷은 폴백. 컨텍스트 편집 필수.

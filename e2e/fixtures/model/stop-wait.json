@@ -1,0 +1,7 @@
+{
+  "turns": [
+    { "content": [{ "type": "tool_use", "name": "snapshot", "input": {} }] },
+    { "content": [{ "type": "tool_use", "name": "wait_for", "input": { "ms": 5000 } }] },
+    { "content": [{ "type": "text", "text": "기다림 끝" }] }
+  ]
+}

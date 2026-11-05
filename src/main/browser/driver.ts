@@ -4,7 +4,7 @@ import type { TTabsSnapshot } from '@shared/ipc/tabs';
 import type { IBrowserDriver, TActionResult, TOpenTabInput, TSwitchTabInput } from '@shared/tools';
 
 import * as actions from './actions';
-import { ActionError, toActionFailure, type IActionOptions } from './actions';
+import { ActionError, DEFAULT_TIMEOUT_MS, toActionFailure, type IActionOptions } from './actions';
 import { takeSnapshot } from './snapshot';
 import { resolveTarget } from './target';
 import type { ICdpConnection, ITabsPort } from './types';
@@ -110,7 +110,7 @@ async function openTab(state: IDriverState, { url }: TOpenTabInput): Promise<TAc
 
 /** 새 탭이 about:blank 를 벗어나 문서를 띄울 때까지 기다린다 — 실패해도 탭은 열렸으므로 무시 */
 async function waitForTabLoad(state: IDriverState): Promise<void> {
-  const timeout = state.options.timeoutMs ?? 10_000;
+  const timeout = state.options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   try {
     const page = await getCurrentPage(state);
     await page.waitForURL((current) => current.href !== 'about:blank', { waitUntil: 'domcontentloaded', timeout });

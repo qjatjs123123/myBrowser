@@ -21,7 +21,8 @@ export function TaskInput({ task, isBusy, canStop, onTaskChange, onStart, onStop
   const canStart = !isBusy && task.trim().length > 0;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
+    const isSubmitShortcut = event.key === 'Enter' && (event.ctrlKey || event.metaKey);
+    if (!isSubmitShortcut) return;
     event.preventDefault();
     if (canStart) onStart();
   };

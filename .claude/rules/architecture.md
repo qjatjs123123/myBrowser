@@ -39,7 +39,7 @@ src/main/
 ├── tabs/               TabManager — WebContentsView 생성/전환/닫기/bounds, 탭 상태 이벤트
 ├── browser/            에이전트가 쓰는 브라우저 제어 — cdp.ts(playwright-core connectOverCDP), snapshot.ts(접근성 트리+ref), actions.ts(click/type/scroll …), overlay.ts(커서·하이라이트 주입)
 ├── agent/              loop.ts(toolRunner), tools/(도구 1개 = 파일 1개), guard.ts(결정적 안전 게이트), prompts/(시스템 프롬프트), fake/(가짜 모델 — e2e 용), runs.ts(상태 머신)
-├── store/              better-sqlite3 — db.ts, migrations/NNN.sql, repos/(runs, steps, settings)
+├── store/              node:sqlite — db.ts, migrations/{NNN}_{snake}.sql, repos/(runs, settings)
 └── ipc/                registry.ts(채널 ↔ 핸들러 등록표), handlers/{모듈}.ts(safeParse → 모듈 호출 → ok/fail)
 ```
 
@@ -87,7 +87,7 @@ e2e/{기능}.spec.ts                        실제 앱 흐름 고정
 | 대상 | 도구 | 위치 |
 |---|---|---|
 | main 모듈·도구·가드 | vitest (node env) | 대상 옆 `__tests__/{name}.test.ts` |
-| 도구의 브라우저 조작 | vitest + playwright-core (headless chromium) + `e2e/fixtures/pages/*.html` | `src/main/agent/tools/__tests__/` |
+| 브라우저 조작 | vitest + playwright-core (headless chromium) + `e2e/fixtures/pages/*.html` | `src/main/browser/__tests__/` (도구는 가짜 드라이버로 `src/main/agent/tools/__tests__/`) |
 | renderer 컴포넌트·훅 | vitest (jsdom) + Testing Library, `window.api` 는 `vitest.setup.ts` 의 mock | 대상 옆 `__tests__/` |
 | 전체 흐름 | Playwright `_electron` (가짜 모델 모드) | `e2e/*.spec.ts` |
 

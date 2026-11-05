@@ -7,6 +7,7 @@ import type { TSleep } from './types';
 const POLL_INTERVAL_MS = 100;
 const POLL_TIMEOUT_MS = 5000;
 const ACTIVE_PORT_FILE = 'DevToolsActivePort';
+const MAX_PORT = 65535;
 
 export interface IResolveCdpEndpointOptions {
   /** env.cdpPort — 0 이면 Chromium 이 고른 임의 포트(테스트) */
@@ -37,7 +38,8 @@ async function readActivePort(readFile: (path: string) => Promise<string>, path:
   try {
     const firstLine = (await readFile(path)).split('\n')[0]?.trim() ?? '';
     const port = Number(firstLine);
-    return /^\d+$/.test(firstLine) && port > 0 && port < 65536 ? port : null;
+    const isValidPort = /^\d+$/.test(firstLine) && port > 0 && port <= MAX_PORT;
+    return isValidPort ? port : null;
   } catch {
     return null;
   }

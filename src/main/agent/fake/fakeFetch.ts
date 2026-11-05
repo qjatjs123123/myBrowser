@@ -19,6 +19,8 @@ type TStopReason = NonNullable<TFakeTurn['stop_reason']>;
 type TFakeEvent = Record<string, unknown> & { type: string };
 
 const END_OF_SCENARIO_TURN: TFakeTurn = { content: [{ type: 'text', text: '(시나리오 끝)' }], stop_reason: 'end_turn' };
+/** 가짜 usage 토큰 수 — 서비스의 usage 합산 경로만 태우면 되므로 고정값 */
+const FAKE_TOKEN_COUNT = 10;
 /** refusal 턴의 가짜 분류 — 시나리오 형식에 category 가 없어 고정값을 쓴다 */
 const FAKE_REFUSAL_DETAILS = { type: 'refusal', category: 'general_harms', explanation: '(가짜 거절)' };
 
@@ -60,7 +62,8 @@ function createMessage({ turn, body, index, createToolUseId }: ICreateMessage) {
           input: resolveRefPlaceholders(block.input, messageList),
         },
   );
-  const stopReason = turn.stop_reason ?? (turn.content.some((b) => b.type === 'tool_use') ? 'tool_use' : 'end_turn');
+  const hasToolUse = turn.content.some((block) => block.type === 'tool_use');
+  const stopReason = turn.stop_reason ?? (hasToolUse ? 'tool_use' : 'end_turn');
   return {
     id: `msg_fake_${index}`,
     type: 'message',
@@ -70,7 +73,7 @@ function createMessage({ turn, body, index, createToolUseId }: ICreateMessage) {
     stop_reason: stopReason,
     stop_sequence: null,
     stop_details: stopReason === 'refusal' ? FAKE_REFUSAL_DETAILS : null,
-    usage: { input_tokens: 10, output_tokens: 10 },
+    usage: { input_tokens: FAKE_TOKEN_COUNT, output_tokens: FAKE_TOKEN_COUNT },
   };
 }
 
@@ -90,7 +93,7 @@ function toEventList(message: TFakeMessage): TFakeEvent[] {
     content: [],
     stop_reason: null,
     stop_details: null,
-    usage: { input_tokens: 10, output_tokens: 0 },
+    usage: { input_tokens: FAKE_TOKEN_COUNT, output_tokens: 0 },
   };
   return [
     { type: 'message_start', message: start },

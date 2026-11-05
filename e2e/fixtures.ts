@@ -1,6 +1,6 @@
 /**
  * [e2e 픽스처] 실제 myBrowser 앱을 Playwright _electron 으로 띄운다.
- * - 깨끗한 임시 프로필(MYBROWSER_USER_DATA), 가짜 모델 모드(MYBROWSER_FAKE_MODEL=1), 임의 CDP 포트(0 — 떠 있는 pnpm dev 와 충돌 방지)
+ * - 깨끗한 임시 프로필(MYBROWSER_USER_DATA), 가짜 모델 모드(MYBROWSER_FAKE_MODEL=1, 시나리오는 fakeScenario 옵션), 임의 CDP 포트(0 — 떠 있는 pnpm dev 와 충돌 방지)
  * - renderer console.error·pageerror·main 의 [main.error] 를 모아 HARNESS_RUN_DIR/console-errors.log 에 쓰고, 1건이라도 있으면 테스트를 실패시킨다
  * - 탭 페이지는 로컬 픽스처 서버(fixtureUrl)만 연다 — 외부 사이트 금지
  * 규칙: .claude/rules/test-convention.md 「e2e」, .claude/skills/desktop/app-check
@@ -34,6 +34,8 @@ interface IFixtures {
   fixtureUrl: (path: string) => string;
   /** 같은 userData 로 앱을 띄운다 — 테스트가 닫는다. 에러는 errorList 로 모인다 */
   launchApp: (options: { userDataDir: string }) => Promise<ILaunchedApp>;
+  /** 가짜 모델 시나리오 이름(e2e/fixtures/model/{이름}.json) — `test.use({ fakeScenario })` 로 고른다 */
+  fakeScenario: string | undefined;
 }
 
 function isIgnored(line: string): boolean {
@@ -49,7 +51,11 @@ function writeErrorLog(testTitle: string, errorList: string[]): void {
 }
 
 /** 앱을 띄우고 main 의 [main.error] 줄을 errorList 에 모은다 */
-async function launchElectron(userDataDir: string, errorList: string[]): Promise<ElectronApplication> {
+async function launchElectron(
+  userDataDir: string,
+  errorList: string[],
+  fakeScenario?: string,
+): Promise<ElectronApplication> {
   const { ELECTRON_RENDERER_URL: _devServerUrl, ...baseEnv } = process.env;
   const app = await _electron.launch({
     args: [ROOT],
@@ -60,6 +66,7 @@ async function launchElectron(userDataDir: string, errorList: string[]): Promise
       MYBROWSER_FAKE_MODEL: '1',
       MYBROWSER_CDP_PORT: '0',
       MYBROWSER_USER_DATA: userDataDir,
+      ...(fakeScenario ? { MYBROWSER_FAKE_SCENARIO: fakeScenario } : {}),
     },
   });
   app.process().stderr?.on('data', (chunk: Buffer) => {
@@ -122,6 +129,8 @@ export async function pressKeyInTab(
 }
 
 export const test = base.extend<IFixtures, { fixtureServer: IFixtureServer }>({
+  fakeScenario: [undefined, { option: true }],
+
   fixtureServer: [
     async ({}, use) => {
       const server = await startFixtureServer();
@@ -142,16 +151,16 @@ export const test = base.extend<IFixtures, { fixtureServer: IFixtureServer }>({
     if (errorList.length) throw new Error(`앱에서 에러 ${errorList.length}건 발생:\n${errorList.join('\n')}`);
   },
 
-  launchApp: async ({ errorList }, use) => {
+  launchApp: async ({ errorList, fakeScenario }, use) => {
     await use(async ({ userDataDir }) => {
-      const app = await launchElectron(userDataDir, errorList);
+      const app = await launchElectron(userDataDir, errorList, fakeScenario);
       return { app, win: await openChromeWindow(app, errorList) };
     });
   },
 
-  app: async ({ errorList }, use) => {
+  app: async ({ errorList, fakeScenario }, use) => {
     const userDataDir = mkdtempSync(join(tmpdir(), 'mybrowser-e2e-'));
-    const app = await launchElectron(userDataDir, errorList);
+    const app = await launchElectron(userDataDir, errorList, fakeScenario);
     await use(app);
     await app.close();
     rmSync(userDataDir, { recursive: true, force: true });
