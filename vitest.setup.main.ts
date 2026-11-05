@@ -18,6 +18,7 @@ function createMockWebContentsView(): Record<string, unknown> {
       focus: vi.fn(),
       close: vi.fn(),
       isDestroyed: vi.fn(),
+      debugger: { attach: vi.fn(), isAttached: vi.fn(), sendCommand: vi.fn() },
       navigationHistory: {
         canGoBack: vi.fn(),
         canGoForward: vi.fn(),
