@@ -20,6 +20,7 @@ import {
   type TToolName,
 } from '@shared/tools';
 
+import { BrowserComputerToolset } from '../computer/toolset';
 import { checkGuard, isSameDisplay } from '../guard';
 import type { IModelClient } from '../modelClient';
 import { summarizeStep } from '../summary';
@@ -146,9 +147,13 @@ export function createExclusiveQueue(): TRunExclusive {
   };
 }
 
-/** run 하나에 쓸 betaZodTool 15개 (eager_input_streaming) — ctx.runExclusive 로 하나씩 실행된다 */
+/**
+ * run 하나에 쓸 도구 — betaZodTool 15개(eager_input_streaming) + 끝에 픽셀 computer toolset 1개.
+ * 모두 같은 ctx(같은 큐·승인 수·step 기록)로 하나씩 실행된다.
+ */
 export function createToolList(ctx: IToolRunContext): TRunnableTool[] {
-  return (AGENT_TOOL_LIST as readonly TAnyAgentTool[]).map((tool) => toRunnableTool(tool, ctx));
+  const toolList = (AGENT_TOOL_LIST as readonly TAnyAgentTool[]).map((tool) => toRunnableTool(tool, ctx));
+  return [...toolList, new BrowserComputerToolset(ctx)];
 }
 
 function toRunnableTool(tool: TAnyAgentTool, ctx: IToolRunContext): TRunnableTool {

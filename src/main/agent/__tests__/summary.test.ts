@@ -73,4 +73,23 @@ describe('summarizeStep', () => {
       '확인 요청: 4명으로 변경',
     );
   });
+
+  it.each([
+    ['computer.screenshot', '화면 보기'],
+    ['computer.left_click', '좌표 클릭'],
+    ['computer.double_click', '좌표 더블클릭'],
+    ['computer.scroll', '화면 스크롤'],
+    ['computer.mouse_move', '커서 이동'],
+    ['computer.wait', '기다리기'],
+  ])('픽셀 멤버 %s 는 고정 문구 “%s” 로 요약한다', (tool, expected) => {
+    expect(summarizeStep(tool, { coordinate: [10, 20] })).toBe(expected);
+  });
+
+  it('픽셀 key 는 “키 {text}” 로 요약한다', () => {
+    expect(summarizeStep('computer.key', { text: 'ctrl+a' })).toBe('키 ctrl+a');
+  });
+
+  it('픽셀 type 요약에는 입력한 글자가 없다', () => {
+    expect(summarizeStep('computer.type', { text: '비밀값123' })).toBe('글자 입력');
+  });
 });
