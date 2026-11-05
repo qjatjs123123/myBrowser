@@ -9,7 +9,7 @@ interface IResultView {
   className: string;
 }
 
-/** 종료 종류별 톤 — 가드 정지는 경고(진한 테두리·배경), 실패는 destructive 글자 */
+/** 종료 종류별 톤 — 가드 정지는 --warning(사용자 확인 필요), 실패는 destructive 글자 */
 const RESULT_VIEW: Record<IRunResult['kind'], IResultView> = {
   done: { title: '결과', Icon: CircleCheck, className: 'border-border bg-muted text-foreground' },
   failed: { title: '실패 이유', Icon: CircleAlert, className: 'border-destructive/40 text-destructive' },
@@ -17,7 +17,7 @@ const RESULT_VIEW: Record<IRunResult['kind'], IResultView> = {
   guard_stopped: {
     title: '직접 확인 필요',
     Icon: TriangleAlert,
-    className: 'border-destructive bg-destructive/10 text-foreground',
+    className: 'border-warning bg-warning/10 text-foreground',
   },
 };
 

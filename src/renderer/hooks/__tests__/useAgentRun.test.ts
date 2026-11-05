@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { TApprovalRequest, TQuestion } from '@shared/agent/run';
 import type { TAgentEvent, TStartAgentResponse } from '@shared/ipc/agent';
 import type { TIpcResult } from '@shared/ipc/result';
 
@@ -22,6 +23,18 @@ async function renderStartedHook() {
   });
   return hook;
 }
+
+const APPROVAL: TApprovalRequest = {
+  requestId: 'req-1',
+  stepN: 2,
+  kind: 'guard',
+  source: 'structure',
+  reason: '확정 버튼',
+  display: { action: '클릭', target: '예약 확정' },
+  modelNote: null,
+};
+
+const QUESTION: TQuestion = { requestId: 'req-2', stepN: 3, text: '몇 명인가요?', optionList: ['2명', '4명'] };
 
 describe('useAgentRun', () => {
   it('start 가 성공하면 runId 와 running 상태를 세운다', async () => {
@@ -181,5 +194,99 @@ describe('useAgentRun', () => {
     const unsubscribe = vi.mocked(window.api.agent.onEvent).mock.results[0]?.value as ReturnType<typeof vi.fn>;
     unmount();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('approval_required 이벤트면 대기 중인 승인 요청을 세운다', async () => {
+    const { result } = await renderStartedHook();
+    act(() => getEventListener()({ type: 'approval_required', runId: 'run-1', request: APPROVAL }));
+    expect(result.current.pendingApproval).toEqual(APPROVAL);
+  });
+
+  it('같은 requestId 의 approval_resolved 가 오면 승인 요청을 닫는다', async () => {
+    const { result } = await renderStartedHook();
+    act(() => {
+      getEventListener()({ type: 'approval_required', runId: 'run-1', request: APPROVAL });
+      getEventListener()({ type: 'approval_resolved', runId: 'run-1', requestId: 'req-1', decision: 'denied' });
+    });
+    expect(result.current.pendingApproval).toBeNull();
+  });
+
+  it('다른 requestId 의 approval_resolved 는 지금 승인 요청을 닫지 않는다', async () => {
+    const { result } = await renderStartedHook();
+    act(() => {
+      getEventListener()({ type: 'approval_required', runId: 'run-1', request: APPROVAL });
+      getEventListener()({ type: 'approval_resolved', runId: 'run-1', requestId: 'req-9', decision: 'agent' });
+    });
+    expect(result.current.pendingApproval).toEqual(APPROVAL);
+  });
+
+  it('question 이벤트면 질문을 세우고 question_answered 가 오면 닫는다', async () => {
+    const { result } = await renderStartedHook();
+    act(() => getEventListener()({ type: 'question', runId: 'run-1', question: QUESTION }));
+    expect(result.current.pendingQuestion).toEqual(QUESTION);
+    act(() => getEventListener()({ type: 'question_answered', runId: 'run-1', requestId: 'req-2' }));
+    expect(result.current.pendingQuestion).toBeNull();
+  });
+
+  it('대기 중 stopped 가 오면 승인 요청·질문을 닫고 중지 결과를 만든다', async () => {
+    const { result } = await renderStartedHook();
+    act(() => {
+      getEventListener()({ type: 'approval_required', runId: 'run-1', request: APPROVAL });
+      getEventListener()({ type: 'question', runId: 'run-1', question: QUESTION });
+      getEventListener()({ type: 'stopped', runId: 'run-1' });
+    });
+    expect(result.current.pendingApproval).toBeNull();
+    expect(result.current.pendingQuestion).toBeNull();
+    expect(result.current.result).toEqual({ kind: 'stopped', text: '중지했습니다' });
+  });
+
+  it('approve 는 현재 runId·requestId·결정으로 agent.approve 를 부르고 봉투를 돌려준다', async () => {
+    const { result } = await renderStartedHook();
+    act(() => getEventListener()({ type: 'approval_required', runId: 'run-1', request: APPROVAL }));
+    vi.mocked(window.api.agent.approve).mockResolvedValue({ ok: true, data: null });
+    const returned = await result.current.approve('agent');
+    expect(window.api.agent.approve).toHaveBeenCalledWith({ runId: 'run-1', requestId: 'req-1', decision: 'agent' });
+    expect(returned).toEqual({ ok: true, data: null });
+  });
+
+  it('approve 가 실패 봉투면 그대로 돌려준다', async () => {
+    const { result } = await renderStartedHook();
+    act(() => getEventListener()({ type: 'approval_required', runId: 'run-1', request: APPROVAL }));
+    const envelope = { ok: false, error: { code: 'NOT_FOUND', message: '확인할 요청을 찾을 수 없습니다' } } as const;
+    vi.mocked(window.api.agent.approve).mockResolvedValue(envelope);
+    expect(await result.current.approve('denied')).toEqual(envelope);
+  });
+
+  it('approve 호출이 throw 하면 INTERNAL 실패 봉투로 바꾼다', async () => {
+    const { result } = await renderStartedHook();
+    act(() => getEventListener()({ type: 'approval_required', runId: 'run-1', request: APPROVAL }));
+    vi.mocked(window.api.agent.approve).mockRejectedValue(new Error('ipc'));
+    expect(await result.current.approve('denied')).toEqual({
+      ok: false,
+      error: { code: 'INTERNAL', message: '승인 결과를 보내지 못했습니다' },
+    });
+  });
+
+  it('승인 요청이 없을 때 approve 는 agent.approve 를 부르지 않고 NOT_FOUND 를 돌려준다', async () => {
+    const { result } = await renderStartedHook();
+    const returned = await result.current.approve('agent');
+    expect(window.api.agent.approve).not.toHaveBeenCalled();
+    expect(returned).toEqual({ ok: false, error: { code: 'NOT_FOUND', message: '확인할 요청을 찾을 수 없습니다' } });
+  });
+
+  it('answer 는 현재 runId·requestId·답으로 agent.answer 를 부르고 봉투를 돌려준다', async () => {
+    const { result } = await renderStartedHook();
+    act(() => getEventListener()({ type: 'question', runId: 'run-1', question: QUESTION }));
+    vi.mocked(window.api.agent.answer).mockResolvedValue({ ok: true, data: null });
+    const returned = await result.current.answer('2명');
+    expect(window.api.agent.answer).toHaveBeenCalledWith({ runId: 'run-1', requestId: 'req-2', answer: '2명' });
+    expect(returned).toEqual({ ok: true, data: null });
+  });
+
+  it('질문이 없을 때 answer 는 agent.answer 를 부르지 않고 NOT_FOUND 를 돌려준다', async () => {
+    const { result } = await renderStartedHook();
+    const returned = await result.current.answer('2명');
+    expect(window.api.agent.answer).not.toHaveBeenCalled();
+    expect(returned).toEqual({ ok: false, error: { code: 'NOT_FOUND', message: '확인할 요청을 찾을 수 없습니다' } });
   });
 });
