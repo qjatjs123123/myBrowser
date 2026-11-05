@@ -12,7 +12,7 @@ paths:
 - 모든 `BrowserWindow`/`WebContentsView` 의 `webPreferences`: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`. 사이드바 View 만 `preload` 를 갖고, **웹페이지 탭 View 는 preload 없음**.
 - 탭 View 에는 `session.fromPartition('persist:browsing')` — 로그인 세션 영속. 사이드바는 기본 세션.
 - `will-navigate`·`setWindowOpenHandler` 로 탭 View 가 새 창을 열지 못하게 하고, 팝업은 새 탭으로 돌린다.
-- 원격 디버깅 포트(`remote-debugging-port`)는 **127.0.0.1 바인딩, 개발·테스트에서만** (`app.isPackaged` 면 기본 끔, 설정으로 켤 수 있게).
+- 원격 디버깅 포트(`remote-debugging-port`)는 **항상 127.0.0.1 바인딩**. 개발 기본 9222, **설치판 기본 port 0(임의 포트 — 고정 포트 금지)**, `MYBROWSER_CDP_PORT` 로 덮어쓴다. 스위치와 `resolveCdpEndpoint` 는 같은 `env.cdpPort` 를 쓰고, ready 전에 지난 실행의 `userData/DevToolsActivePort` 를 지운다 (spec 005).
 
 ## 모듈 작성 규칙
 - 모듈은 **클래스 1개 또는 함수 묶음 1개**를 export 하고, 생성자/팩토리로 의존을 주입받는다 (`new TabManager(window)`, `createAgentLoop({ browser, store, model })`). 모듈 최상위에서 전역 싱글턴을 만들지 않는다 — 테스트에서 가짜를 넣을 수 있어야 한다.
