@@ -45,7 +45,6 @@ export const AnswerAgentRequestSchema = z.strictObject({
  * status(running) → (step(running) → step(ok|error|blocked))* → 종료 이벤트 1개 → status(종료 상태)
  * 승인 대기: step(running) → step(waiting) → status(waiting_user) → approval_required → approval_resolved
  * → status(running) → step(ok|denied). 질문도 같은 꼴(question / question_answered).
- * guard_stopped 는 spec 004 묶음 병렬 동안만 남긴다(발신 안 함) — 합치기 뒤 메인이 삭제.
  */
 export const AgentEventSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('status'), runId: RunIdSchema, status: RunStatusSchema }),
@@ -53,12 +52,6 @@ export const AgentEventSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('done'), runId: RunIdSchema, summary: z.string() }),
   z.strictObject({ type: z.literal('failed'), runId: RunIdSchema, reason: z.string() }),
   z.strictObject({ type: z.literal('stopped'), runId: RunIdSchema }),
-  z.strictObject({
-    type: z.literal('guard_stopped'),
-    runId: RunIdSchema,
-    reason: z.string(),
-    display: GuardDisplaySchema,
-  }),
   z.strictObject({ type: z.literal('approval_required'), runId: RunIdSchema, request: ApprovalRequestSchema }),
   z.strictObject({
     type: z.literal('approval_resolved'),

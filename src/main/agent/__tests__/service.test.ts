@@ -28,7 +28,7 @@ const TARGET_MAP: Record<string, Partial<IGuardTarget>> = {
 };
 
 const FINAL_STATUS_LIST = ['done', 'failed', 'stopped', 'stopped_before_confirm'];
-const TERMINAL_TYPE_LIST = ['done', 'failed', 'stopped', 'guard_stopped'];
+const TERMINAL_TYPE_LIST = ['done', 'failed', 'stopped'];
 
 function toTarget(patch: Partial<IGuardTarget>): IGuardTarget {
   const empty = { role: '', name: '', text: '', value: '', href: '', formAction: '', formSubmitText: '' };

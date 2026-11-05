@@ -105,12 +105,6 @@ describe('AgentEventSchema', () => {
     { type: 'failed', runId: 'r1', reason: '도구 호출 한도(60회)를 넘었습니다' },
     { type: 'stopped', runId: 'r1' },
     {
-      type: 'guard_stopped',
-      runId: 'r1',
-      reason: '확정·결제 행동: 예약 확정',
-      display: { action: '클릭', target: '예약 확정' },
-    },
-    {
       type: 'approval_required',
       runId: 'r1',
       request: {
@@ -149,8 +143,15 @@ describe('AgentEventSchema', () => {
     expect(AgentEventSchema.safeParse({ type: 'status', runId: 'r1', status: 'paused' }).success).toBe(false);
   });
 
-  it('guard_stopped 에 display 가 없으면 실패한다', () => {
-    expect(AgentEventSchema.safeParse({ type: 'guard_stopped', runId: 'r1', reason: 'x' }).success).toBe(false);
+  it('guard_stopped 이벤트는 더 이상 계약에 없어 실패한다 (spec 004 — 승인 대기로 대체)', () => {
+    expect(
+      AgentEventSchema.safeParse({
+        type: 'guard_stopped',
+        runId: 'r1',
+        reason: 'x',
+        display: { action: '클릭', target: '예약 확정' },
+      }).success,
+    ).toBe(false);
   });
 
   it('approval_required 에 request 가 없으면 실패한다', () => {

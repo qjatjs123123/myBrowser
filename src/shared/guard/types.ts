@@ -3,7 +3,7 @@ import type { IGuardTarget, IPoint } from '../tools/driver';
 
 /**
  * 가드 판정 — require_approval 의 display 는 실제 요소 텍스트·URL 그대로 (rules/agent/guard.md).
- * 이번 spec 에서 require_approval 은 run 을 stopped_before_confirm 으로 끝낸다 (승인 UI 는 3단계).
+ * require_approval 은 run 을 waiting_user 로 두고 사이드바 승인 창에서 사용자가 고른다 (spec 004).
  */
 export type TGuardVerdict =
   | { kind: 'allow' }

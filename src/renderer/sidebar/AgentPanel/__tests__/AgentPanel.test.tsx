@@ -133,14 +133,15 @@ describe('AgentPanel', () => {
       emit({
         type: 'step',
         runId: 'run-1',
-        step: { n: 1, tool: 'click', summary: '‘예약 확정’ 클릭', status: 'blocked' },
+        step: { n: 1, tool: 'click', summary: '‘예약 확정’ 클릭', status: 'denied' },
       });
-      emit({ type: 'guard_stopped', runId: 'run-1', reason: 'r', display: { action: '클릭', target: '예약 확정' } });
-      emit({ type: 'status', runId: 'run-1', status: 'stopped_before_confirm' });
+      emit({ type: 'done', runId: 'run-1', summary: '예약 확정은 사용자가 거부했습니다' });
+      emit({ type: 'status', runId: 'run-1', status: 'done' });
     });
     expect(screen.getByRole('list', { name: '진행 단계' })).toHaveTextContent('‘예약 확정’ 클릭');
-    expect(screen.getByRole('region', { name: '실행 결과' })).toHaveTextContent('클릭: 예약 확정');
-    expect(screen.getByRole('status', { name: '실행 상태' })).toHaveTextContent('확정 직전 정지');
+    expect(screen.getByRole('img', { name: '거부됨' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: '실행 결과' })).toHaveTextContent('예약 확정은 사용자가 거부했습니다');
+    expect(screen.getByRole('status', { name: '실행 상태' })).toHaveTextContent('완료');
     expect(screen.getByRole('button', { name: '작업 실행' })).toBeEnabled();
   });
 

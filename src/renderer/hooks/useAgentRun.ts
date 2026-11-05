@@ -15,7 +15,7 @@ import { getApi } from '@/lib/api';
 
 /** run 종료 결과 — 사이드바 RunResult 가 보여줄 FR-5 문구 */
 export interface IRunResult {
-  kind: 'done' | 'failed' | 'stopped' | 'guard_stopped';
+  kind: 'done' | 'failed' | 'stopped';
   text: string;
 }
 
@@ -182,10 +182,9 @@ function upsertStep(stepList: TStep[], step: TStep): TStep[] {
   return [...restList, step].sort((a, b) => a.n - b.n);
 }
 
-type TFinalEvent = Extract<TAgentEvent, { type: 'done' | 'failed' | 'stopped' | 'guard_stopped' }>;
+type TFinalEvent = Extract<TAgentEvent, { type: 'done' | 'failed' | 'stopped' }>;
 
 /** 종료 이벤트 → FR-5 문구 */
-// TODO(spec 004 5단계): guard_stopped 이벤트가 계약에서 삭제되면 그 분기와 kind 를 지운다
 function toRunResult(event: TFinalEvent): IRunResult {
   switch (event.type) {
     case 'done':
@@ -194,10 +193,5 @@ function toRunResult(event: TFinalEvent): IRunResult {
       return { kind: 'failed', text: event.reason };
     case 'stopped':
       return { kind: 'stopped', text: '중지했습니다' };
-    case 'guard_stopped':
-      return {
-        kind: 'guard_stopped',
-        text: `확정 직전에 멈췄습니다 — ${event.display.action}: ${event.display.target}. 직접 확인하고 누르세요`,
-      };
   }
 }

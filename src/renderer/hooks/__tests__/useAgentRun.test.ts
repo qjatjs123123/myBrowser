@@ -145,22 +145,6 @@ describe('useAgentRun', () => {
     expect(result.current.result).toEqual({ kind: 'stopped', text: '중지했습니다' });
   });
 
-  it('guard_stopped 이벤트면 display 의 행동·대상을 담은 결과를 만든다', async () => {
-    const { result } = await renderStartedHook();
-    act(() =>
-      getEventListener()({
-        type: 'guard_stopped',
-        runId: 'run-1',
-        reason: '확정 버튼',
-        display: { action: '클릭', target: '예약 확정' },
-      }),
-    );
-    expect(result.current.result).toEqual({
-      kind: 'guard_stopped',
-      text: '확정 직전에 멈췄습니다 — 클릭: 예약 확정. 직접 확인하고 누르세요',
-    });
-  });
-
   it('start 가 실패 봉투면 그대로 돌려주고 run 을 세우지 않는다', async () => {
     const envelope = { ok: false, error: { code: 'BUSY', message: '이미 실행 중인 작업이 있습니다' } } as const;
     vi.mocked(window.api.agent.start).mockResolvedValue(envelope);
