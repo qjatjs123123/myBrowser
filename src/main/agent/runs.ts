@@ -1,20 +1,21 @@
 /**
- * [run 상태 머신] queued → running → done | failed | stopped | stopped_before_confirm.
+ * [run 상태 머신] queued → running ⇄ waiting_user → done | failed | stopped (stopped_before_confirm 은 enum·DB 호환용으로만 남고 새 전이가 없다).
  * 전이는 transition 한 곳에서만, 불법 전이는 throw (우리 버그를 일찍 드러낸다).
- * waiting_user 는 enum 에만 있고 이번 spec 에서는 전이가 없다 (승인·질문은 3단계).
+ * wait·resume 은 승인·질문 대기의 시작·끝 (spec 004). 대기 중에도 stop·fail 할 수 있다.
  */
 import type { TRunStatus } from '@shared/agent/run';
 
 /** 전이를 일으키는 사건 */
-export type TRunEvent = 'start' | 'finish' | 'fail' | 'stop' | 'guardStop';
+export type TRunEvent = 'start' | 'finish' | 'fail' | 'stop' | 'wait' | 'resume';
 
 /** 사건별 허용 출발 상태 → 도착 상태 */
 const TRANSITION_TABLE: Record<TRunEvent, { fromList: TRunStatus[]; to: TRunStatus }> = {
   start: { fromList: ['queued'], to: 'running' },
   finish: { fromList: ['running'], to: 'done' },
-  fail: { fromList: ['running'], to: 'failed' },
-  stop: { fromList: ['running'], to: 'stopped' },
-  guardStop: { fromList: ['running'], to: 'stopped_before_confirm' },
+  fail: { fromList: ['running', 'waiting_user'], to: 'failed' },
+  stop: { fromList: ['running', 'waiting_user'], to: 'stopped' },
+  wait: { fromList: ['running'], to: 'waiting_user' },
+  resume: { fromList: ['waiting_user'], to: 'running' },
 };
 
 const FINAL_STATUS_LIST: readonly TRunStatus[] = ['done', 'failed', 'stopped', 'stopped_before_confirm'];

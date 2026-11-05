@@ -14,6 +14,20 @@ describe('SYSTEM_PROMPT', () => {
     },
   );
 
+  it.each(['ask_user', 'request_approval', '승인 창', '한국 예약 사이트', '날짜·시간·인원', '픽셀 도구', '연달아 찍지 않는다'])(
+    '“%s” 승인·질문·예약 문구를 담는다 (spec 004 FR-9)',
+    (phrase) => {
+      expect(SYSTEM_PROMPT).toContain(phrase);
+    },
+  );
+
+  it('섹션 순서는 역할 → 도구 순서 → 안전 → 예약 참고 → 출력이다', () => {
+    const indexList = ['# 역할', '# 도구 사용 순서', '# 안전 규칙', '# 한국 예약 사이트 참고', '# 출력 형식'].map((h) =>
+      SYSTEM_PROMPT.indexOf(h),
+    );
+    expect(indexList.every((index, i) => index >= 0 && (i === 0 || index > (indexList[i - 1] ?? 0)))).toBe(true);
+  });
+
   it('날짜를 담지 않는다 (캐시 prefix 유지)', () => {
     expect(SYSTEM_PROMPT).not.toMatch(/\d{4}-\d{2}-\d{2}/);
     expect(SYSTEM_PROMPT).not.toContain('오늘:');

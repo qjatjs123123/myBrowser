@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { IGuardInput } from '@shared/guard/types';
 import type { IGuardTarget } from '@shared/tools';
 
-import { checkGuard, GUARD_MESSAGE } from '../guard';
+import { checkGuard, GUARD_MESSAGE, isSameDisplay } from '../guard';
 
 const PAGE_URL = 'https://shop.example.com/store';
 
@@ -246,5 +246,127 @@ describe('checkGuard — 읽기 도구', () => {
     ['switch_tab', { tabId: 't1' }],
   ] as const)('%s 는 allow 한다', (tool, input) => {
     expect(check({ tool, input }).kind).toBe('allow');
+  });
+});
+
+describe('checkGuard — 승인 상한 (SR-4)', () => {
+  const confirmCall = { tool: 'click', input: { ref: 'e1' }, target: createTarget({ name: '예약 확정' }) } as const;
+
+  it.each([0, 1, 2, 3, 4])('이전 승인 요청이 %i회면 require_approval 이다 (5회째까지)', (approvalCount) => {
+    expect(check({ ...confirmCall, approvalCount }).kind).toBe('require_approval');
+  });
+
+  it('이전 승인 요청이 5회면 6회째는 too_many_approvals 로 block 한다', () => {
+    expect(check({ ...confirmCall, approvalCount: 5 })).toEqual({
+      kind: 'block',
+      reason: GUARD_MESSAGE.tooManyApprovals,
+    });
+  });
+
+  it('상한을 넘어도 승인이 필요 없는 판정은 allow 그대로다', () => {
+    const target = createTarget({ name: '예약 조회' });
+    expect(check({ tool: 'click', input: { ref: 'e1' }, target, approvalCount: 9 }).kind).toBe('allow');
+  });
+
+  it('request_approval 은 상한 안이면 고정 표시로 require_approval 이다', () => {
+    const input = { action: '예약 확정 클릭', target: '예약 확정', reason: '마지막 단계' };
+    expect(check({ tool: 'request_approval', input })).toEqual({
+      kind: 'require_approval',
+      reason: expect.any(String),
+      display: { action: '확인 요청', target: '' },
+    });
+  });
+
+  it('request_approval 도 상한을 넘으면 block 한다', () => {
+    const input = { action: 'x', target: '', reason: 'y' };
+    expect(check({ tool: 'request_approval', input, approvalCount: 5 }).kind).toBe('block');
+  });
+});
+
+describe('checkGuard — 픽셀 (source=pixel)', () => {
+  const pixel = { source: 'pixel' } as const;
+
+  it('픽셀 click 대상이 null 이면 require_approval 이다', () => {
+    expect(check({ ...pixel, tool: 'click', input: {}, target: null }).kind).toBe('require_approval');
+  });
+
+  it('구조 click 대상이 null 이면 그대로 block 이다', () => {
+    expect(check({ tool: 'click', input: { ref: 'e1' }, target: null })).toEqual({
+      kind: 'block',
+      reason: GUARD_MESSAGE.unknownTarget,
+    });
+  });
+
+  it('픽셀 click 대상이 null 이고 point(10,20) 이면 좌표 display 를 쓴다', () => {
+    const verdict = check({ ...pixel, tool: 'click', input: {}, target: null, point: { x: 10, y: 20 } });
+    expect(verdict).toMatchObject({
+      kind: 'require_approval',
+      display: { action: '클릭', target: '좌표 (10, 20) — 요소를 확인할 수 없음' },
+    });
+  });
+
+  it('픽셀 click 대상이 이름 없는 canvas 면 require_approval 이다', () => {
+    const target = createTarget({ role: 'canvas' });
+    const verdict = check({ ...pixel, tool: 'click', input: {}, target, point: { x: 1, y: 2 } });
+    expect(verdict.kind).toBe('require_approval');
+  });
+
+  it('픽셀 click 버튼 “예약 확정” 이면 require_approval 이다', () => {
+    const verdict = check({ ...pixel, tool: 'click', input: {}, target: createTarget({ name: '예약 확정' }) });
+    expect(verdict).toMatchObject({ kind: 'require_approval', display: { action: '클릭', target: '예약 확정' } });
+  });
+
+  it('픽셀 click 버튼 “예약 조회” 면 allow 한다', () => {
+    const verdict = check({ ...pixel, tool: 'click', input: {}, target: createTarget({ name: '예약 조회' }) });
+    expect(verdict).toEqual({ kind: 'allow' });
+  });
+
+  it('픽셀 type_text { text:강남, submit:false } 가 일반 칸이면 allow 한다', () => {
+    const target = createTarget({ role: 'searchbox', name: '검색어', inputType: 'search' });
+    const verdict = check({ ...pixel, tool: 'type_text', input: { text: '강남', submit: false }, target });
+    expect(verdict).toEqual({ kind: 'allow' });
+  });
+
+  it('픽셀 type_text submit:true 이고 폼 submit 이 “예약 확정” 이면 require_approval 이다', () => {
+    const target = createTarget({ role: 'textbox', name: '인원', formSubmitText: '예약 확정' });
+    const verdict = check({ ...pixel, tool: 'type_text', input: { text: 'x', submit: true }, target });
+    expect(verdict).toMatchObject({ kind: 'require_approval', display: { target: '예약 확정' } });
+  });
+
+  it('픽셀 type_text 대상이 password 면 block 한다', () => {
+    const target = createTarget({ role: 'textbox', inputType: 'password' });
+    const verdict = check({ ...pixel, tool: 'type_text', input: { text: 'x', submit: false }, target });
+    expect(verdict).toEqual({ kind: 'block', reason: GUARD_MESSAGE.secretField });
+  });
+
+  it('픽셀 type_text 입력 모양이 매핑과 다르면 block 한다', () => {
+    const target = createTarget({ role: 'textbox', name: '메모' });
+    const verdict = check({ ...pixel, tool: 'type_text', input: { text: 'x' }, target });
+    expect(verdict).toEqual({ kind: 'block', reason: GUARD_MESSAGE.invalidInput });
+  });
+
+  it('픽셀 press_key Enter 이고 포커스가 “결제하기” 면 require_approval 이다', () => {
+    const target = createTarget({ name: '결제하기' });
+    const verdict = check({ ...pixel, tool: 'press_key', input: { key: 'Enter' }, target });
+    expect(verdict).toMatchObject({ kind: 'require_approval', display: { action: 'Enter 키', target: '결제하기' } });
+  });
+
+  it('픽셀 승인 판정도 상한을 넘으면 block 한다', () => {
+    const verdict = check({ ...pixel, tool: 'click', input: {}, target: null, approvalCount: 5 });
+    expect(verdict.kind).toBe('block');
+  });
+});
+
+describe('isSameDisplay', () => {
+  it('행동·대상이 같으면 true 다', () => {
+    expect(isSameDisplay({ action: '클릭', target: '예약 확정' }, { action: '클릭', target: '예약 확정' })).toBe(true);
+  });
+
+  it('대상이 다르면 false 다', () => {
+    expect(isSameDisplay({ action: '클릭', target: '예약 확정' }, { action: '클릭', target: '결제하기' })).toBe(false);
+  });
+
+  it('행동이 다르면 false 다', () => {
+    expect(isSameDisplay({ action: '클릭', target: 'a' }, { action: 'Enter 키', target: 'a' })).toBe(false);
   });
 });

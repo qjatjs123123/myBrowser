@@ -1,21 +1,40 @@
 /**
- * [AgentService] run 하나의 시작·중지·상태 전이·기록·이벤트 발신을 맡는다 (spec 003 「AgentService」).
+ * [AgentService] run 하나의 시작·중지·승인·질문·상태 전이·기록·이벤트 발신을 맡는다 (spec 003 「AgentService」, spec 004).
  * - run 은 한 번에 하나. 시작 중(createDriver 대기)에도 BUSY.
  * - 종료 전이는 run 당 정확히 1회: 종료 이벤트 → store 갱신 → status 이벤트. 이미 끝났으면 아무것도 하지 않는다.
- * - stop()·가드 정지·상한 실패는 정지 플래그를 세우고 즉시 모델 요청을 abort 한다.
+ * - 승인·질문은 도구 run 안의 await — 대기 레지스트리(waits.ts)로 기다리고 approve()/answer() 가 푼다.
+ * - stop()·shutdown()·상한 실패는 정지 플래그 → 대기 전부 취소(실행 없음, SR-1) → 즉시 모델 요청 abort.
  * - API 키는 여기에 들어오지 않는다 (createModelClient 안에만) — 이벤트·store·로그에 키를 싣지 않는다 (SR-6).
+ * - ask_user 답 원문은 store 에 싣지 않는다 (SR-5) — 모델 tool_result 로만 간다.
  */
 import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta/messages/messages';
 
-import type { IRunStore, TRunStatus, TStep, TStepStatus } from '@shared/agent/run';
+import {
+  ApprovalDecisionSchema,
+  ModelApprovalDecisionSchema,
+  type IRunStore,
+  type TApprovalDecision,
+  type TModelApprovalDecision,
+  type TRunStatus,
+  type TStep,
+  type TStepStatus,
+} from '@shared/agent/run';
 import type { TAgentEvent } from '@shared/ipc/agent';
-import type { IBrowserDriver, TToolName } from '@shared/tools';
+import type { IBrowserDriver, TOverlayCommand } from '@shared/tools';
 
 import { runAgentLoop, type TLoopOutcome } from './loop';
 import { MissingApiKeyError, type IModelClient } from './modelClient';
 import { buildFirstUserMessage, SYSTEM_PROMPT } from './prompts/system';
 import { isFinalStatus, transition, type TRunEvent } from './runs';
-import { createToolList, toStoredInputJson, type IToolRunContext, type TApprovalVerdict } from './tools';
+import { createExclusiveQueue, createToolList, type IToolRunContext, type TUserRequest } from './tools';
+import {
+  createWaitRegistry,
+  type IWaitRegistry,
+  type TCancelReason,
+  type TUserAnswer,
+  type TWaitAnswer,
+  type TWaitKind,
+} from './waits';
 
 /** 서비스 로그 — main 의 log 와 같은 모양 */
 export interface IAgentLog {
@@ -37,10 +56,19 @@ export interface IAgentServiceDeps {
 
 export type TStartResult = { ok: true; runId: string } | { ok: false; code: 'BUSY' | 'AGENT_ERROR'; message: string };
 
+/** approve·answer 결과 — 실패 code 는 IPC 봉투 code 그대로 */
+export type TControlResult = { ok: true } | { ok: false; code: 'NOT_FOUND' | 'INVALID_INPUT'; message: string };
+
 export interface IAgentService {
   start(task: string): Promise<TStartResult>;
-  /** 실행 중인 run 이면 중지 요청 후 true, 없거나 끝난 run 이면 false */
+  /** 실행 중(대기 포함)인 run 이면 중지 요청 후 true, 없거나 끝난 run 이면 false */
   stop(runId: string): boolean;
+  /** 승인 창 결정 — kind 와 맞지 않는 decision 은 INVALID_INPUT, 없거나 처리된 요청은 NOT_FOUND */
+  approve(runId: string, requestId: string, decision: TApprovalDecision | TModelApprovalDecision): TControlResult;
+  /** 질문 카드 답 */
+  answer(runId: string, requestId: string, answer: string): TControlResult;
+  /** 앱 종료 — 활성 run 의 대기를 취소하고 failed(“앱이 종료됐습니다”)로 끝낸다 */
+  shutdown(): void;
 }
 
 export const AGENT_MESSAGE = {
@@ -48,9 +76,12 @@ export const AGENT_MESSAGE = {
   missingApiKey: 'API 키가 없습니다. .env 에 ANTHROPIC_API_KEY 를 넣고 앱을 다시 켜 주세요',
   driverFailed: '브라우저 제어 연결에 실패했습니다',
   unexpected: '예상하지 못한 오류로 작업을 끝냈습니다',
+  requestNotFound: '확인할 요청을 찾을 수 없습니다',
+  invalidRequest: '요청 형식이 올바르지 않습니다',
+  appQuit: '앱이 종료됐습니다',
 } as const;
 
-type THaltReason = 'stopped' | 'guard' | 'failed';
+type THaltReason = 'stopped' | 'shutdown' | 'failed';
 
 interface IRunSession {
   runId: string;
@@ -58,18 +89,18 @@ interface IRunSession {
   haltReason: THaltReason | null;
   controller: AbortController;
   driver: IBrowserDriver;
+  waits: IWaitRegistry;
   toolCallCount: number;
   stepMap: Map<number, Omit<TStep, 'status'> & { inputJson: string; createdAt: string }>;
   usage: { inputTokens: number; outputTokens: number };
 }
 
-type TEndPayload =
-  | { event: 'finish'; summary: string }
-  | { event: 'fail'; reason: string }
-  | { event: 'stop' }
-  | { event: 'guardStop'; verdict: TApprovalVerdict };
+type TEndPayload = { event: 'finish'; summary: string } | { event: 'fail'; reason: string } | { event: 'stop' };
 
 const LOG_SCOPE = 'agent';
+const CANCELLED: TWaitAnswer = { type: 'cancelled', reason: 'stopped' };
+const NOT_FOUND: TControlResult = { ok: false, code: 'NOT_FOUND', message: AGENT_MESSAGE.requestNotFound };
+const INVALID: TControlResult = { ok: false, code: 'INVALID_INPUT', message: AGENT_MESSAGE.invalidRequest };
 
 /** AgentService 를 만든다 — 의존은 모두 주입 (테스트는 가짜 driver·store·fetch) */
 export function createAgentService(deps: IAgentServiceDeps): IAgentService {
@@ -93,13 +124,46 @@ export function createAgentService(deps: IAgentServiceDeps): IAgentService {
     }
   };
 
+  /** runId 가 지금 살아 있는 run 이면 그 세션 */
+  const findLive = (runId: string): IRunSession | null =>
+    active && active.runId === runId && !isFinalStatus(active.status) ? active : null;
+
   const stop = (runId: string): boolean => {
-    if (!active || active.runId !== runId || isFinalStatus(active.status)) return false;
-    halt(active, 'stopped');
+    const session = findLive(runId);
+    if (!session) return false;
+    halt(deps, session, 'stopped');
     return true;
   };
 
-  return { start, stop };
+  const approve: IAgentService['approve'] = (runId, requestId, decision) =>
+    resolveWait(findLive(runId), requestId, { type: 'decision', decision });
+
+  const answer: IAgentService['answer'] = (runId, requestId, text) =>
+    resolveWait(findLive(runId), requestId, { type: 'answer', answer: text });
+
+  const shutdown = (): void => {
+    if (!active || isFinalStatus(active.status)) return;
+    halt(deps, active, 'shutdown');
+    endRun(deps, active, { event: 'fail', reason: AGENT_MESSAGE.appQuit });
+  };
+
+  return { start, stop, approve, answer, shutdown };
+}
+
+/** 대기 1건을 푼다 — 없으면 NOT_FOUND, 종류와 맞지 않는 답이면 INVALID_INPUT (풀지 않는다) */
+function resolveWait(session: IRunSession | null, requestId: string, userAnswer: TUserAnswer): TControlResult {
+  const pending = session?.waits.getPending(requestId);
+  if (!session || !pending) return NOT_FOUND;
+  if (!isAnswerForKind(pending.kind, userAnswer)) return INVALID;
+  return session.waits.resolve(requestId, userAnswer) ? { ok: true } : NOT_FOUND;
+}
+
+/** guard 는 agent·user_done·denied, model 은 approved·denied, question 은 답만 */
+function isAnswerForKind(kind: TWaitKind, userAnswer: TUserAnswer): boolean {
+  if (userAnswer.type === 'answer') return kind === 'question';
+  if (kind === 'guard') return ApprovalDecisionSchema.safeParse(userAnswer.decision).success;
+  if (kind === 'model') return ModelApprovalDecisionSchema.safeParse(userAnswer.decision).success;
+  return false;
 }
 
 type TPrepared = { ok: true; client: IModelClient; driver: IBrowserDriver } | Extract<TStartResult, { ok: false }>;
@@ -130,6 +194,7 @@ function openSession(deps: IAgentServiceDeps, task: string, driver: IBrowserDriv
     haltReason: null,
     controller: new AbortController(),
     driver,
+    waits: createWaitRegistry(),
     toolCallCount: 0,
     stepMap: new Map(),
     usage: { inputTokens: 0, outputTokens: 0 },
@@ -139,7 +204,7 @@ function openSession(deps: IAgentServiceDeps, task: string, driver: IBrowserDriv
   return session;
 }
 
-/** 백그라운드 루프 — 예외는 failed 로 기록, 끝나면 driver.dispose() */
+/** 백그라운드 루프 — 예외는 failed 로 기록, 끝나면 남은 대기 취소 + driver.dispose() */
 async function runSession(
   deps: IAgentServiceDeps,
   session: IRunSession,
@@ -152,6 +217,7 @@ async function runSession(
     deps.log?.error(LOG_SCOPE, 'run 실행 중 예외', toLogMeta(error));
     settleOutcome(deps, session, { kind: 'failed', reason: AGENT_MESSAGE.unexpected });
   } finally {
+    cancelWaits(deps, session, 'stopped');
     await session.driver
       .dispose()
       .catch((error: unknown) => deps.log?.error(LOG_SCOPE, 'driver 정리 실패', toLogMeta(error)));
@@ -187,14 +253,14 @@ function createToolContext(deps: IAgentServiceDeps, session: IRunSession): ITool
   return {
     driver: session.driver,
     allowedHostList: deps.guardOptions.allowedHostList,
+    approvalCount: 0,
     isHalted: () => session.haltReason !== null || isFinalStatus(session.status),
     countToolCall: () => countToolCall(deps, session),
     beginStep: (step) => beginStep(deps, session, step),
     endStep: (n, status, resultText) => endStep(deps, session, { n, status, resultText }),
-    stopBeforeConfirm: (verdict) => {
-      endRun(deps, session, { event: 'guardStop', verdict });
-      halt(session, 'guard');
-    },
+    waitForUser: (request) => waitForUser(deps, session, request),
+    overlay: (cmd) => showOverlay(deps, session, cmd),
+    runExclusive: createExclusiveQueue(),
   };
 }
 
@@ -202,21 +268,21 @@ function countToolCall(deps: IAgentServiceDeps, session: IRunSession): boolean {
   session.toolCallCount += 1;
   if (session.toolCallCount <= deps.maxToolCalls) return true;
   endRun(deps, session, { event: 'fail', reason: `도구 호출 한도(${deps.maxToolCalls}회)를 넘었습니다` });
-  halt(session, 'failed');
+  halt(deps, session, 'failed');
   return false;
 }
 
 function beginStep(
   deps: IAgentServiceDeps,
   session: IRunSession,
-  step: { tool: TToolName; input: unknown; summary: string },
+  step: { tool: string; storedInput: unknown; summary: string },
 ) {
   const n = session.stepMap.size + 1;
   const record = {
     n,
     tool: step.tool,
     summary: step.summary,
-    inputJson: toStoredInputJson(step.tool, step.input),
+    inputJson: JSON.stringify(step.storedInput ?? {}),
     createdAt: deps.now().toISOString(),
   };
   session.stepMap.set(n, record);
@@ -240,9 +306,59 @@ function endStep(
   deps.emit({ type: 'step', runId: session.runId, step: { n, tool: record.tool, summary: record.summary, status } });
 }
 
-/** 정지 플래그 + 즉시 abort — 이미 선 플래그는 바꾸지 않는다 */
-function halt(session: IRunSession, reason: THaltReason): void {
+/**
+ * 사용자 대기 — wait 전이(status waiting_user) → approval_required|question → 답 → approval_resolved|question_answered → resume.
+ * 취소(중지·종료)면 이벤트는 cancelWaits 가 이미 보냈고, 전이는 종료 전이가 맡는다.
+ */
+async function waitForUser(deps: IAgentServiceDeps, session: IRunSession, request: TUserRequest) {
+  if (session.haltReason !== null || isFinalStatus(session.status)) return CANCELLED;
+  const requestId = session.waits.createRequestId();
+  const kind: TWaitKind = request.kind === 'question' ? 'question' : request.approval.kind;
+  const answerPromise = session.waits.open({ requestId, kind });
+  applyTransition(deps, session, 'wait');
+  deps.emit(
+    request.kind === 'question'
+      ? { type: 'question', runId: session.runId, question: { requestId, ...request.question } }
+      : { type: 'approval_required', runId: session.runId, request: { requestId, ...request.approval } },
+  );
+  const answer = await answerPromise;
+  if (answer.type !== 'cancelled') finishWait(deps, session, { requestId, answer });
+  return answer;
+}
+
+function finishWait(
+  deps: IAgentServiceDeps,
+  session: IRunSession,
+  { requestId, answer }: { requestId: string; answer: TUserAnswer },
+) {
+  const { runId } = session;
+  deps.emit(
+    answer.type === 'answer'
+      ? { type: 'question_answered', runId, requestId }
+      : { type: 'approval_resolved', runId, requestId, decision: answer.decision },
+  );
+  if (session.status === 'waiting_user') applyTransition(deps, session, 'resume');
+}
+
+/** 열린 대기를 전부 취소 — 승인 창에는 approval_resolved(cancelled) 를 보낸다 */
+function cancelWaits(deps: IAgentServiceDeps, session: IRunSession, reason: TCancelReason): void {
+  for (const request of session.waits.cancelAll(reason)) {
+    if (request.kind === 'question') continue;
+    deps.emit({ type: 'approval_resolved', runId: session.runId, requestId: request.requestId, decision: 'cancelled' });
+  }
+}
+
+/** 오버레이 — 실패는 로그만 (오버레이 때문에 행동이 실패하지 않는다) */
+async function showOverlay(deps: IAgentServiceDeps, session: IRunSession, cmd: TOverlayCommand): Promise<void> {
+  await session.driver
+    .showOverlay(cmd)
+    .catch((error: unknown) => deps.log?.error(LOG_SCOPE, '오버레이 실패', toLogMeta(error)));
+}
+
+/** 정지 플래그 + 대기 취소 + 즉시 abort — 이미 선 플래그는 바꾸지 않는다 */
+function halt(deps: IAgentServiceDeps, session: IRunSession, reason: THaltReason): void {
   session.haltReason ??= reason;
+  cancelWaits(deps, session, reason === 'shutdown' ? 'shutdown' : 'stopped');
   session.controller.abort();
 }
 
@@ -256,16 +372,13 @@ function endRun(deps: IAgentServiceDeps, session: IRunSession, payload: TEndPayl
 function toEndEvent(runId: string, payload: TEndPayload): TAgentEvent {
   if (payload.event === 'finish') return { type: 'done', runId, summary: payload.summary };
   if (payload.event === 'fail') return { type: 'failed', runId, reason: payload.reason };
-  if (payload.event === 'stop') return { type: 'stopped', runId };
-  return { type: 'guard_stopped', runId, reason: payload.verdict.reason, display: payload.verdict.display };
+  return { type: 'stopped', runId };
 }
 
 function toEndPatch(deps: IAgentServiceDeps, session: IRunSession, payload: TEndPayload) {
   const base = { endedAt: deps.now().toISOString(), usageJson: JSON.stringify(session.usage) };
   if (payload.event === 'finish') return { ...base, summary: payload.summary };
   if (payload.event === 'fail') return { ...base, reason: payload.reason };
-  if (payload.event === 'guardStop')
-    return { ...base, reason: `${payload.verdict.display.action}: ${payload.verdict.display.target}` };
   return base;
 }
 

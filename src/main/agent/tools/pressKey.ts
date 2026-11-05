@@ -8,7 +8,7 @@ export const pressKeyTool: IAgentTool<TPressKeyInput> = {
   description:
     'Press one key on the element that currently has focus: Enter, Escape, Tab, ArrowDown, ArrowUp, PageDown or PageUp. ' +
     'Use it for keyboard-only widgets (closing a popup with Escape, moving in an autocomplete list). To type text use type_text; to click use click. ' +
-    'Enter on a confirm, pay or order button or form stops the run before the key is pressed. Example input: {"key":"Escape"}',
+    'Enter on a confirm, pay or order button or form is not pressed until the user decides in an approval panel. Example input: {"key":"Escape"}',
   inputSchema: PressKeyInputSchema,
   execute: (driver, input) => driver.pressKey(input),
 };

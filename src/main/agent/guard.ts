@@ -1,7 +1,8 @@
 /**
  * [결정적 가드] 상태를 바꾸는 도구 호출을 실행 전에 판정한다 — 순수 함수 (I/O 없음).
  * 규칙: .claude/rules/agent/guard.md (최우선), 데이터: src/shared/guard/rules.ts
- * 이번 spec 에서 require_approval 은 루프가 run 을 stopped_before_confirm 으로 끝낸다 (승인 UI 는 3단계).
+ * require_approval 은 래퍼가 run 을 waiting_user 로 두고 사용자 결정을 기다린다 (spec 004 「승인 흐름」).
+ * source='pixel' 이면 입력 스키마 parse 없이 픽셀 → 가드 매핑의 input 모양(`{ text, submit }`·`{ key }`·`{}`)만 본다.
  */
 import {
   CONFIRM_PATTERN_LIST,
@@ -20,6 +21,7 @@ import {
   PressKeyInputSchema,
   TypeTextInputSchema,
   type IGuardTarget,
+  type IPoint,
 } from '@shared/tools';
 
 /** 모델에 돌려주는 차단 이유 — 다음 행동을 알려 준다 */
@@ -28,7 +30,11 @@ export const GUARD_MESSAGE = {
   unknownTarget: '대상을 확인할 수 없습니다. snapshot 을 다시 찍어라',
   invalidInput: '도구 입력 형식이 올바르지 않습니다',
   invalidUrl: '주소 형식이 올바르지 않습니다',
+  tooManyApprovals: 'too_many_approvals: 이번 작업의 승인 요청이 5회를 넘었습니다. 작업을 멈추고 사용자에게 상황을 알려라',
 } as const;
+
+/** run 당 승인 요청 상한 (SR-4, guard.md 규칙 5) — 이번 호출 전까지 이만큼 요청했으면 더 묻지 않고 block */
+export const MAX_APPROVAL_COUNT = 5;
 
 /** display.action — 도구별 고정 문구 (모델이 만든 문장 금지) */
 const DISPLAY_ACTION = {
@@ -36,14 +42,37 @@ const DISPLAY_ACTION = {
   selectOption: '선택',
   pressEnter: 'Enter 키',
   typeSubmit: '입력 후 제출',
+  modelRequest: '확인 요청',
 } as const;
+
+const UNKNOWN_ELEMENT_REASON = '좌표의 요소를 확인할 수 없음';
+const MODEL_REQUEST_REASON = '에이전트가 확인을 요청함';
 
 const DISPLAY_TARGET_MAX = 80;
 const ALLOW: TGuardVerdict = { kind: 'allow' };
 const CONFIRM_TARGET_PATTERN_LIST = [...CONFIRM_PATTERN_LIST, ...DESTRUCTIVE_PATTERN_LIST];
 
-/** 도구 호출 하나를 판정한다 — 상태를 바꾸지 않는 도구는 allow */
+/** 도구 호출 하나를 판정한다 — 상태를 바꾸지 않는 도구는 allow. 승인 요청이 될 판정은 상한(SR-4)을 넘으면 block */
 export function checkGuard(guardInput: IGuardInput): TGuardVerdict {
+  const verdict = judge(guardInput);
+  if (verdict.kind !== 'require_approval') return verdict;
+  return (guardInput.approvalCount ?? 0) >= MAX_APPROVAL_COUNT ? block(GUARD_MESSAGE.tooManyApprovals) : verdict;
+}
+
+/** 두 승인 표시가 같은지 — [에이전트가 누르기] 재확인에서 승인한 대상과 지금 대상이 같을 때만 실행한다 */
+export function isSameDisplay(a: TApprovalDisplay, b: TApprovalDisplay): boolean {
+  return a.action === b.action && a.target === b.target;
+}
+
+type TApprovalDisplay = Extract<TGuardVerdict, { kind: 'require_approval' }>['display'];
+
+function judge(guardInput: IGuardInput): TGuardVerdict {
+  if (guardInput.tool === 'request_approval') return toModelApproval();
+  if ((guardInput.source ?? 'structure') === 'pixel') return judgePixel(guardInput);
+  return judgeStructure(guardInput);
+}
+
+function judgeStructure(guardInput: IGuardInput): TGuardVerdict {
   const { tool, input, target, pageUrl, allowedHostList } = guardInput;
   switch (tool) {
     case 'navigate':
@@ -55,12 +84,67 @@ export function checkGuard(guardInput: IGuardInput): TGuardVerdict {
     case 'select_option':
       return checkConfirmTarget({ target, pageUrl, action: DISPLAY_ACTION.selectOption });
     case 'type_text':
-      return checkTypeText(input, target, pageUrl);
+      return checkTypeText(TypeTextInputSchema.safeParse(input), target, pageUrl);
     case 'press_key':
-      return checkPressKey(input, target, pageUrl);
+      return checkPressKey(PressKeyInputSchema.safeParse(input), target, pageUrl);
     default:
       return ALLOW;
   }
+}
+
+/**
+ * 픽셀 멤버 판정 — 입력은 toGuardCall 이 만든 모양만 본다(스키마 parse 없음).
+ * 요소를 알 수 없으면(null) 구조 도구처럼 block 이 아니라 require_approval (FR-7 fail-closed, 사용자 확인).
+ * click 은 이름·텍스트·값이 모두 빈 요소(canvas 등)도 알 수 없는 요소로 본다.
+ */
+function judgePixel(guardInput: IGuardInput): TGuardVerdict {
+  const { tool, input, target, pageUrl, point } = guardInput;
+  if (!target || (tool === 'click' && isNamelessTarget(target))) return toUnknownApproval(tool, point);
+  switch (tool) {
+    case 'click':
+      return checkConfirmTarget({ target, pageUrl, action: DISPLAY_ACTION.click });
+    case 'type_text':
+      return checkTypeText(readPixelTypeInput(input), target, pageUrl);
+    case 'press_key':
+      return checkPressKey(readPixelKeyInput(input), target, pageUrl);
+    default:
+      return ALLOW;
+  }
+}
+
+function isNamelessTarget(target: IGuardTarget): boolean {
+  return [target.name, target.text, target.value].every((text) => normalizeText(text) === '');
+}
+
+/** 요소를 모르는 픽셀 행동 — display 는 실제 좌표 (SR-3) */
+function toUnknownApproval(tool: IGuardInput['tool'], point: IPoint | undefined): TGuardVerdict {
+  const action = tool === 'type_text' ? DISPLAY_ACTION.typeSubmit : tool === 'press_key' ? DISPLAY_ACTION.pressEnter : DISPLAY_ACTION.click;
+  const target = point ? `좌표 (${point.x}, ${point.y}) — 요소를 확인할 수 없음` : '요소를 확인할 수 없음';
+  return { kind: 'require_approval', reason: UNKNOWN_ELEMENT_REASON, display: { action, target } };
+}
+
+/** request_approval — 모델 문장은 display 에 넣지 않는다 (SR-3, 모델 문장은 승인 창의 “에이전트 설명”) */
+function toModelApproval(): TGuardVerdict {
+  return { kind: 'require_approval', reason: MODEL_REQUEST_REASON, display: { action: DISPLAY_ACTION.modelRequest, target: '' } };
+}
+
+type TParsed<T> = { success: true; data: T } | { success: false };
+
+/** 픽셀 type 매핑 `{ text, submit }` — 모양이 다르면 실패 (block) */
+function readPixelTypeInput(input: unknown): TParsed<{ text: string; submit: boolean }> {
+  const record = toRecord(input);
+  if (typeof record.text !== 'string' || typeof record.submit !== 'boolean') return { success: false };
+  return { success: true, data: { text: record.text, submit: record.submit } };
+}
+
+/** 픽셀 key 매핑 `{ key }` */
+function readPixelKeyInput(input: unknown): TParsed<{ key: string }> {
+  const record = toRecord(input);
+  return typeof record.key === 'string' ? { success: true, data: { key: record.key } } : { success: false };
+}
+
+function toRecord(input: unknown): Record<string, unknown> {
+  return typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : {};
 }
 
 function checkNavigate(input: unknown, allowedHostList: string[]): TGuardVerdict {
@@ -101,8 +185,11 @@ function checkConfirmTarget({ target, pageUrl, action }: IConfirmCheck): TGuardV
 }
 
 /** 규칙 2(입력 필드) → 규칙 1(submit 이면 폼의 submit 버튼·action·pageUrl) */
-function checkTypeText(input: unknown, target: IGuardTarget | null, pageUrl: string): TGuardVerdict {
-  const parsed = TypeTextInputSchema.safeParse(input);
+function checkTypeText(
+  parsed: TParsed<{ submit?: boolean }>,
+  target: IGuardTarget | null,
+  pageUrl: string,
+): TGuardVerdict {
   if (!parsed.success) return block(GUARD_MESSAGE.invalidInput);
   if (!target) return block(GUARD_MESSAGE.unknownTarget);
   if (isSecretField(target)) return block(GUARD_MESSAGE.secretField);
@@ -113,8 +200,7 @@ function checkTypeText(input: unknown, target: IGuardTarget | null, pageUrl: str
 }
 
 /** 규칙 1 — Enter 만 검사. 포커스 대상이 없으면(body 등) pageUrl 만 본다 */
-function checkPressKey(input: unknown, target: IGuardTarget | null, pageUrl: string): TGuardVerdict {
-  const parsed = PressKeyInputSchema.safeParse(input);
+function checkPressKey(parsed: TParsed<{ key: string }>, target: IGuardTarget | null, pageUrl: string): TGuardVerdict {
   if (!parsed.success) return block(GUARD_MESSAGE.invalidInput);
   if (parsed.data.key !== 'Enter') return ALLOW;
   if (!target) return toApproval(findConfirmMatch([], pageUrl), DISPLAY_ACTION.pressEnter, truncate(pageUrl));
