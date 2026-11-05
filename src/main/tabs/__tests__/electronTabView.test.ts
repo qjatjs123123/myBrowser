@@ -9,6 +9,7 @@ interface IMockWebContents {
   getURL: Mock;
   close: Mock;
   isDestroyed: Mock;
+  debugger: { attach: Mock; isAttached: Mock; sendCommand: Mock };
 }
 
 /** vitest.setup.main.ts 의 mock WebContentsView 로 어댑터를 만들고 기록된 리스너를 꺼낼 수 있게 한다 */
@@ -114,5 +115,43 @@ describe('createElectronTabView 상태·입력', () => {
     webContents.isDestroyed.mockReturnValue(false);
     tabView.destroy();
     expect(webContents.close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('createElectronTabView CDP targetId', () => {
+  function setupDebugger(isAttached: boolean) {
+    const context = setup();
+    const cdp = context.webContents.debugger;
+    cdp.isAttached.mockReturnValue(isAttached);
+    cdp.sendCommand.mockResolvedValue({ targetInfo: { targetId: 'TARGET-1', type: 'page' } });
+    return { ...context, cdp };
+  }
+
+  it('debugger 를 1.3 으로 붙이고 Target.getTargetInfo 의 targetId 를 돌려준다', async () => {
+    const { tabView, cdp } = setupDebugger(false);
+    await expect(tabView.getCdpTargetId()).resolves.toBe('TARGET-1');
+    expect(cdp.attach).toHaveBeenCalledWith('1.3');
+    expect(cdp.sendCommand).toHaveBeenCalledWith('Target.getTargetInfo');
+  });
+
+  it('이미 붙어 있으면 attach 하지 않는다', async () => {
+    const { tabView, cdp } = setupDebugger(true);
+    await tabView.getCdpTargetId();
+    expect(cdp.attach).not.toHaveBeenCalled();
+  });
+
+  it('두 번 불러도 sendCommand 는 1번만 한다 (캐시)', async () => {
+    const { tabView, cdp } = setupDebugger(false);
+    await tabView.getCdpTargetId();
+    await expect(tabView.getCdpTargetId()).resolves.toBe('TARGET-1');
+    expect(cdp.sendCommand).toHaveBeenCalledTimes(1);
+  });
+
+  it('읽기에 실패하면 캐시하지 않고 다음 호출에서 다시 읽는다', async () => {
+    const { tabView, cdp } = setupDebugger(false);
+    cdp.sendCommand.mockRejectedValueOnce(new Error('detached'));
+    await expect(tabView.getCdpTargetId()).rejects.toThrow('detached');
+    await expect(tabView.getCdpTargetId()).resolves.toBe('TARGET-1');
+    expect(cdp.sendCommand).toHaveBeenCalledTimes(2);
   });
 });

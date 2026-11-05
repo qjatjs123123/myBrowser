@@ -35,6 +35,8 @@ export interface ITabView {
   setVisible(isVisible: boolean): void;
   focus(): void;
   destroy(): void;
+  /** 이 탭의 CDP targetId — playwright 의 Page 를 찾는 열쇠 (spec 003 「탭 ↔ Page 매핑」). 탭당 캐시 */
+  getCdpTargetId(): Promise<string>;
   /** host(창 contentView)에 붙일 실제 View 객체 */
   nativeView: unknown;
 }
