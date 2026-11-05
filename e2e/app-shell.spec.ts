@@ -11,12 +11,19 @@ test('앱을 실행하면 브라우징 영역·에이전트 사이드바·앱 �
   await expect(win.getByText(`myBrowser v${version} · 테스트`)).toBeVisible();
 });
 
-test('renderer 에는 window.api 의 app·tabs·shortcut·agent 만 노출되고 Node 는 노출되지 않는다', async ({ win }) => {
+test('renderer 에는 window.api 의 app·tabs·shortcut·agent·account 만 노출되고 Node 는 노출되지 않는다', async ({
+  win,
+}) => {
   const exposure = await win.evaluate(() => ({
     apiKeyList: Object.keys((globalThis as unknown as { api: object }).api),
     appKeyList: Object.keys((globalThis as unknown as { api: { app: object } }).api.app),
     hasRequire: typeof (globalThis as { require?: unknown }).require !== 'undefined',
     hasProcess: typeof (globalThis as { process?: unknown }).process !== 'undefined',
   }));
-  expect(exposure).toEqual({ apiKeyList: ['app', 'tabs', 'shortcut', 'agent'], appKeyList: ['getInfo'], hasRequire: false, hasProcess: false });
+  expect(exposure).toEqual({
+    apiKeyList: ['app', 'tabs', 'shortcut', 'agent', 'account'],
+    appKeyList: ['getInfo'],
+    hasRequire: false,
+    hasProcess: false,
+  });
 });
