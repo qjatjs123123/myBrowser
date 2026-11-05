@@ -1,6 +1,6 @@
 import type { Page } from 'playwright-core';
 
-import type { IGuardTarget, IResolveTargetRequest } from '@shared/tools';
+import type { IGuardTarget, IPoint, IResolveTargetRequest } from '@shared/tools';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
@@ -27,10 +27,43 @@ export async function resolveTarget(
   }
 }
 
+/**
+ * [좌표 target 해석] 스크린샷 픽셀 좌표 × scale(CSS px / 스크린샷 px) 위치의 요소를 가드 판정용으로 읽는다.
+ * 오버레이(`[data-mybrowser-overlay]`)는 건너뛰고 그 아래 요소를 본다. 뷰포트 밖·요소 없음·읽기 실패면 null.
+ */
+export async function resolvePointTarget(page: Page, point: IPoint, scale = 1): Promise<IGuardTarget | null> {
+  const css = { x: point.x * scale, y: point.y * scale };
+  try {
+    const handle = await page.evaluateHandle(findElementAtPoint, css);
+    const element = handle.asElement();
+    if (element === null) {
+      await handle.dispose();
+      return null;
+    }
+    const target = await element.evaluate(readGuardTarget, false);
+    await element.dispose();
+    return target;
+  } catch {
+    return null;
+  }
+}
+
 async function resolveRefTarget(page: Page, ref: string, timeoutMs: number): Promise<IGuardTarget | null> {
   const locator = page.locator(`aria-ref=${ref}`);
   if ((await locator.count()) === 0) return null;
   return locator.first().evaluate(readGuardTarget, false, { timeout: timeoutMs });
+}
+
+interface IPointDocument {
+  elementsFromPoint(x: number, y: number): Array<{ closest(selector: string): unknown }>;
+}
+
+/** 페이지 안에서 실행 — 좌표의 맨 위 요소(오버레이 제외). 뷰포트 밖이면 null */
+function findElementAtPoint({ x, y }: { x: number; y: number }): unknown {
+  const view = globalThis as unknown as { innerWidth: number; innerHeight: number; document: IPointDocument };
+  if (!(x >= 0 && y >= 0 && x < view.innerWidth && y < view.innerHeight)) return null;
+  const elementList = view.document.elementsFromPoint(x, y);
+  return elementList.find((el) => el.closest('[data-mybrowser-overlay]') === null) ?? null;
 }
 
 /** 페이지 안에서 쓰는 DOM 의 최소 모양 — main 은 DOM lib 을 쓰지 않으므로 필요한 것만 적는다 */
@@ -133,5 +166,7 @@ function readGuardTarget(element: unknown, isFocused: boolean): IGuardTarget | n
   };
   const base = element as IDomElement;
   const chosen = isFocused ? pickFocused(base.ownerDocument) : base;
-  return chosen ? toTarget(chosen) : null;
+  // 우리 오버레이는 판정 대상이 아니다 (SR-7)
+  if (!chosen || chosen.closest('[data-mybrowser-overlay]')) return null;
+  return toTarget(chosen);
 }
