@@ -1,25 +1,42 @@
 // 앱 진입점 — 조립만 한다. 로직은 각 모듈에 (.claude/rules/architecture.md §2)
+import { randomUUID } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { app, ipcMain, Menu, session } from 'electron';
 
+import { FakeScenarioSchema, type TFakeScenario } from '@shared/agent/fakeScenario';
+import { AgentEventSchema } from '@shared/ipc/agent';
 import { IPC } from '@shared/ipc/channels';
 import { ShortcutPressedEventSchema } from '@shared/ipc/shortcut';
 import { TabsChangedEventSchema } from '@shared/ipc/tabs';
 
+import { createModelClient } from './agent/modelClient';
+import { createAgentService } from './agent/service';
 import { getCdpSwitches } from './app/cdp';
 import { createAppMenuTemplate } from './app/menu';
 import { createMainWindow } from './app/window';
-import { readEnv } from './env';
+import { createCdpConnection } from './browser/cdp';
+import { createBrowserDriver } from './browser/driver';
+import { resolveCdpEndpoint } from './browser/endpoint';
+import type { ICdpConnection, ITabsPort } from './browser/types';
+import { loadDotEnv, readEnv } from './env';
 import { createSidebarEmitter } from './ipc/emit';
+import { createAgentHandlers } from './ipc/handlers/agent';
 import { createAppHandlers } from './ipc/handlers/app';
 import { createTabsHandlers } from './ipc/handlers/tabs';
 import { registerIpc } from './ipc/registry';
 import { log } from './log';
+import { openDatabase } from './store/db';
+import { createRunRepo } from './store/repos/runs';
 import { createElectronTabView } from './tabs/electronTabView';
 import { attachShortcuts, createShortcutInputHandler, createShortcutRunner } from './tabs/shortcuts';
 import { TabManager } from './tabs/tabManager';
 
 const BROWSING_PARTITION = 'persist:browsing';
+const MAX_TOOL_CALLS = 60;
 
+loadDotEnv({ path: join(app.getAppPath(), '.env') });
 const env = readEnv(process.env, { isPackaged: app.isPackaged });
 
 // ready 전에만 적용되는 설정 — 프로필 경로와 원격 디버깅 스위치
@@ -55,11 +72,66 @@ function startBrowser(): void {
   });
   shortcutInput = createShortcutInputHandler(runner, process.platform);
   attachShortcuts(window.webContents, runner, process.platform);
+  const agentService = createAgentRuntime(tabManager, emitToSidebar);
   registerIpc(ipcMain, {
     ...createAppHandlers({ getName: () => app.getName(), getVersion: () => app.getVersion(), mode: env.mode }),
     ...createTabsHandlers(tabManager),
+    ...createAgentHandlers(agentService),
   });
   tabManager.createTab();
+}
+
+/** 가짜 모델 모드의 시나리오 — e2e/fixtures/model/{이름}.json, 파일이 없으면 빈 시나리오 */
+function readFakeScenario(): TFakeScenario | undefined {
+  const path = join(app.getAppPath(), 'e2e/fixtures/model', `${env.fakeScenario ?? 'default'}.json`);
+  if (!existsSync(path)) return undefined;
+  return FakeScenarioSchema.parse(JSON.parse(readFileSync(path, 'utf8')));
+}
+
+let database: ReturnType<typeof openDatabase> | null = null;
+let cdpConnection: Promise<ICdpConnection> | null = null;
+
+/** CDP 연결은 첫 run 에서 1회 만들고 앱 수명 동안 공유한다 — 실패하면 다음 run 에서 다시 시도 */
+function getCdp(): Promise<ICdpConnection> {
+  cdpConnection ??= resolveCdpEndpoint({ port: env.cdpPort, userDataDir: app.getPath('userData') })
+    .then((endpoint) => createCdpConnection({ endpoint }))
+    .catch((error: unknown) => {
+      cdpConnection = null;
+      throw error;
+    });
+  return cdpConnection;
+}
+
+/** 에이전트 실행 서비스 조립 — 저장소·탭 포트·드라이버·모델 클라이언트·이벤트 발신 */
+function createAgentRuntime(tabManager: TabManager, emitToSidebar: ReturnType<typeof createSidebarEmitter>) {
+  database = openDatabase(join(app.getPath('userData'), 'mybrowser.db'));
+  const tabsPort: ITabsPort = {
+    list: () => tabManager.getSnapshot(),
+    activate: (id) => tabManager.activateTab(id),
+    create: (url) => tabManager.createTab(url),
+    getCdpTargetId: (id) => tabManager.getCdpTargetId(id),
+  };
+  return createAgentService({
+    createModelClient: () =>
+      createModelClient({
+        isFake: env.isFakeModel,
+        apiKey: env.anthropicApiKey,
+        scenario: env.isFakeModel ? readFakeScenario() : undefined,
+      }),
+    createDriver: async () => {
+      const cdp = await getCdp();
+      const startTabId = tabManager.getActiveTabId() ?? tabManager.createTab();
+      return createBrowserDriver({ tabs: tabsPort, cdp, startTabId });
+    },
+    runStore: createRunRepo(database),
+    emit: (event) => emitToSidebar(IPC.agent.event, AgentEventSchema, event),
+    now: () => new Date(),
+    createId: randomUUID,
+    guardOptions: { allowedHostList: env.mode === 'test' ? ['127.0.0.1'] : [] },
+    model: env.model,
+    maxToolCalls: MAX_TOOL_CALLS,
+    log,
+  });
 }
 
 void app.whenReady().then(() => {
@@ -76,7 +148,13 @@ app.on('before-quit', (event) => {
     .fromPartition(BROWSING_PARTITION)
     .cookies.flushStore()
     .catch((error: unknown) => log.warn('app', '쿠키 저장 실패', error))
+    .then(async () => {
+      if (cdpConnection) await (await cdpConnection).close();
+    })
+    .catch((error: unknown) => log.warn('app', 'CDP 연결 종료 실패', error))
     .finally(() => {
+      database?.close();
+      database = null;
       isCookieFlushed = true;
       app.quit();
     });
