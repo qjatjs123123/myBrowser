@@ -1,6 +1,7 @@
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { showCursor, showHighlight } from '../overlay';
 import { takeSnapshot } from '../snapshot';
 
 import { getFixtureUrl } from './helpers';
@@ -59,5 +60,13 @@ describe('takeSnapshot', () => {
     await page.goto(getFixtureUrl('browser-form.html'));
     const text = getText(await takeSnapshot(page, { maxLength: 50 }));
     expect(text).toBe(`${text.slice(0, 50)}\n[... 잘림, scroll 로 더 보기]`);
+  });
+
+  it('커서·강조 오버레이가 있어도 snapshot 에 나오지 않는다', async () => {
+    await page.goto(getFixtureUrl('browser-pointer.html'));
+    const before = getText(await takeSnapshot(page));
+    await showCursor(page, { x: 80, y: 40 });
+    await showHighlight(page, { x: 300, y: 100 });
+    expect(getText(await takeSnapshot(page))).toBe(before);
   });
 });
