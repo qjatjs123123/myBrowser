@@ -1,4 +1,11 @@
-import type { TAgentEvent, TStartAgentRequest, TStartAgentResponse, TStopAgentRequest } from './agent';
+import type {
+  TAgentEvent,
+  TAnswerAgentRequest,
+  TApproveAgentRequest,
+  TStartAgentRequest,
+  TStartAgentResponse,
+  TStopAgentRequest,
+} from './agent';
 import type { TAppInfo } from './app';
 import type { TIpcResult } from './result';
 import type { TShortcutPressedEvent } from './shortcut';
@@ -42,6 +49,8 @@ export interface IApi {
   agent: {
     start: (req: TStartAgentRequest) => Promise<TIpcResult<TStartAgentResponse>>;
     stop: (req: TStopAgentRequest) => Promise<TIpcResult<null>>;
+    approve: (req: TApproveAgentRequest) => Promise<TIpcResult<null>>;
+    answer: (req: TAnswerAgentRequest) => Promise<TIpcResult<null>>;
     onEvent: (cb: (e: TAgentEvent) => void) => TUnsubscribe;
   };
 }

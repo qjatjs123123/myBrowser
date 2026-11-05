@@ -14,6 +14,8 @@ const FakeToolUseBlockSchema = z.strictObject({
   type: z.literal('tool_use'),
   name: z.string().min(1),
   input: z.record(z.string(), z.unknown()),
+  /** 픽셀 도구 멤버 호출이면 'computer' — fakeFetch 가 content_block_start 에 그대로 싣는다 (spec 004) */
+  toolset_name: z.literal('computer').optional(),
 });
 
 /** [가짜 모델] 한 턴 — stop_reason 생략 시 tool_use 블록이 있으면 tool_use, 없으면 end_turn */

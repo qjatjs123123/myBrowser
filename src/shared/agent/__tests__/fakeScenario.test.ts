@@ -20,6 +20,16 @@ describe('FakeScenarioSchema', () => {
     expect(FakeScenarioSchema.safeParse(scenario).success).toBe(true);
   });
 
+  it('tool_use 에 toolset_name computer 가 있으면 통과한다', () => {
+    const block = { type: 'tool_use', name: 'left_click', input: { coordinate: [40, 200] }, toolset_name: 'computer' };
+    expect(FakeScenarioSchema.safeParse({ turns: [{ content: [block] }] }).success).toBe(true);
+  });
+
+  it('toolset_name 이 computer 가 아니면 실패한다', () => {
+    const block = { type: 'tool_use', name: 'navigate', input: {}, toolset_name: 'browser' };
+    expect(FakeScenarioSchema.safeParse({ turns: [{ content: [block] }] }).success).toBe(false);
+  });
+
   it('stop_reason 을 생략해도 통과한다', () => {
     expect(FakeScenarioSchema.safeParse({ turns: [{ content: [{ type: 'text', text: '끝' }] }] }).success).toBe(true);
   });

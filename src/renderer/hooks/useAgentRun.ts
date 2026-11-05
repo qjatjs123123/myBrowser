@@ -89,7 +89,8 @@ function reduceAgentRun(state: IAgentRunState, action: TRunAction): IAgentRunSta
   const { event } = action;
   if (event.type === 'status') return { ...state, status: event.status };
   if (event.type === 'step') return { ...state, stepList: upsertStep(state.stepList, event.step) };
-  return { ...state, result: toRunResult(event) };
+  const result = toRunResult(event);
+  return result ? { ...state, result } : state;
 }
 
 /** 같은 n 이면 교체, 없으면 추가 — n 오름차순 유지 */
@@ -100,8 +101,9 @@ function upsertStep(stepList: TStep[], step: TStep): TStep[] {
 
 type TFinalEvent = Exclude<TAgentEvent, { type: 'status' } | { type: 'step' }>;
 
-/** 종료 이벤트 → FR-5 문구 */
-function toRunResult(event: TFinalEvent): IRunResult {
+/** 종료 이벤트 → FR-5 문구. 승인·질문 이벤트는 종료가 아니라 null */
+// TODO(spec 004 Task 8): 승인·질문 이벤트를 pending 상태로 반영하면 null 분기를 지운다
+function toRunResult(event: TFinalEvent): IRunResult | null {
   switch (event.type) {
     case 'done':
       return { kind: 'done', text: event.summary };
@@ -114,5 +116,10 @@ function toRunResult(event: TFinalEvent): IRunResult {
         kind: 'guard_stopped',
         text: `확정 직전에 멈췄습니다 — ${event.display.action}: ${event.display.target}. 직접 확인하고 누르세요`,
       };
+    case 'approval_required':
+    case 'approval_resolved':
+    case 'question':
+    case 'question_answered':
+      return null;
   }
 }
