@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(make *)",
+      "Bash(pnpm *)",
+      "Bash(npx playwright *)",
+      "Bash(npx electron *)",
+      "Bash(npx electron-vite *)",
+      "Bash(npx electron-builder *)",
+      "Bash(npx tsc *)",
+      "Bash(node scripts/*)",
+      "Bash(python3 scripts/*)",
+      "Bash(xvfb-run *)",
+      "Bash(curl -s http://127.0.0.1:*)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git apply *)",
+      "Bash(git merge *)",
+      "Bash(git switch *)",
+      "Bash(git worktree *)",
+      "Bash(git branch *)",
+      "Bash(git stash push *)",
+      "Bash(git stash pop)",
+      "Bash(git stash list *)",
+      "Bash(git rev-parse *)",
+      "Bash(git show *)",
+      "Bash(git restore --staged *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(mkdir *)",
+      "Bash(grep *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(lsof -i *)",
+      "Bash(pkill -f electron*)",
+      "Bash(: > .harness/runs/*/console-errors.log)",
+      "mcp__playwright__*"
+    ],
+    "deny": [
+      "Read(./**/.env)",
+      "Read(./**/.env.local)",
+      "Edit(./**/.env)",
+      "Edit(./**/.env.local)",
+      "Bash(cat *.env*)",
+      "Bash(less *.env*)",
+      "Bash(head *.env*)",
+      "Bash(tail *.env*)",
+      "Bash(grep * *.env*)",
+      "Bash(*open(*.env*)",
+      "Bash(*read_text(*.env*)",
+      "Bash(git push *)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean *)",
+      "Bash(rm -rf *)",
+      "Bash(git switch --discard-changes*)",
+      "Bash(git switch -f *)",
+      "Bash(git checkout -f *)",
+      "Bash(git checkout -- *)",
+      "Bash(git restore --worktree *)",
+      "Bash(git merge -X *)",
+      "Bash(git merge -s *)",
+      "Bash(git merge --strategy*)",
+      "Bash(git commit --amend*)",
+      "Bash(git rebase *)",
+      "Bash(git branch -D *)",
+      "Bash(git stash drop*)",
+      "Bash(git stash clear*)",
+      "Bash(git worktree prune*)",
+      "Edit(./.harness/session-base)",
+      "Bash(* .harness/session-base*)",
+      "Bash(*> .harness/session-base*)",
+      "Edit(./.harness/gate-pass)",
+      "Edit(./.harness/gate-count)",
+      "Edit(./.harness/gate-paused-fp)",
+      "Bash(* .harness/gate-pass*)",
+      "Bash(* .harness/gate-count*)",
+      "Bash(* .harness/gate-paused-fp*)",
+      "Bash(*> .harness/gate-pass*)",
+      "Bash(*> .harness/gate-count*)",
+      "Bash(*> .harness/gate-paused-fp*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-context.sh", "timeout": 30 } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/route-prompt.sh", "timeout": 10 } ] }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/commit-msg-check.sh", "timeout": 10 },
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/git-guard.sh", "timeout": 10 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      { "matcher": "Edit|Write|MultiEdit", "hooks": [ { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-format.sh", "timeout": 60 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/quality-gate.sh", "timeout": 900 } ] }
+    ]
+  },
+  "enabledMcpjsonServers": ["playwright"]
+}

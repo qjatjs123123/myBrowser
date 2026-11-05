@@ -1,0 +1,51 @@
+# Node / Electron
+node_modules/
+out/
+dist/
+release/
+*.tsbuildinfo
+.vite/
+
+# Env / 비밀 — 커밋 직전 scripts/check_secrets.py 가 한 번 더 막는다
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+!*.pub
+.netrc
+credentials.json
+*credentials*.json
+service-account*.json
+
+# 로컬 데이터
+*.db
+*.sqlite
+*.sqlite3
+userData/
+
+# Test / Coverage
+coverage/
+test-results/
+playwright-report/
+.playwright-mcp/
+
+# Harness run state / logs
+.harness/
+# 개발 서브에이전트 워크트리
+.claude/worktrees/
+.claude/settings.local.json
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Python (훅 스크립트)
+__pycache__/

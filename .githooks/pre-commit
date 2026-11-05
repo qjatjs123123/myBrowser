@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# git pre-commit — 사람·Claude 구분 없이 모든 커밋에서 민감 파일·비밀값을 막는다.
+# 활성화: make setup (git config core.hooksPath .githooks)
+exec python3 "$(git rev-parse --show-toplevel)/scripts/check_secrets.py"

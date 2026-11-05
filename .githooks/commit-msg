@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# git commit-msg — 사람·Claude 구분 없이 모든 커밋 메시지 첫 줄을 커밋 컨벤션으로 검사한다.
+# 활성화: make setup (git config core.hooksPath .githooks). 규칙 단일 출처: scripts/check_commit_msg.py
+exec python3 "$(git rev-parse --show-toplevel)/scripts/check_commit_msg.py" "$1"

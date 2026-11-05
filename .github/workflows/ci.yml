@@ -1,0 +1,29 @@
+name: CI
+on:
+  push: { branches: [main, dev] }
+  pull_request: { branches: [main, dev] }
+permissions: { contents: read }
+concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }
+jobs:
+  secrets:
+    name: 민감 정보 검사
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/check_secrets.py --all
+  app:
+    name: lint + type-check + vitest + build + e2e(xvfb)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm type-check
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: MYBROWSER_FAKE_MODEL=1 xvfb-run -a pnpm test:e2e
