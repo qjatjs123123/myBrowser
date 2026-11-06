@@ -201,3 +201,32 @@ describe('loadDotEnv', () => {
     expect(loadEnvFile).not.toHaveBeenCalled();
   });
 });
+
+describe('readEnv — 개발 모드 모델 프록시 (spec 006)', () => {
+  const PROXY = 'https://proxy.example.test';
+
+  it('direct 모드면 ANTHROPIC_BASE_URL 을 anthropicBaseUrl 로 넘긴다', () => {
+    expect(readEnv({ ANTHROPIC_BASE_URL: PROXY }, DEV).anthropicBaseUrl).toBe(PROXY);
+  });
+
+  it('ANTHROPIC_BASE_URL 이 없으면 anthropicBaseUrl 은 undefined 다', () => {
+    expect(readEnv({}, DEV).anthropicBaseUrl).toBeUndefined();
+  });
+
+  it('fake 모드면 ANTHROPIC_BASE_URL 을 무시한다', () => {
+    expect(readEnv({ MYBROWSER_FAKE_MODEL: '1', ANTHROPIC_BASE_URL: PROXY }, DEV).anthropicBaseUrl).toBeUndefined();
+  });
+
+  it('패키징된 앱(gateway)이면 ANTHROPIC_BASE_URL 을 무시한다', () => {
+    expect(readEnv({ ANTHROPIC_BASE_URL: PROXY }, PACKAGED).anthropicBaseUrl).toBeUndefined();
+  });
+
+  it('MYBROWSER_GATEWAY_URL 로 gateway 모드면 ANTHROPIC_BASE_URL 을 무시한다', () => {
+    const env = readEnv({ MYBROWSER_GATEWAY_URL: 'http://127.0.0.1:4000', ANTHROPIC_BASE_URL: PROXY }, DEV);
+    expect(env.anthropicBaseUrl).toBeUndefined();
+  });
+
+  it('ANTHROPIC_BASE_URL 이 http(s) URL 이 아니면 시작 시점에 실패한다', () => {
+    expect(() => readEnv({ ANTHROPIC_BASE_URL: 'file:///etc/passwd' }, DEV)).toThrow('ANTHROPIC_BASE_URL');
+  });
+});

@@ -14,7 +14,7 @@ import { ShortcutPressedEventSchema } from '@shared/ipc/shortcut';
 import { TabsChangedEventSchema } from '@shared/ipc/tabs';
 
 import { createAccountService, createGatewayClient, sleepWithSignal, type IAccountService } from './account';
-import { createModelClient } from './agent/modelClient';
+import { createModelClient, toDirectClientOptions } from './agent/modelClient';
 import { createAgentService } from './agent/service';
 import { getCdpSwitches, removeStaleActivePort } from './app/cdp';
 import { createCredentialStore } from './app/credentialStore';
@@ -144,16 +144,18 @@ function createAccountRuntime(tabManager: TabManager, emitToSidebar: ReturnType<
   });
 }
 
-/** 모델 클라이언트 — gateway 모드는 기기 토큰 + 게이트웨이 주소, 그 외는 기존대로 (spec 005 FR-3) */
+/** 모델 클라이언트 — gateway: 기기 토큰 + 게이트웨이(재시도 0) / fake: 시나리오 / direct: .env 키 + 프록시 주소 (spec 005 FR-3, spec 006) */
 function createRuntimeModelClient(account: IAccountService) {
   if (env.modelMode === 'gateway') {
-    return createModelClient({ isFake: false, apiKey: account.getDeviceToken() ?? undefined, baseURL: env.gatewayUrl });
+    return createModelClient({
+      isFake: false,
+      apiKey: account.getDeviceToken() ?? undefined,
+      baseURL: env.gatewayUrl,
+      maxRetries: 0,
+    });
   }
-  return createModelClient({
-    isFake: env.isFakeModel,
-    apiKey: env.anthropicApiKey,
-    scenario: env.isFakeModel ? readFakeScenario() : undefined,
-  });
+  if (env.isFakeModel) return createModelClient({ isFake: true, scenario: readFakeScenario() });
+  return createModelClient(toDirectClientOptions({ apiKey: env.anthropicApiKey, baseUrl: env.anthropicBaseUrl }));
 }
 
 /** 에이전트 실행 서비스 조립 — 저장소·탭 포트·드라이버·모델 클라이언트·이벤트 발신 */

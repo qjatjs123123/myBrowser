@@ -23,6 +23,8 @@ export interface IEnv {
   rendererDevUrl?: string;
   /** main 에서만 쓴다 — renderer·로그·DB·이벤트에 싣지 않는다 (SR-6) */
   anthropicApiKey?: string;
+  /** direct 모드(개발)의 모델 프록시 주소 — 그 외 모드는 항상 undefined (spec 006) */
+  anthropicBaseUrl?: string;
   /** 가짜 모델 시나리오 이름 — e2e/fixtures/model/{이름}.json */
   fakeScenario?: string;
   /** 가짜 시나리오 폴더 — test 모드에서만 (패키징된 앱에는 e2e/ 가 없다) */
@@ -43,6 +45,7 @@ const RawEnvSchema = z.object({
   MYBROWSER_USER_DATA: z.string().min(1).optional(),
   ELECTRON_RENDERER_URL: z.url().optional(),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  ANTHROPIC_BASE_URL: z.url({ protocol: /^https?$/ }).optional(),
   MYBROWSER_FAKE_SCENARIO: z
     .string()
     .regex(/^[a-z0-9-]+$/)
@@ -105,6 +108,7 @@ export function readEnv(source: NodeJS.ProcessEnv, { isPackaged, defaultGatewayU
     userDataDir: raw.MYBROWSER_USER_DATA,
     rendererDevUrl: raw.ELECTRON_RENDERER_URL,
     anthropicApiKey: raw.ANTHROPIC_API_KEY,
+    anthropicBaseUrl: modelMode === 'direct' ? raw.ANTHROPIC_BASE_URL : undefined,
     fakeScenario: raw.MYBROWSER_FAKE_SCENARIO,
     fakeScenarioDir: mode === 'test' ? raw.MYBROWSER_FAKE_SCENARIO_DIR : undefined,
     model: modelMode === 'gateway' ? GATEWAY_MODEL : (raw.MYBROWSER_MODEL ?? DEFAULT_MODEL),

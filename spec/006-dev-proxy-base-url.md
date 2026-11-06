@@ -1,6 +1,6 @@
 # Spec: 개발 모드 모델 프록시 주소 (ANTHROPIC_BASE_URL)
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-06
 > **묶음**: 기반
 > **관련 spec**: 003, 005
@@ -62,7 +62,7 @@
 > ⚠️ **게이트 규칙**: 각 Task 는 명시된 **테스트와 검증이 모두 에러 0**이 될 때까지 수정 → 재실행을 반복하고, 전부 통과했을 때만 체크박스를 채우고 **Task 단위로 커밋**한 뒤 다음 Task 로 진행한다.
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: direct 모드 ANTHROPIC_BASE_URL 지원**
+- [x] **Task 1: direct 모드 ANTHROPIC_BASE_URL 지원**
   - **묶음**: 기반
   - **작업**: env.ts 에 `ANTHROPIC_BASE_URL` 파싱·`anthropicBaseUrl`(direct 모드만), modelClient.ts 에 `toDirectClientOptions`, index.ts direct 분기 연결, DESIGN.md·.env.example 갱신
   - **파일**: `src/main/env.ts`, `src/main/agent/modelClient.ts`, `src/main/index.ts`, `docs/DESIGN.md`, `.env.example`
@@ -80,3 +80,4 @@
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-06 | 1 | env·modelClient 단위 테스트 통과, make check(1319) · make e2e(28, 콘솔 에러 0) | 검증 반영 커밋 | spec-reviewer 2회차 PASS |
