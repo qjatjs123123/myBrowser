@@ -107,13 +107,13 @@ test('OS 테마가 다크면 크롬·사이드바가 다크 토큰으로 그려�
   });
   await expect
     .poll(() =>
-      win.evaluate(() => {
-        const g = globalThis as unknown as {
-          getComputedStyle: (element: unknown) => { backgroundColor: string };
-          document: { body: unknown };
-        };
-        return g.getComputedStyle(g.document.body).backgroundColor;
-      }),
+      // 앱 배경은 루트(main)가 그린다 — Linux 둥근 창은 body 가 투명이다 (spec 014)
+      win
+        .getByRole('main', { name: '브라우징 영역' })
+        .evaluate((element) =>
+          (globalThis as unknown as { getComputedStyle: (node: unknown) => { backgroundColor: string } })
+            .getComputedStyle(element).backgroundColor,
+        ),
     )
     .toBe('oklch(0.21 0.006 285.9)');
   await win.screenshot({ path: join(SCREENSHOT_DIR, 'sidebar-dark.png') });

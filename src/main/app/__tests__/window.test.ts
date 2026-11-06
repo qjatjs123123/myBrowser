@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createWindowControls, createWindowOptions } from '../window';
+import { createWindowControls, createWindowOptions, hasRoundedCorners, watchWindowState } from '../window';
 
 /** 창 대역 — isMaximized 값만 정한다 */
 function createFakeWindow(isMaximized: boolean) {
@@ -34,6 +34,18 @@ describe('createWindowOptions', () => {
 
   it.each(['linux', 'win32'] as const)('%s 는 OS 프레임 없이 뜬다 (spec 010)', (platform) => {
     expect(createWindowOptions('/p', platform).frame).toBe(false);
+  });
+
+  it('linux 는 투명 창으로 뜬다 — renderer 가 둥근 모서리를 그린다 (spec 014)', () => {
+    const options = createWindowOptions('/p', 'linux');
+    expect(options.transparent).toBe(true);
+    expect(options.backgroundColor).toBe('#00000000');
+  });
+
+  it.each(['win32', 'darwin'] as const)('%s 는 투명 창이 아니다 — OS 가 모서리를 그린다', (platform) => {
+    const options = createWindowOptions('/p', platform);
+    expect(options).not.toHaveProperty('transparent');
+    expect(options).not.toHaveProperty('backgroundColor');
   });
 
   it('macOS 는 제목 표시줄만 숨기고 네이티브 신호등을 탭 줄에 맞춘다', () => {
@@ -75,5 +87,53 @@ describe('createWindowControls (spec 010)', () => {
     window.minimize = replaced;
     controls.minimize();
     expect(replaced).toHaveBeenCalledOnce();
+  });
+});
+
+describe('hasRoundedCorners (spec 014)', () => {
+  it('linux 만 앱이 모서리를 그린다', () => {
+    expect(hasRoundedCorners('linux')).toBe(true);
+    expect(hasRoundedCorners('win32')).toBe(false);
+    expect(hasRoundedCorners('darwin')).toBe(false);
+  });
+});
+
+describe('watchWindowState (spec 014)', () => {
+  /** on 으로 붙은 리스너를 이벤트 이름으로 부를 수 있는 창 대역 */
+  function createWatchedWindow(isMaximized: boolean) {
+    const listenerMap = new Map<string, () => void>();
+    const window = {
+      on: vi.fn((name: string, listener: () => void) => {
+        listenerMap.set(name, listener);
+        return window;
+      }),
+      isMaximized: vi.fn(() => isMaximized),
+    };
+    const onChange = vi.fn();
+    watchWindowState(window as never, onChange);
+    const emit = (name: string) => listenerMap.get(name)?.();
+    return { emit, onChange };
+  }
+
+  it.each([
+    ['maximize', true],
+    ['enter-full-screen', true],
+    ['unmaximize', false],
+  ] as const)('%s 이면 isMaximized %s', (eventName, expected) => {
+    const { emit, onChange } = createWatchedWindow(false);
+    emit(eventName);
+    expect(onChange).toHaveBeenLastCalledWith({ isMaximized: expected });
+  });
+
+  it('전체 화면을 풀 때 창이 최대화 상태면 true — 직각을 유지한다', () => {
+    const { emit, onChange } = createWatchedWindow(true);
+    emit('leave-full-screen');
+    expect(onChange).toHaveBeenLastCalledWith({ isMaximized: true });
+  });
+
+  it('전체 화면을 풀 때 최대화가 아니면 false', () => {
+    const { emit, onChange } = createWatchedWindow(false);
+    emit('leave-full-screen');
+    expect(onChange).toHaveBeenLastCalledWith({ isMaximized: false });
   });
 });

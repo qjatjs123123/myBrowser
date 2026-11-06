@@ -26,6 +26,7 @@ import type {
   TTabRequest,
   TTabsChangedEvent,
 } from './tabs';
+import type { TWindowState } from './window';
 
 /** 이벤트 구독 해제 함수 — renderer 훅이 cleanup 에서 부른다 */
 export type TUnsubscribe = () => void;
@@ -75,6 +76,8 @@ export interface IApi {
     minimize: () => Promise<TIpcResult<null>>;
     toggleMaximize: () => Promise<TIpcResult<null>>;
     close: () => Promise<TIpcResult<null>>;
+    /** 최대화·전체 화면 상태 (spec 014) — 렌더러가 늦게 붙어도 main 이 첫 로드 때 1회 보낸다 */
+    onStateChanged: (cb: (state: TWindowState) => void) => TUnsubscribe;
   };
   /** 지난 실행 기록 (spec 012) — 읽기 전용, 도구 입력값·결과 원문 없음 */
   runs: {

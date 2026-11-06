@@ -2,6 +2,8 @@
 
 /* 디자인 토큰 — 색은 여기서만 정한다 (.claude/skills/desktop/design §0). 다크 모드는 OS 설정을 따른다 */
 :root {
+  /* Linux 둥근 창 모서리 — main WINDOW_CORNER_RADIUS(app/window.ts)와 같은 값 (spec 014) */
+  --window-radius: 10px;
   --background: oklch(1 0 0);
   --foreground: oklch(0.21 0.006 285.9);
   --muted: oklch(0.967 0.001 286.4);
@@ -99,4 +101,9 @@ body {
     'Segoe UI',
     'Noto Sans KR',
     sans-serif;
+}
+
+/* Linux 투명 창 — 모서리 밖이 비치도록 body 는 투명, 배경은 앱 루트(main)가 그린다 (spec 014) */
+body:has([data-window-frame]) {
+  background: transparent;
 }

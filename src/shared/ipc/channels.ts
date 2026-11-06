@@ -38,6 +38,8 @@ export const IPC = {
     minimize: 'window:minimize',
     toggleMaximize: 'window:toggleMaximize',
     close: 'window:close',
+    /** main→renderer — 최대화·전체 화면 상태 (spec 014) */
+    stateChanged: 'window:stateChanged',
   },
   /** 지난 실행 기록 조회 (spec 012) — 조회만 한다 */
   runs: {

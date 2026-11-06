@@ -27,6 +27,7 @@ export class TabManager {
   private readonly entryList: ITabEntry[] = [];
   private activeTabId: string | null = null;
   private bounds: ITabRect | null = null;
+  private cornerRadius = 0;
   private readonly createId: () => string;
 
   constructor(private readonly options: ITabManagerOptions) {
@@ -37,6 +38,7 @@ export class TabManager {
   createTab(url?: string): string {
     const id = this.createId();
     const view = this.options.createView();
+    view.setBorderRadius(this.cornerRadius);
     view.onStateChanged(() => this.refresh());
     view.onOpenWindow((popupUrl) => this.handleOpenWindow(popupUrl));
     this.entryList.push({ id, view });
@@ -104,6 +106,12 @@ export class TabManager {
   setBounds(rect: ITabRect): void {
     this.bounds = rect;
     this.applyVisibility();
+  }
+
+  /** 모든 탭 View 의 모서리 반지름 — 이후 만드는 탭에도 적용한다 (spec 014: Linux 둥근 창, 최대화 시 0) */
+  setCornerRadius(radius: number): void {
+    this.cornerRadius = radius;
+    for (const entry of this.entryList) entry.view.setBorderRadius(radius);
   }
 
   getActiveTabId(): string | null {

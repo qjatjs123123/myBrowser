@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 
-import { app, ipcMain, Menu, safeStorage, session } from 'electron';
+import { app, type BrowserWindow, ipcMain, Menu, safeStorage, session } from 'electron';
 
 import { DEVICE_NAME_MAX_LENGTH } from '@shared/account/gateway';
 import { FakeScenarioSchema, type TFakeScenario } from '@shared/agent/fakeScenario';
@@ -13,6 +13,7 @@ import { AccountStatusSchema } from '@shared/ipc/account';
 import { IPC } from '@shared/ipc/channels';
 import { ShortcutPressedEventSchema } from '@shared/ipc/shortcut';
 import { TabsChangedEventSchema } from '@shared/ipc/tabs';
+import { WindowStateSchema, type TWindowState } from '@shared/ipc/window';
 import type { ISkillStore } from '@shared/ipc/skills';
 
 import { createAccountService, createGatewayClient, sleepWithSignal, type IAccountService } from './account';
@@ -21,7 +22,13 @@ import { createAgentService } from './agent/service';
 import { getCdpSwitches, removeStaleActivePort } from './app/cdp';
 import { createCredentialStore } from './app/credentialStore';
 import { createAppMenuTemplate } from './app/menu';
-import { createMainWindow, createWindowControls } from './app/window';
+import {
+  createMainWindow,
+  createWindowControls,
+  hasRoundedCorners,
+  watchWindowState,
+  WINDOW_CORNER_RADIUS,
+} from './app/window';
 import { createCdpConnection } from './browser/cdp';
 import { createBrowserDriver } from './browser/driver';
 import { resolveCdpEndpoint } from './browser/endpoint';
@@ -90,6 +97,7 @@ function startBrowser(): void {
     emitShortcut: (action) => emitToSidebar(IPC.shortcut.pressed, ShortcutPressedEventSchema, { action }),
     focusChrome: () => window.webContents.focus(),
   });
+  attachWindowFrame(window, tabManager, (state) => emitToSidebar(IPC.window.stateChanged, WindowStateSchema, state));
   shortcutInput = createShortcutInputHandler(runner, process.platform);
   attachShortcuts(window.webContents, runner, process.platform);
   accountService = createAccountRuntime(tabManager, emitToSidebar);
@@ -179,6 +187,22 @@ function createRuntimeProfile(account: IAccountService): IModelProfile {
 function getDevBaseUrl(): string {
   if (!env.anthropicBaseUrl) throw new Error('dev 프로필에 ANTHROPIC_BASE_URL 이 없습니다');
   return env.anthropicBaseUrl;
+}
+
+/**
+ * 창 상태 → renderer 이벤트 + 탭 View 모서리 (spec 014). Linux 둥근 창이면 탭 View 를 같은 반지름으로 깎고 최대화 시 직각.
+ * 렌더러가 늦게 붙어도 맞도록 첫 로드 때 현재 상태를 1회 보낸다.
+ */
+function attachWindowFrame(window: BrowserWindow, tabManager: TabManager, emitState: (state: TWindowState) => void) {
+  const isRounded = hasRoundedCorners(process.platform);
+  const applyState = (state: TWindowState) => {
+    emitState(state);
+    if (isRounded) tabManager.setCornerRadius(state.isMaximized ? 0 : WINDOW_CORNER_RADIUS);
+  };
+  watchWindowState(window, applyState);
+  window.webContents.on('did-finish-load', () =>
+    applyState({ isMaximized: window.isMaximized() || window.isFullScreen() }),
+  );
 }
 
 interface IAgentRuntimeDeps {
