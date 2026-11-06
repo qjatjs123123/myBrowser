@@ -17,8 +17,8 @@ paths:
 
 ## 위치
 ```
-src/renderer/chrome/{TabBar,AddressBar,NavButtons}/index.tsx     상단바
-src/renderer/sidebar/{AgentPanel,TaskInput,StepTimeline,ApprovalModal,AskUserModal,StatusBadge}/index.tsx
+src/renderer/chrome/{BrowserChrome,TabBar,AddressBar,NavButtons,NewTabPage,AgentToggleButton,WindowControls,SidebarResizer}/index.tsx     상단바·탭 영역
+src/renderer/sidebar/{AgentPanel,SidebarHeader,Conversation,Timeline,RunResult,ApprovalPanel,QuestionCard,ChoiceList,AccountCard,AppInfoFooter,RunHistory}/index.tsx     에이전트 패널
 src/renderer/components/ui/*.tsx            shadcn (CLI 생성, 규칙 예외 — 평평한 kebab 파일)
 src/renderer/components/shared/<Name>/      chrome·sidebar 둘 다 쓰는 복합 부품 (필요할 때만)
 ```
@@ -41,7 +41,7 @@ src/renderer/components/shared/<Name>/      chrome·sidebar 둘 다 쓰는 복�
 ## UI 라이브러리 — shadcn/ui
 - 버튼·입력·다이얼로그·툴팁·스켈레톤은 직접 만들지 않는다. `window.confirm` 대신 `AlertDialog`.
 - 색은 토큰·shadcn 변수 클래스만. 클래스 병합은 `cn()`. 아이콘은 lucide-react.
-- 스타일은 Tailwind 클래스만 (CSS 파일·inline style 금지, `globals.css` 는 토큰).
+- 스타일은 Tailwind 클래스만 (CSS 파일·inline style 금지, `globals.css` 는 토큰). **유일한 예외**: 실행 중 정해지는 사이드바 폭 — `<aside style={{ '--sidebar-width': `${width}px` }}>` 로 토큰 변수만 덮어쓴다 (spec 012).
 
 ## 핵심 원칙
 1. **단일 책임** — "무엇을 하는가"를 한 문장으로. 페칭(IPC)·로직·렌더링이 섞이면 훅으로 분리.

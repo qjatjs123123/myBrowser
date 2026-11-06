@@ -99,3 +99,9 @@ Claude 는 에러를 만나면 이 문서를 먼저 확인한다. 새 문제를 
 
 ## `pnpm dist:linux`·`pnpm e2e:packaged` 가 사내망에서 다운로드 실패
 - electron-builder 가 AppImage 도구를 받는다 — 위 사내망 항목과 같이 `NODE_EXTRA_CA_CERTS=<회사 루트 PEM>` 을 붙여 실행한다.
+
+## e2e 에서 `nativeTheme.themeSource = 'dark'` 로 바꿔도 화면이 라이트 (spec 012)
+- 증상: main 의 `nativeTheme.shouldUseDarkColors` 는 true 인데 renderer `matchMedia('(prefers-color-scheme: dark)')` 은 false, 스크린샷이 라이트.
+- 원인: 앱 버그가 아니다 — Playwright `_electron` 이 붙은 페이지에 기본으로 `colorScheme: 'light'` 를 에뮬레이트해 OS 테마를 덮는다.
+- 해결: e2e 에서 `await win.emulateMedia({ colorScheme: null })` 로 에뮬레이션을 푼 뒤 `nativeTheme.themeSource` 를 바꾼다 (`e2e/sidebar-layout.spec.ts`). 재현: emulateMedia 없이 → false, 푼 뒤 dark → true, light → false.
+

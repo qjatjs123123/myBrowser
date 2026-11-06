@@ -1,6 +1,5 @@
-import { fail, type TIpcResult } from '@shared/ipc/result';
-
 import { getApi } from '@/lib/api';
+import { callSafely } from '@/lib/callSafely';
 
 const WINDOW_FAILED_MESSAGE = '창을 조작하지 못했습니다';
 
@@ -10,17 +9,8 @@ const WINDOW_FAILED_MESSAGE = '창을 조작하지 못했습니다';
  */
 export function useWindowControls() {
   return {
-    minimize: () => callSafely(() => getApi().window.minimize()),
-    toggleMaximize: () => callSafely(() => getApi().window.toggleMaximize()),
-    close: () => callSafely(() => getApi().window.close()),
+    minimize: () => callSafely(() => getApi().window.minimize(), WINDOW_FAILED_MESSAGE),
+    toggleMaximize: () => callSafely(() => getApi().window.toggleMaximize(), WINDOW_FAILED_MESSAGE),
+    close: () => callSafely(() => getApi().window.close(), WINDOW_FAILED_MESSAGE),
   };
-}
-
-/** IPC 호출이 throw 하면 실패 봉투로 */
-async function callSafely(call: () => Promise<TIpcResult<null>>): Promise<TIpcResult<null>> {
-  try {
-    return await call();
-  } catch {
-    return fail('INTERNAL', WINDOW_FAILED_MESSAGE);
-  }
 }

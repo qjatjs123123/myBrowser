@@ -35,8 +35,9 @@ export function BrowserChrome({ toolbarEnd, sidePanel }: IBrowserChromeProps) {
   const [newTabFocusSignal, setNewTabFocusSignal] = useState(0);
   useContentBounds(contentRef);
   useShortcut((action) => {
+    // 크롬은 포커스 동작만 다룬다 — toggleSidebar 등 다른 동작은 App 이 받는다
     if (action === 'focusAddressBar') setAddressFocusSignal((signal) => signal + 1);
-    else setNewTabFocusSignal((signal) => signal + 1);
+    if (action === 'focusNewTabSearch') setNewTabFocusSignal((signal) => signal + 1);
   });
   useEffect(() => {
     if (tabs.listError) toast.error(tabs.listError.message);

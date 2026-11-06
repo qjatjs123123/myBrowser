@@ -285,4 +285,52 @@ describe('AgentPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: '2명' }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('확인할 요청을 찾을 수 없습니다'));
   });
+
+  describe('[실행 기록] 전환 (spec 012)', () => {
+    /** 기록 목록 응답(빈 목록)을 주고 [실행 기록] 을 누른다 */
+    async function openHistory(): Promise<void> {
+      vi.mocked(window.api.runs.list).mockResolvedValue({ ok: true, data: { runList: [] } });
+      fireEvent.click(screen.getByRole('button', { name: '실행 기록' }));
+      await screen.findByText('아직 실행 기록이 없습니다');
+    }
+
+    it('[실행 기록] 을 누르면 대화 자리에 기록이 보이고 입력창은 그대로 있다', async () => {
+      render(<PanelWithRun />);
+      await openHistory();
+      expect(screen.queryByText('할 일을 입력하면 여기에 진행 상황이 표시됩니다')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '실행 기록' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('textbox', { name: '할 일' })).toBeInTheDocument();
+    });
+
+    it('[실행 기록] 을 다시 누르면 대화로 돌아온다', async () => {
+      render(<PanelWithRun />);
+      await openHistory();
+      fireEvent.click(screen.getByRole('button', { name: '실행 기록' }));
+      expect(screen.getByText('할 일을 입력하면 여기에 진행 상황이 표시됩니다')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '실행 기록' })).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('[대화로 돌아가기] 를 누르면 대화로 돌아온다', async () => {
+      render(<PanelWithRun />);
+      await openHistory();
+      fireEvent.click(screen.getByRole('button', { name: '대화로 돌아가기' }));
+      expect(screen.getByText('할 일을 입력하면 여기에 진행 상황이 표시됩니다')).toBeInTheDocument();
+    });
+
+    it('열 때마다 기록 목록을 새로 읽는다', async () => {
+      render(<PanelWithRun />);
+      await openHistory();
+      fireEvent.click(screen.getByRole('button', { name: '대화로 돌아가기' }));
+      await openHistory();
+      expect(window.api.runs.list).toHaveBeenCalledTimes(2);
+    });
+
+    it('기록을 보는 중에도 승인 카드가 입력창 위에 보인다', async () => {
+      await startRun();
+      await openHistory();
+      emitApprovalWait();
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(screen.getByText('아직 실행 기록이 없습니다')).toBeInTheDocument();
+    });
+  });
 });

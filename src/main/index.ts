@@ -30,11 +30,13 @@ import { createSidebarEmitter } from './ipc/emit';
 import { createAccountHandlers } from './ipc/handlers/account';
 import { createAgentHandlers } from './ipc/handlers/agent';
 import { createAppHandlers } from './ipc/handlers/app';
+import { createRunsHandlers } from './ipc/handlers/runs';
 import { createWindowHandlers } from './ipc/handlers/window';
 import { createTabsHandlers } from './ipc/handlers/tabs';
 import { registerIpc } from './ipc/registry';
 import { log } from './log';
 import { openDatabase } from './store/db';
+import { createRunHistoryRepo } from './store/repos/runHistory';
 import { createRunRepo } from './store/repos/runs';
 import { createElectronTabView } from './tabs/electronTabView';
 import { attachShortcuts, createShortcutInputHandler, createShortcutRunner } from './tabs/shortcuts';
@@ -88,13 +90,16 @@ function startBrowser(): void {
   shortcutInput = createShortcutInputHandler(runner, process.platform);
   attachShortcuts(window.webContents, runner, process.platform);
   accountService = createAccountRuntime(tabManager, emitToSidebar);
-  agentService = createAgentRuntime(tabManager, emitToSidebar, accountService);
+  const runDatabase = openDatabase(join(app.getPath('userData'), DATABASE_FILE_NAME));
+  database = runDatabase;
+  agentService = createAgentRuntime({ tabManager, emitToSidebar, account: accountService, runDatabase });
   registerIpc(ipcMain, {
     ...createAppHandlers({ getName: () => app.getName(), getVersion: () => app.getVersion(), mode: env.mode }),
     ...createTabsHandlers(tabManager),
     ...createAgentHandlers(agentService),
     ...createAccountHandlers(accountService),
     ...createWindowHandlers(createWindowControls(window)),
+    ...createRunsHandlers(createRunHistoryRepo(runDatabase)),
   });
   tabManager.createTab();
 }
@@ -170,13 +175,16 @@ function getDevBaseUrl(): string {
   return env.anthropicBaseUrl;
 }
 
+interface IAgentRuntimeDeps {
+  tabManager: TabManager;
+  emitToSidebar: ReturnType<typeof createSidebarEmitter>;
+  account: IAccountService;
+  /** runs·steps 저장 DB — 실행 기록 조회(runs:*)와 같은 연결을 쓴다 (spec 012) */
+  runDatabase: ReturnType<typeof openDatabase>;
+}
+
 /** 에이전트 실행 서비스 조립 — 저장소·탭 포트·드라이버·모델 클라이언트·이벤트 발신 */
-function createAgentRuntime(
-  tabManager: TabManager,
-  emitToSidebar: ReturnType<typeof createSidebarEmitter>,
-  account: IAccountService,
-) {
-  database = openDatabase(join(app.getPath('userData'), DATABASE_FILE_NAME));
+function createAgentRuntime({ tabManager, emitToSidebar, account, runDatabase }: IAgentRuntimeDeps) {
   const tabsPort: ITabsPort = {
     list: () => tabManager.getSnapshot(),
     activate: (id) => tabManager.activateTab(id),
@@ -190,7 +198,7 @@ function createAgentRuntime(
       const startTabId = tabManager.getActiveTabId() ?? tabManager.createTab();
       return createBrowserDriver({ tabs: tabsPort, cdp, startTabId });
     },
-    runStore: createRunRepo(database),
+    runStore: createRunRepo(runDatabase),
     emit: (event) => emitToSidebar(IPC.agent.event, AgentEventSchema, event),
     now: () => new Date(),
     createId: randomUUID,

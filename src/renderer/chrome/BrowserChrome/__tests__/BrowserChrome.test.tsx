@@ -106,6 +106,22 @@ describe('BrowserChrome', () => {
     expect(input).toHaveFocus();
   });
 
+  it('toggleSidebar 단축키 이벤트는 시작 화면 검색창에 포커스하지 않는다', async () => {
+    givenSnapshot({ tabList: [createTab()], activeTabId: 'tab-1' });
+    render(<BrowserChrome />);
+    const input = await screen.findByRole('textbox', { name: '새 탭 검색' });
+    act(() => getPressedListener()({ action: 'toggleSidebar' }));
+    expect(input).not.toHaveFocus();
+  });
+
+  it('toggleSidebar 단축키 이벤트는 주소창에 포커스하지 않는다', async () => {
+    givenSnapshot({ tabList: [PAGE_TAB], activeTabId: 'tab-2' });
+    render(<BrowserChrome />);
+    const input = await findAddressBar('https://a.com/');
+    act(() => getPressedListener()({ action: 'toggleSidebar' }));
+    expect(input).not.toHaveFocus();
+  });
+
   it('뒤로 버튼은 활성 탭 id 로 tabs.goBack 을 부른다', async () => {
     vi.mocked(window.api.tabs.goBack).mockResolvedValue({ ok: true, data: null });
     givenSnapshot({ tabList: [{ ...PAGE_TAB, canGoBack: true }], activeTabId: 'tab-2' });
