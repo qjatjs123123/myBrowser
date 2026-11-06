@@ -19,6 +19,9 @@ export interface IRunResult {
   text: string;
 }
 
+/** useAgentRun 의 반환 — App 이 한 번 구독해 사이드바·툴바 버튼에 나눠 준다 (spec 011) */
+export type TAgentRun = ReturnType<typeof useAgentRun>;
+
 /** 대화 기록의 한 턴 — 사용자가 준 할 일 + 그 run 의 상태·단계·결과 (renderer 메모리에만, spec 009) */
 export interface ITurn {
   runId: string;

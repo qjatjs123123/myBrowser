@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { fail, type TIpcResult } from '@shared/ipc/result';
 import type { TTabRequest } from '@shared/ipc/tabs';
@@ -17,11 +17,18 @@ import { isMacPlatform } from '@/utils/platform';
 const NO_ACTIVE_TAB_MESSAGE = '탭을 찾을 수 없습니다';
 const IS_MAC = isMacPlatform(navigator.userAgent);
 
+interface IBrowserChromeProps {
+  /** 툴바 오른쪽 끝 — [에이전트] 버튼 (spec 011) */
+  toolbarEnd?: ReactNode;
+  /** 탭 콘텐츠 오른쪽 패널 — 에이전트 사이드바 (탭 줄·툴바는 그 위로 창 전체 폭) */
+  sidePanel?: ReactNode;
+}
+
 /**
- * 브라우저 크롬 조립 — 탭 줄 + 툴바(탐색 버튼·주소창) + 탭 콘텐츠 영역.
+ * 브라우저 크롬 조립 — 탭 줄 + 툴바(탐색 버튼·주소창·끝 slot) + [탭 콘텐츠 영역 | 옆 패널].
  * 콘텐츠 영역의 사각형을 main 에 알리고(탭 View 가 그 자리에 그려진다), 활성 탭이 새 탭이면 그 안에 시작 화면을 그린다.
  */
-export function BrowserChrome() {
+export function BrowserChrome({ toolbarEnd, sidePanel }: IBrowserChromeProps) {
   const tabs = useTabs();
   const contentRef = useRef<HTMLDivElement>(null);
   const [addressFocusSignal, setAddressFocusSignal] = useState(0);
@@ -74,10 +81,16 @@ export function BrowserChrome() {
             focusSignal={addressFocusSignal}
             onNavigate={navigate}
           />
+          {toolbarEnd && <div className="flex h-8 shrink-0 items-center">{toolbarEnd}</div>}
         </div>
       </header>
-      <div ref={contentRef} role="region" aria-label="탭 콘텐츠" className="min-h-0 flex-1">
-        {activeTab?.isNewTab && <NewTabPage key={activeTab.id} focusSignal={newTabFocusSignal} onNavigate={navigate} />}
+      <div className="flex min-h-0 flex-1">
+        <div ref={contentRef} role="region" aria-label="탭 콘텐츠" className="min-h-0 min-w-0 flex-1">
+          {activeTab?.isNewTab && (
+            <NewTabPage key={activeTab.id} focusSignal={newTabFocusSignal} onNavigate={navigate} />
+          )}
+        </div>
+        {sidePanel}
       </div>
     </div>
   );

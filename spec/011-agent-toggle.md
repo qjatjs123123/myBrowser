@@ -1,6 +1,6 @@
 # Spec: 에이전트 사이드바 열기·닫기 — Edge 식 툴바 버튼 + 패널 X
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-06
 > **묶음**: 기반
 > **관련 spec**: 002, 009, 010
@@ -68,7 +68,7 @@
 > ⚠️ **게이트 규칙**: 각 Task 는 명시된 **테스트와 검증이 모두 에러 0**이 될 때까지 수정 → 재실행을 반복하고, 전부 통과했을 때만 체크박스를 채우고 **Task 단위로 커밋**한 뒤 다음 Task 로 진행한다.
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: 열림 상태 훅**
+- [x] **Task 1: 열림 상태 훅**
   - **묶음**: 기반
   - **작업**: `useSidebarOpen` (FR-7)
   - **파일**: `src/renderer/hooks/useSidebarOpen.ts`
@@ -78,7 +78,7 @@
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 사이드바 열림 상태 기억 훅 (spec 011 Task 1)`
 
-- [ ] **Task 2: [에이전트] 버튼·패널 X·레이아웃·자동 열기**
+- [x] **Task 2: [에이전트] 버튼·패널 X·레이아웃·자동 열기**
   - **묶음**: 기반
   - **작업**: AgentToggleButton, BrowserChrome slot, App 조립(run 끌어올림·자동 열기), AgentPanel `run` prop, SidebarHeader X·일반 헤더 (FR-1~6·8, SR-1)
   - **파일**: `src/renderer/chrome/AgentToggleButton/index.tsx`, `src/renderer/chrome/BrowserChrome/index.tsx`, `src/renderer/App.tsx`, `src/renderer/sidebar/AgentPanel/index.tsx`, `src/renderer/sidebar/SidebarHeader/index.tsx`, `e2e/agent-toggle.spec.ts`, `e2e/window-frame.spec.ts`, `e2e/fixtures/model/approval-wait.json`(신규 — snapshot → `wait_for {ms:3000}` → click `$ref(button:예약 확정)` → text)
@@ -94,7 +94,7 @@
   - **통과 기준**: 테스트 + 검증 통과, 기존 sidebar-chat·agent-approval·agent-mvp e2e 셀렉터 수정 없이 통과
   - **커밋**: `feat: 툴바 [에이전트] 버튼으로 사이드바 열기·닫기 (spec 011 Task 2)`
 
-- [ ] **Task 3: 디자인·설계 문서 갱신**
+- [x] **Task 3: 디자인·설계 문서 갱신**
   - **묶음**: 기반
   - **작업**: design SKILL §1 그림(전체 폭 툴바 + [에이전트]·패널 X)·§3, DESIGN.md §2 의 spec 010 문장 보정
   - **파일**: `.claude/skills/desktop/design/SKILL.md`, `docs/DESIGN.md`
@@ -110,3 +110,7 @@
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-06 | 1 | useSidebarOpen 7 | 검증 반영 커밋 | 직접 방식 |
+| 2026-11-06 | 2 | AgentToggleButton 4 · SidebarHeader +1 · App +6 · agent-toggle e2e 3 · window-frame e2e 4 | 검증 반영 커밋 | App.test 는 hidden 된 aside 를 역할로 못 찾아 열린 동안 찾은 요소를 재사용 |
+| 2026-11-06 | 3 | 문서만 | 검증 반영 커밋 | |
+| 2026-11-06 | 검증 | make check 1439 · make e2e 42 · 에러 0 | 검증 반영 커밋 | 바퀴 1 vitest 타임아웃 3건은 부하(load 23) — 단독 재실행 통과 |

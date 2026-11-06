@@ -23,13 +23,17 @@ async function getAppRegion(locator: Locator): Promise<string> {
   });
 }
 
-test('맨 윗줄에 신호등·탭이 한 줄로 있고 사이드바 헤더도 같은 높이다', async ({ win }) => {
+test('맨 윗줄에 신호등·탭이 한 줄로 있고 탭 줄·툴바는 창 전체 폭, [에이전트] 는 툴바 오른쪽 끝이다 (spec 011)', async ({ win }) => {
   const topBar = win.getByTestId('window-top-bar');
   const closeBox = await win.getByRole('button', { name: '창 닫기', exact: true }).boundingBox();
   const tabBox = await win.getByRole('tablist', { name: '탭' }).boundingBox();
   const topBox = await topBar.boundingBox();
-  const headerBox = await getSidebar(win).getByRole('heading', { name: '에이전트' }).locator('..').boundingBox();
-  if (!closeBox || !tabBox || !topBox || !headerBox) throw new Error('맨 윗줄 요소가 보이지 않습니다');
+  const toggleBox = await win.getByRole('button', { name: '에이전트', exact: true }).boundingBox();
+  const addressBox = await win.getByRole('combobox', { name: '주소창' }).boundingBox();
+  const viewportWidth = await win.evaluate(() => (globalThis as unknown as { innerWidth: number }).innerWidth);
+  if (!closeBox || !tabBox || !topBox || !toggleBox || !addressBox) {
+    throw new Error('맨 윗줄 요소가 보이지 않습니다');
+  }
 
   expect(topBox.y).toBe(0);
   expect(closeBox.y).toBeGreaterThanOrEqual(topBox.y);
@@ -37,14 +41,15 @@ test('맨 윗줄에 신호등·탭이 한 줄로 있고 사이드바 헤더도 �
   expect(tabBox.y + tabBox.height).toBeLessThanOrEqual(topBox.y + topBox.height);
   await expect(win.getByRole('button', { name: '창 최소화', exact: true })).toBeVisible();
   await expect(win.getByRole('button', { name: '창 최대화', exact: true })).toBeVisible();
-  expect(headerBox.y).toBe(0);
-  expect(headerBox.height).toBe(topBox.height);
+  expect(topBox.width).toBe(viewportWidth);
+  expect(toggleBox.x).toBeGreaterThan(addressBox.x + addressBox.width);
+  expect(toggleBox.x + toggleBox.width).toBeGreaterThan(viewportWidth - 24);
 });
 
-test('빈 곳은 창 드래그 영역이고 탭·버튼·배지는 클릭 영역이다', async ({ win }) => {
+test('맨 윗줄 빈 곳은 창 드래그 영역이고 탭·버튼은 클릭 영역, 사이드바 헤더는 드래그 영역이 아니다', async ({ win }) => {
   const sidebar = getSidebar(win);
   expect(await getAppRegion(win.getByTestId('window-top-bar'))).toBe('drag');
-  expect(await getAppRegion(sidebar.getByRole('heading', { name: '에이전트' }).locator('..'))).toBe('drag');
+  expect(await getAppRegion(sidebar.getByRole('heading', { name: '에이전트' }).locator('..'))).toBe('none');
 
   const clickableList = [
     win.getByRole('tab').first(),
@@ -52,8 +57,6 @@ test('빈 곳은 창 드래그 영역이고 탭·버튼·배지는 클릭 영역
     win.getByRole('button', { name: '창 닫기', exact: true }),
     win.getByRole('button', { name: '창 최소화', exact: true }),
     win.getByRole('button', { name: '창 최대화', exact: true }),
-    sidebar.getByRole('button', { name: '새 대화' }),
-    sidebar.getByRole('status', { name: '실행 상태' }),
   ];
   for (const clickable of clickableList) expect(await getAppRegion(clickable)).toBe('no-drag');
 });
