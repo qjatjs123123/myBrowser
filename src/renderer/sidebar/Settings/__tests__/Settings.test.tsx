@@ -69,7 +69,8 @@ describe('Settings', () => {
     });
     render(<Settings onClose={vi.fn()} />);
     expect(await screen.findByRole('button', { name: '다시 시도' })).toBeInTheDocument();
-    expect(toast.error).toHaveBeenCalledWith('저장소 오류');
+    // toast 는 오류 상태가 그려진 뒤 effect 에서 뜬다 — 버튼이 보인 직후가 아니라 effect 까지 기다린다
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('저장소 오류'));
   });
 
   it('스위치를 끄면 isEnabled false 로 skills.update 를 부르고 응답 목록을 보인다', async () => {
