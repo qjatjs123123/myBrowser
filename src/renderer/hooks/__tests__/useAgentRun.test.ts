@@ -273,4 +273,71 @@ describe('useAgentRun', () => {
     expect(window.api.agent.answer).not.toHaveBeenCalled();
     expect(returned).toEqual({ ok: false, error: { code: 'NOT_FOUND', message: '확인할 요청을 찾을 수 없습니다' } });
   });
+
+  describe('대화 기록 (spec 009)', () => {
+    /** run-1 을 step 1개·결과와 함께 끝낸다 */
+    function finishRun1(): void {
+      const emit = getEventListener();
+      act(() => {
+        emit({ type: 'step', runId: 'run-1', step: { n: 1, tool: 'snapshot', summary: '페이지 읽기', status: 'ok' } });
+        emit({ type: 'done', runId: 'run-1', summary: '첫 결과' });
+        emit({ type: 'status', runId: 'run-1', status: 'done' });
+      });
+    }
+
+    it('두 번째 할 일을 시작하면 첫 run 이 지난 턴으로 쌓인다', async () => {
+      const { result } = await renderStartedHook();
+      finishRun1();
+      vi.mocked(window.api.agent.start).mockResolvedValue({ ok: true, data: { runId: 'run-2' } });
+      await act(async () => {
+        await result.current.start('두 번째');
+      });
+      expect(result.current.pastTurnList).toEqual([
+        {
+          runId: 'run-1',
+          task: '할 일',
+          status: 'done',
+          stepList: [{ n: 1, tool: 'snapshot', summary: '페이지 읽기', status: 'ok' }],
+          result: { kind: 'done', text: '첫 결과' },
+        },
+      ]);
+      expect(result.current.currentTask).toBe('두 번째');
+      expect(result.current.stepList).toEqual([]);
+      expect(result.current.currentTurn).toEqual({
+        runId: 'run-2',
+        task: '두 번째',
+        status: 'running',
+        stepList: [],
+        result: null,
+      });
+    });
+
+    it('시작이 실패하면 기록과 현재 턴이 바뀌지 않는다', async () => {
+      const { result } = await renderStartedHook();
+      finishRun1();
+      vi.mocked(window.api.agent.start).mockResolvedValue({ ok: false, error: { code: 'BUSY', message: '바쁨' } });
+      await act(async () => {
+        await result.current.start('두 번째');
+      });
+      expect(result.current.pastTurnList).toEqual([]);
+      expect(result.current.currentTask).toBe('할 일');
+    });
+
+    it('끝난 뒤 reset 하면 기록과 현재 턴을 비운다', async () => {
+      const { result } = await renderStartedHook();
+      finishRun1();
+      act(() => result.current.reset());
+      expect(result.current.runId).toBeNull();
+      expect(result.current.currentTask).toBeNull();
+      expect(result.current.pastTurnList).toEqual([]);
+      expect(result.current.result).toBeNull();
+    });
+
+    it('실행 중 reset 은 무시한다', async () => {
+      const { result } = await renderStartedHook();
+      act(() => result.current.reset());
+      expect(result.current.runId).toBe('run-1');
+      expect(result.current.currentTask).toBe('할 일');
+    });
+  });
 });

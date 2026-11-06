@@ -78,7 +78,7 @@ describe('AgentPanel', () => {
     submitTask('할 일');
     const stopButton = await screen.findByRole('button', { name: '작업 중지' });
     await waitFor(() => expect(stopButton).toBeEnabled());
-    expect(stopButton).toHaveTextContent('중지');
+    expect(stopButton).toHaveAccessibleName('작업 중지');
     expect(screen.getByRole('textbox', { name: '할 일' })).toBeDisabled();
     expect(screen.queryByRole('button', { name: '작업 실행' })).not.toBeInTheDocument();
     expect(screen.getByRole('status', { name: '실행 상태' })).toHaveTextContent('실행 중…');
@@ -115,10 +115,36 @@ describe('AgentPanel', () => {
     await waitFor(() => expect(window.api.agent.start).toHaveBeenCalledWith({ task: '할 일' }));
   });
 
-  it('Ctrl 없이 Enter 만 누르면 실행하지 않는다', () => {
+  it('Enter 를 누르면 [작업 실행] 처럼 실행한다 (spec 009)', async () => {
+    vi.mocked(window.api.agent.start).mockResolvedValue({ ok: true, data: { runId: 'run-1' } });
     render(<AgentPanel />);
     const textbox = screen.getByRole('textbox', { name: '할 일' });
     fireEvent.change(textbox, { target: { value: '할 일' } });
+    fireEvent.keyDown(textbox, { key: 'Enter' });
+    await waitFor(() => expect(window.api.agent.start).toHaveBeenCalledExactlyOnceWith({ task: '할 일' }));
+  });
+
+  it('Shift+Enter 는 실행하지 않는다', () => {
+    render(<AgentPanel />);
+    const textbox = screen.getByRole('textbox', { name: '할 일' });
+    fireEvent.change(textbox, { target: { value: '할 일' } });
+    fireEvent.keyDown(textbox, { key: 'Enter', shiftKey: true });
+    expect(window.api.agent.start).not.toHaveBeenCalled();
+  });
+
+  it('IME 조합 중 Enter 는 실행하지 않는다', () => {
+    render(<AgentPanel />);
+    const textbox = screen.getByRole('textbox', { name: '할 일' });
+    fireEvent.change(textbox, { target: { value: '예약해' } });
+    fireEvent.keyDown(textbox, { key: 'Enter', isComposing: true });
+    fireEvent.keyDown(textbox, { key: 'Enter', keyCode: 229 });
+    expect(window.api.agent.start).not.toHaveBeenCalled();
+  });
+
+  it('입력이 비었으면 Enter 를 눌러도 실행하지 않는다', () => {
+    render(<AgentPanel />);
+    const textbox = screen.getByRole('textbox', { name: '할 일' });
+    fireEvent.change(textbox, { target: { value: '   ' } });
     fireEvent.keyDown(textbox, { key: 'Enter' });
     expect(window.api.agent.start).not.toHaveBeenCalled();
   });
@@ -142,7 +168,43 @@ describe('AgentPanel', () => {
     expect(screen.getByRole('img', { name: '거부됨' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: '실행 결과' })).toHaveTextContent('예약 확정은 사용자가 거부했습니다');
     expect(screen.getByRole('status', { name: '실행 상태' })).toHaveTextContent('완료');
+    const textbox = screen.getByRole('textbox', { name: '할 일' });
+    expect(textbox).toBeEnabled();
+    fireEvent.change(textbox, { target: { value: '다음 할 일' } });
     expect(screen.getByRole('button', { name: '작업 실행' })).toBeEnabled();
+  });
+
+  it('실행이 시작되면 입력창을 비우고 할 일을 말풍선으로 보여준다 (spec 009)', async () => {
+    vi.mocked(window.api.agent.start).mockResolvedValue({ ok: true, data: { runId: 'run-1' } });
+    render(<AgentPanel />);
+    submitTask('강남역 맛집');
+    expect(await screen.findByRole('group', { name: '내 할 일' })).toHaveTextContent('강남역 맛집');
+    expect(screen.getByRole('textbox', { name: '할 일' })).toHaveValue('');
+  });
+
+  it('시작이 실패하면 입력을 그대로 둔다', async () => {
+    vi.mocked(window.api.agent.start).mockResolvedValue({ ok: false, error: { code: 'BUSY', message: '바쁨' } });
+    render(<AgentPanel />);
+    submitTask('강남역 맛집');
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('바쁨'));
+    expect(screen.getByRole('textbox', { name: '할 일' })).toHaveValue('강남역 맛집');
+  });
+
+  it('끝난 뒤 [새 대화] 를 누르면 대화를 비운다', async () => {
+    vi.mocked(window.api.agent.start).mockResolvedValue({ ok: true, data: { runId: 'run-1' } });
+    render(<AgentPanel />);
+    const resetButton = screen.getByRole('button', { name: '새 대화' });
+    expect(resetButton).toBeDisabled();
+    submitTask('할 일');
+    await screen.findByRole('button', { name: '작업 중지' });
+    expect(resetButton).toBeDisabled();
+    act(() => {
+      getEventListener()({ type: 'done', runId: 'run-1', summary: '끝' });
+      getEventListener()({ type: 'status', runId: 'run-1', status: 'done' });
+    });
+    fireEvent.click(resetButton);
+    expect(screen.queryByRole('group', { name: '내 할 일' })).not.toBeInTheDocument();
+    expect(screen.getByText('할 일을 입력하면 여기에 진행 상황이 표시됩니다')).toBeInTheDocument();
   });
 
   it('승인 대기면 상태가 “확인 필요” 이고 승인 창이 뜬다', async () => {

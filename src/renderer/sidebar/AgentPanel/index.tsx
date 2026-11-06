@@ -1,71 +1,71 @@
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
-import type { TRunStatus, TStep } from '@shared/agent/run';
-
-import { type IRunResult, type TDecision, useAgentRun } from '@/hooks/useAgentRun';
+import { isRunActive, type TDecision, useAgentRun } from '@/hooks/useAgentRun';
 import { toast } from '@/lib/toast';
 import { ApprovalPanel } from '@/sidebar/ApprovalPanel';
+import { Conversation } from '@/sidebar/Conversation';
 import { QuestionCard } from '@/sidebar/QuestionCard';
-import { RunResult } from '@/sidebar/RunResult';
-import { Timeline } from '@/sidebar/Timeline';
+import { SidebarHeader } from '@/sidebar/SidebarHeader';
 
-import { StatusBadge } from './StatusBadge';
 import { TaskInput } from './TaskInput';
 
-const ACTIVE_STATUS_LIST: TRunStatus[] = ['queued', 'running', 'waiting_user'];
-const EMPTY_TEXT = '할 일을 입력하면 여기에 진행 상황이 표시됩니다';
+interface IAgentPanelProps {
+  /** 헤더 바로 아래 자리 — 계정 카드 (App 이 넣는다) */
+  accountSlot?: ReactNode;
+}
 
 /**
- * 에이전트 사이드바 본문 — 상태 배지·진행 단계·결과·승인 창·질문 카드·할 일 입력을 묶고,
+ * 에이전트 사이드바 본문 — 헤더(상태·새 대화)·대화(말풍선·턴)·승인 창·질문 카드·할 일 입력을 묶고 (spec 009),
  * start/stop/approve/answer 실패는 main 의 메시지로 toast
  */
-export function AgentPanel() {
-  const { runId, status, stepList, result, pendingApproval, pendingQuestion, start, stop, approve, answer } =
-    useAgentRun();
+export function AgentPanel({ accountSlot }: IAgentPanelProps) {
+  const run = useAgentRun();
+  const { runId, status, pendingApproval, pendingQuestion } = run;
   const [task, setTask] = useState('');
   const [isStarting, setIsStarting] = useState(false);
-  const isRunActive = status !== null && ACTIVE_STATUS_LIST.includes(status);
-  const isBusy = isStarting || isRunActive;
+  const isBusy = isStarting || isRunActive(status);
   const canStop = runId !== null && !isStarting;
+  const canReset = !isBusy && (runId !== null || run.pastTurnList.length > 0);
 
   const handleStart = async () => {
     setIsStarting(true);
-    const startResult = await start(task);
+    const startResult = await run.start(task);
     setIsStarting(false);
-    if (!startResult.ok) toast.error(startResult.error.message);
+    if (startResult.ok) setTask('');
+    else toast.error(startResult.error.message);
   };
 
   const handleStop = async () => {
-    const stopResult = await stop();
+    const stopResult = await run.stop();
     if (!stopResult.ok) toast.error(stopResult.error.message);
   };
 
   const handleDecide = async (decision: TDecision) => {
-    const approveResult = await approve(decision);
+    const approveResult = await run.approve(decision);
     if (!approveResult.ok) toast.error(approveResult.error.message);
   };
 
   const handleAnswer = async (text: string) => {
-    const answerResult = await answer(text);
+    const answerResult = await run.answer(text);
     if (!answerResult.ok) toast.error(answerResult.error.message);
   };
 
+  const pendingCard = (pendingApproval || pendingQuestion) && (
+    <div className="flex flex-col gap-2">
+      {pendingApproval && (
+        <ApprovalPanel key={pendingApproval.requestId} request={pendingApproval} onDecide={handleDecide} />
+      )}
+      {pendingQuestion && (
+        <QuestionCard key={pendingQuestion.requestId} question={pendingQuestion} onAnswer={handleAnswer} />
+      )}
+    </div>
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="px-4 pt-3">
-        <StatusBadge status={status} />
-      </div>
-      <RunProgress stepList={stepList} result={result} />
-      {(pendingApproval || pendingQuestion) && (
-        <div className="flex flex-col gap-2 px-3 pb-3">
-          {pendingApproval && (
-            <ApprovalPanel key={pendingApproval.requestId} request={pendingApproval} onDecide={handleDecide} />
-          )}
-          {pendingQuestion && (
-            <QuestionCard key={pendingQuestion.requestId} question={pendingQuestion} onAnswer={handleAnswer} />
-          )}
-        </div>
-      )}
+      <SidebarHeader status={status} canReset={canReset} onReset={run.reset} />
+      {accountSlot}
+      <Conversation pastTurnList={run.pastTurnList} currentTurn={run.currentTurn} footer={pendingCard || undefined} />
       <TaskInput
         task={task}
         isBusy={isBusy}
@@ -74,28 +74,6 @@ export function AgentPanel() {
         onStart={() => void handleStart()}
         onStop={() => void handleStop()}
       />
-    </div>
-  );
-}
-
-interface IRunProgressProps {
-  stepList: TStep[];
-  result: IRunResult | null;
-}
-
-/** 진행 영역 — 아직 보일 것이 없으면 안내 문구, 있으면 타임라인 + 결과 */
-function RunProgress({ stepList, result }: IRunProgressProps) {
-  if (stepList.length === 0 && !result) {
-    return (
-      <div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-muted-foreground">
-        {EMPTY_TEXT}
-      </div>
-    );
-  }
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 py-3">
-      <Timeline stepList={stepList} />
-      {result && <RunResult result={result} />}
     </div>
   );
 }

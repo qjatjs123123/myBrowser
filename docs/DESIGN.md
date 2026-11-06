@@ -11,7 +11,7 @@
 | 브라우저 셸 | **Electron 33+** (Chromium 내장, `WebContentsView` 로 탭) | Chromium 그대로 + 탭/주소창/프로필을 우리가 그림. CEF·Chromium 포크는 과하고, Tauri 는 OS 웹뷰라 자동화 제어가 약함 |
 | 언어·빌드 | TypeScript, **electron-vite**, pnpm | main/preload/renderer 3 번들을 한 설정으로 |
 | 배포 | **electron-builder** → Windows `.exe`(NSIS)·macOS `.dmg`·Linux `.AppImage` | "클릭하면 켜지는" 설치형 앱 |
-| UI (렌더러) | React 19 + Vite + Tailwind 4 + shadcn/ui, zustand | 크롬형 상단바(탭·뒤로/앞으로·주소창) + 오른쪽 에이전트 사이드바 |
+| UI (렌더러) | React 19 + Vite + Tailwind 4 + shadcn/ui, zustand | 크롬형 상단바(탭·뒤로/앞으로·주소창) + 오른쪽 에이전트 사이드바(대화형 — 할 일 말풍선·에이전트 턴, Enter 실행, spec 009) |
 | 에이전트 | **`@anthropic-ai/sdk`** `client.beta.messages.toolRunner` + `betaZodTool`, zod | 도구 루프를 SDK 가 돌리고, 턴별 훅으로 승인 게이트·로그 |
 | 브라우저 제어 | **`playwright-core`** `chromium.connectOverCDP('http://127.0.0.1:9222')` (+ Electron `webContents` API) | 접근성 스냅샷(`ariaSnapshot`)·locator·click/type 을 그대로. Electron 은 `app.commandLine.appendSwitch('remote-debugging-port','9222')` 로 노출 |
 | 저장 | **내장 `node:sqlite`** (`DatabaseSync` — runs/steps/히스토리), `electron-store` (설정), `safeStorage` (구독 **기기 토큰** 암호화 — spec 005, 사용자 API 키는 받지 않는다) |
@@ -61,7 +61,7 @@ Electron 45 · electron-vite 6 · Vite 8 · React 19.3 · Tailwind 4.3 · Zod 4 
 |---|---|---|
 | 구조 도구 (기본) | `navigate`, `snapshot`(접근성 트리 + ref), `click(ref)`, `type(ref, text)`, `select`, `scroll`, `wait_for`, `back`, `tabs`, `read_text` | playwright-core locator/ariaSnapshot. 싸고 안정적 |
 | 픽셀 도구 (폴백) | `computer_toolset_20260801` | 달력·지도처럼 트리로 못 잡는 UI. SDK `BetaAbstractComputerToolset20260801` 하위 클래스, 멤버 8개(screenshot·left/double_click·type·key·scroll·mouse_move·wait), 좌표의 요소로 같은 가드 (spec 004) |
-| 사람 개입 | `ask_user(question, optionList?)`, `request_approval(action, target, reason)` | 도구 `run` 안에서 대기(루프는 그대로) → 사이드바 안 승인 창·질문 카드 → 답/결정 후 재개 (spec 004) |
+| 사람 개입 | `ask_user(question, optionList?)`, `request_approval(action, target, reason)` | 도구 `run` 안에서 대기(루프는 그대로) → 사이드바 안 승인 창·질문 카드(번호 선택 목록, 승인 창 기본 강조 = 거부 — spec 009) → 답/결정 후 재개 (spec 004) |
 
 ### 안전 게이트 (2중)
 1. 프롬프트 규칙: 결제·예약 확정·주문·전송은 가드의 승인 창에 맡긴다(모델이 스스로 확인받고 싶으면 `request_approval`).
