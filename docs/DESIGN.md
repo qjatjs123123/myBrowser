@@ -47,7 +47,7 @@ Electron 45 · electron-vite 6 · Vite 8 · React 19.3 · Tailwind 4.3 · Zod 4 
 - 렌더러는 Node 접근 금지(`contextIsolation: true`, `nodeIntegration: false`), 모든 통신은 preload 의 타입 API.
 - 사이드바 UI 와 탭은 같은 창 안의 별도 View 라 사용자 조작과 에이전트 조작이 한 화면에서 보인다.
 - 창은 mac Chrome형 프레임 (spec 010): Linux·Windows 는 `frame: false` + renderer 가 그린 신호등(`window:minimize|toggleMaximize|close` IPC → `app/window.ts` 의 `createWindowControls`), macOS 는 `titleBarStyle: 'hiddenInset'` 네이티브 신호등. 맨 윗줄(탭 줄) 빈 곳이 창 드래그 영역.
-- 에이전트 사이드바는 Edge Copilot 처럼 툴바 끝 [에이전트] 버튼·패널 ✕ 로 열고 닫는다 (spec 011). 탭 줄·툴바는 창 전체 폭, 그 아래 [탭 콘텐츠 | 패널]. 닫아도 run 은 계속되고, 승인·질문이 오면 패널이 자동으로 보인다(닫기·열기는 승인 결정을 보내지 않음).
+- 에이전트 사이드바는 Edge Copilot 처럼 툴바 끝 [에이전트] 버튼·패널 ✕ 로 열고 닫는다 (spec 011). 탭 줄·툴바는 창 전체 폭, 그 아래 [탭 콘텐츠 | 패널]. 닫아도 run 은 계속되고, 승인·질문이 오면 패널이 자동으로 보인다(닫기·열기는 승인 결정을 보내지 않음). 폭 조절(300~640, 기억)·Ctrl/Cmd+Shift+A 토글, 패널의 [실행 기록] 은 `runs:list`/`runs:get` 으로 SQLite 의 지난 run 을 읽기 전용으로 보여준다(요약·상태만, 입력값 원문 없음) (spec 012).
 
 ## 3. 에이전트 설계
 

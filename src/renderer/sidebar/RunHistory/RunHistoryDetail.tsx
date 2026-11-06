@@ -3,12 +3,11 @@ import { ArrowLeft } from 'lucide-react';
 import type { TRunGetResponse, TRunSummary } from '@shared/ipc/runs';
 
 import { Button } from '@/components/ui/button';
-import type { IRunResult, ITurn } from '@/hooks/useAgentRun';
+import { type IRunResult, type ITurn, STOPPED_TEXT } from '@/hooks/useAgentRun';
 import { AgentTurn } from '@/sidebar/Conversation/AgentTurn';
 import { UserBubble } from '@/sidebar/Conversation/UserBubble';
 
 /** 중지된 run 의 결과 문구 — 대화의 중지 턴과 같은 문장 (useAgentRun) */
-const STOPPED_TEXT = '중지했습니다';
 
 interface IRunHistoryDetailProps {
   detail: TRunGetResponse;

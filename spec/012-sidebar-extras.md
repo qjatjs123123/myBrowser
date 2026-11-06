@@ -1,6 +1,6 @@
 # Spec: 사이드바 후속 — 실행 기록 보기 · 폭 조절·단축키 · 다크 모드 · 남은 리팩토링
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-06
 > **묶음**: 기반, main-history, renderer-history, renderer-layout, 조립
 > **관련 spec**: 003, 009, 010, 011
@@ -90,7 +90,7 @@ RunSummarySchema = z.strictObject({
 > ⚠️ **게이트 규칙**: 각 Task 는 명시된 **테스트와 검증이 모두 에러 0**이 될 때까지 수정 → 재실행을 반복하고, 전부 통과했을 때만 체크박스를 채우고 **Task 단위로 커밋**한 뒤 다음 Task 로 진행한다.
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.** 워크트리 묶음은 구현 + 단위 테스트까지, e2e 는 7단계(메인)가 조립 후 돌린다.
 
-- [ ] **Task 1: 기록 IPC 계약 + toggleSidebar 단축키**
+- [x] **Task 1: 기록 IPC 계약 + toggleSidebar 단축키**
   - **묶음**: 기반
   - **작업**: `runs.ts` 스키마·`IRunHistory`, 채널·`IApi.runs`·preload·mock, shortcut enum `toggleSidebar` + main 판정(주 수식키+Shift+A) + BrowserChrome 분기 명시화
   - **파일**: `src/shared/ipc/runs.ts`, `src/shared/ipc/channels.ts`, `src/shared/ipc/api.ts`, `src/shared/ipc/shortcut.ts`, `src/preload/index.ts`, `vitest.setup.ts`, `src/main/tabs/shortcuts.ts`, `src/renderer/chrome/BrowserChrome/index.tsx`, `e2e/app-shell.spec.ts`
@@ -100,7 +100,7 @@ RunSummarySchema = z.strictObject({
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 실행 기록 IPC 계약·사이드바 토글 단축키 (spec 012 Task 1)`
 
-- [ ] **Task 2: callSafely 공용화 + 규칙 문서 정리 (리팩토링)**
+- [x] **Task 2: callSafely 공용화 + 규칙 문서 정리 (리팩토링)**
   - **묶음**: 기반
   - **작업**: FR-10·11 — 동작 그대로
   - **파일**: `src/renderer/lib/callSafely.ts`, `src/renderer/hooks/useAgentRun.ts`, `src/renderer/hooks/useWindowControls.ts`, `.claude/rules/renderer/react-convention.md`, `.claude/rules/architecture.md`
@@ -110,7 +110,7 @@ RunSummarySchema = z.strictObject({
   - **통과 기준**: 기존 훅 테스트 무수정 통과
   - **커밋**: `refactor: IPC 안전 호출 공용화·규칙 컴포넌트 목록 갱신 (spec 012 Task 2)`
 
-- [ ] **Task 3: 기록 조회 저장소·핸들러**
+- [x] **Task 3: 기록 조회 저장소·핸들러**
   - **묶음**: main-history
   - **작업**: `createRunHistoryRepo(db)` (listRecent: 최신순 LIMIT, getDetail: run + steps(n·tool·summary·status)), `createRunsHandlers(history)`
   - **파일**: `src/main/store/repos/runHistory.ts`, `src/main/ipc/handlers/runs.ts`
@@ -120,7 +120,7 @@ RunSummarySchema = z.strictObject({
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 실행 기록 조회 저장소·IPC 핸들러 (spec 012 Task 3)`
 
-- [ ] **Task 4: 기록 목록·읽기 전용 보기**
+- [x] **Task 4: 기록 목록·읽기 전용 보기**
   - **묶음**: renderer-history
   - **작업**: `useRunHistory`(list/get, callSafely), `RunHistory`(목록·상세·빈·실패 상태), SidebarHeader [실행 기록], AgentPanel 대화↔기록 전환 (FR-1~4, SR-1)
   - **파일**: `src/renderer/hooks/useRunHistory.ts`, `src/renderer/sidebar/RunHistory/index.tsx`, `src/renderer/sidebar/RunHistory/RunHistoryList.tsx`, `src/renderer/sidebar/RunHistory/RunHistoryDetail.tsx`, `src/renderer/sidebar/SidebarHeader/index.tsx`, `src/renderer/sidebar/AgentPanel/index.tsx`
@@ -130,7 +130,7 @@ RunSummarySchema = z.strictObject({
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 사이드바 실행 기록 목록·읽기 전용 보기 (spec 012 Task 4)`
 
-- [ ] **Task 5: 폭 조절 손잡이·폭 기억·단축키 토글**
+- [x] **Task 5: 폭 조절 손잡이·폭 기억·단축키 토글**
   - **묶음**: renderer-layout
   - **작업**: 사이드바 `<aside>` 는 `w-sidebar` 를 유지하고 폭은 `style={{ '--sidebar-width': `${width}px` }}` 로 CSS 변수만 덮어쓴다 — react-convention 「inline style 금지」의 예외는 이 한 곳(토큰 변수 덮어쓰기)뿐 (Task 7 에서 규칙에 예외 한 줄 추가). `useSidebarOpen` 을 `{ isOpen, setIsOpen, width, setWidth }` 로(이전 저장 형식 호환 — `sidebarWidth` 만 범위 밖이면 열림 여부는 저장값, 폭만 360), `SidebarResizer`(포인터 드래그·←/→), App 에 손잡이·폭·`useShortcut('toggleSidebar')` → togglePanel (FR-5~7, SR-3)
   - **파일**: `src/renderer/hooks/useSidebarOpen.ts`, `src/renderer/chrome/SidebarResizer/index.tsx`, `src/renderer/App.tsx`, `src/renderer/hooks/__tests__/useSidebarOpen.test.ts`
@@ -140,7 +140,7 @@ RunSummarySchema = z.strictObject({
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 사이드바 폭 조절·Ctrl+Shift+A 토글 (spec 012 Task 5)`
 
-- [ ] **Task 6: 다크 모드 토큰 대비 보정**
+- [x] **Task 6: 다크 모드 토큰 대비 보정**
   - **묶음**: renderer-layout
   - **작업**: FR-9 다크 토큰 대비 보정만 (FR-8 원인 조사·수정은 앱을 띄워야 하므로 Task 7 메인이 한다) — 다크 `--muted`·`--border`·`--warning`·`--brand` 등이 다크 `--background` 와 구분되게
   - **파일**: `src/renderer/styles/globals.css`
@@ -150,7 +150,7 @@ RunSummarySchema = z.strictObject({
   - **통과 기준**: 회귀 통과, 바꾼 토큰과 이유(대비)를 보고에
   - **커밋**: `design: 다크 모드 토큰 대비 보정 (spec 012 Task 6)`
 
-- [ ] **Task 7: 조립 + e2e + 문서**
+- [x] **Task 7: 조립 + e2e + 문서**
   - **묶음**: 조립(메인 직접 — 5단계 merge 뒤, 도우미에게 배정하지 않는다)
   - **작업**: `src/main/index.ts` 에 runs 핸들러 등록, FR-8 다크 테마 미반영 원인 조사·수정(재현 명령·근거를 진행 로그에), e2e 2개, design SKILL·DESIGN.md·react-convention(inline style 예외 한 줄) 갱신
   - **파일**: `src/main/index.ts`, `e2e/run-history.spec.ts`, `e2e/sidebar-layout.spec.ts`, `.claude/skills/desktop/design/SKILL.md`, `docs/DESIGN.md`, `.claude/rules/renderer/react-convention.md`, FR-8 원인 위치 파일
@@ -168,3 +168,11 @@ RunSummarySchema = z.strictObject({
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-06 | 1 | runs 스키마 12 · shortcut +1 · shortcuts +8 · BrowserChrome +2 | 7a584c5 | 기반 워크트리 |
+| 2026-11-06 | 2 | callSafely 3 · 기존 훅 테스트 무수정 통과 | f1e5db6 | 기반 워크트리 |
+| 2026-11-06 | 3 | runHistory 9 · runs 핸들러 8 | 9f866c7 | main-history 워크트리 (동시) |
+| 2026-11-06 | 4 | useRunHistory 6 · RunHistory 17 · formatRunTime 3 · SidebarHeader +3 · AgentPanel +5 | a3eb0f3 | renderer-history 워크트리 (동시) |
+| 2026-11-06 | 5 | useSidebarOpen +8 · SidebarResizer 8 · App +5 | 0b60043 | renderer-layout 워크트리 (동시) |
+| 2026-11-06 | 6 | 회귀만 (다크 --muted·--secondary·--accent·--border·--input 상향) | 9a154dc | renderer-layout 워크트리 |
+| 2026-11-06 | 7 | run-history e2e 2 · sidebar-layout e2e 4 · 전체 e2e 48 | 검증 반영 커밋 | FR-8 원인 = Playwright 기본 colorScheme light 에뮬레이션(앱 버그 아님) — TROUBLESHOOTING. index.ts 는 DB 를 startBrowser 에서 열어 run 저장·기록 조회가 같은 연결 |
+| 2026-11-06 | 검증 | make check 1538 · make e2e 48 · 에러 0 | 검증 반영 커밋 | 동시 vitest 로 도우미·품질 게이트에서 5s 타임아웃 — 단독 재실행 통과 |
