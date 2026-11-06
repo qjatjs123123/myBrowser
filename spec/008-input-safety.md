@@ -1,6 +1,6 @@
 # Spec: e2e 격리(가상 디스플레이·외부 요청 차단) + 이름 없는 입력칸 픽셀 입력 승인
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-06
 > **묶음**: 기반
 > **관련 spec**: 002, 004, 005
@@ -67,7 +67,7 @@
 > ⚠️ **게이트 규칙**: 각 Task 는 명시된 **테스트와 검증이 모두 에러 0**이 될 때까지 수정 → 재실행을 반복하고, 전부 통과했을 때만 체크박스를 채우고 **Task 단위로 커밋**한 뒤 다음 Task 로 진행한다.
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: e2e 실행기 — 가상 디스플레이 기본**
+- [x] **Task 1: e2e 실행기 — 가상 디스플레이 기본**
   - **묶음**: 기반
   - **작업**: `scripts/e2eRun.ts` + `package.json` 두 스크립트 교체 + CI 의 `xvfb-run` 제거
   - **파일**: `scripts/e2eRun.ts`, `package.json`, `.github/workflows/ci.yml`
@@ -77,7 +77,7 @@
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `chore: e2e 를 가상 디스플레이에서 실행 (spec 008 Task 1)`
 
-- [ ] **Task 2: e2e 외부 요청 차단**
+- [x] **Task 2: e2e 외부 요청 차단**
   - **묶음**: 기반
   - **작업**: `e2e/fixtures.ts` 에 `blockExternalRequests` + stderr `[e2e.external]` 수집
   - **파일**: `e2e/fixtures.ts`, `e2e/external-block.spec.ts`(신규), `src/main/index.ts`(FR-3b)
@@ -87,7 +87,7 @@
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `test: e2e 중 외부 사이트 요청 차단 (spec 008 Task 2)`
 
-- [ ] **Task 3: 이름 없는 입력칸 픽셀 type 승인**
+- [x] **Task 3: 이름 없는 입력칸 픽셀 type 승인**
   - **묶음**: 기반
   - **작업**: guard.ts FR-4·FR-5, 픽스처 페이지 + 가짜 시나리오 + e2e
   - **파일**: `src/main/agent/guard.ts`, `e2e/fixtures/pages/pixel-type.html`(신규 — label·placeholder·aria 없는 input 1개, 값 변경을 `window.__inputLog` 에 기록), `e2e/fixtures/model/pixel-type.json`(신규 — screenshot → left_click 입력칸 좌표 → type `강남역` → 끝 text), `e2e/agent-approval.spec.ts`
@@ -99,7 +99,7 @@
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 이름 없는 입력칸 픽셀 입력에 승인 요구 (spec 008 Task 3)`
 
-- [ ] **Task 4: 규칙·문서 갱신**
+- [x] **Task 4: 규칙·문서 갱신**
   - **묶음**: 기반
   - **작업**: guard.md 규칙 6 `type` 행, test-convention.md e2e 절, TROUBLESHOOTING `nhttp://` 항목 원인 정정 + 새 항목(데스크톱 e2e 에 실제 키 입력 섞임), DESIGN.md §3
   - **파일**: `.claude/rules/agent/guard.md`, `.claude/rules/test-convention.md`, `docs/TROUBLESHOOTING.md`, `docs/DESIGN.md`
@@ -115,3 +115,8 @@
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-06 | 1 | e2eRun 단위 7 · app-shell e2e(Xvfb 확인) | debc848 | |
+| 2026-11-06 | 2 | external-block e2e 2 (반복 20/20) · 전체 e2e 30 | c9139e8 | FR-3b 종료 시 파괴된 창 접근 예외 발견·수정 |
+| 2026-11-06 | 3 | guard 단위 +5 · 픽셀 입력 e2e 2 (가드 변경 없이 돌리면 2개 실패 확인) | 8c25bb1 | |
+| 2026-11-06 | 4 | 문서만 | 3705da2 | |
+| 2026-11-06 | 검증 | make check 1354 · make e2e 32 · 에러 0 | 검증 반영 커밋 | spec-reviewer 2회차 PASS |
