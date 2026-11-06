@@ -11,9 +11,7 @@ export default function App() {
         <BrowserChrome />
       </main>
       <aside className="flex w-sidebar shrink-0 flex-col border-l border-border" aria-label="에이전트 사이드바">
-        <h2 className="border-b border-border px-4 py-3 text-sm font-semibold">에이전트</h2>
-        <AccountCard />
-        <AgentPanel />
+        <AgentPanel accountSlot={<AccountCard />} />
         <AppInfoFooter />
       </aside>
     </div>

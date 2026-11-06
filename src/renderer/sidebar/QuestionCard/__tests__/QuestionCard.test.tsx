@@ -22,9 +22,20 @@ describe('QuestionCard', () => {
     expect(screen.getByRole('button', { name: '4명' })).toBeInTheDocument();
   });
 
-  it('열리면 답변칸에 포커스가 간다', () => {
+  it('선택지가 있으면 열리자마자 첫 선택지에 포커스가 간다', () => {
     renderCard();
+    expect(screen.getByRole('button', { name: '2명' })).toHaveFocus();
+  });
+
+  it('선택지가 없으면 열리자마자 답변칸에 포커스가 간다', () => {
+    renderCard({ ...QUESTION, optionList: [] });
     expect(screen.getByRole('textbox', { name: '답변' })).toHaveFocus();
+  });
+
+  it('열자마자 Enter 를 누르면 첫 선택지로 답한다', async () => {
+    const { onAnswer } = renderCard();
+    fireEvent.keyDown(screen.getByRole('button', { name: '2명' }), { key: 'Enter' });
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledExactlyOnceWith('2명'));
   });
 
   it('선택지를 누르면 그 문구로 답한다', async () => {

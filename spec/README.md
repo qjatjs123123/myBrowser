@@ -11,4 +11,4 @@
 | 006 | 기반 | 개발 모드 모델 프록시 — `.env` ANTHROPIC_BASE_URL 로 direct 모드 호출 주소 변경(설치판 무관) | src/main/{env,index}, src/main/agent/modelClient, docs/DESIGN.md | 003, 005 | ✅ 완료 | 2026-11-06 |
 | 007 | 기반 | 모델 프로필 전략 — `MYBROWSER_PROFILE=dev`(사내 GenAI 프록시·픽셀 도구/fallbacks 제외) / `prod`(게이트웨이 Claude API), direct 제거·개발 실행은 필수 | src/main/{env,index}, src/main/agent/{profiles,loop,service,tools,modelClient}, src/main/account, e2e, eval | 003, 004, 005, 006 | ✅ 완료 | 2026-11-06 |
 | 008 | 기반 | e2e 격리(가상 디스플레이 기본·외부 요청 차단) + 이름 없는 입력칸 픽셀 입력 승인 (주소창 `nhttp://` 는 데스크톱 e2e 에 실제 키 입력이 섞인 것) | scripts/e2eRun.ts, e2e/fixtures.ts, src/main/agent/guard.ts, e2e | 002, 004, 005 | ✅ 완료 | 2026-11-06 |
-| 009 | renderer-sidebar | 사이드바 대화형 UI — 할 일 말풍선·에이전트 턴(N단계 접힘·결과·복사)·[새 대화], 둥근 입력창 Enter 실행(IME 조합 중 무시), 승인·질문 번호 선택 목록(기본 거부) | src/renderer/{hooks/useAgentRun,sidebar/*,styles}, e2e | 003, 004, 005 | 📝 계획됨 | 2026-11-06 |
+| 009 | renderer-sidebar | 사이드바 대화형 UI — 할 일 말풍선·에이전트 턴(N단계 접힘·결과·복사)·[새 대화], 둥근 입력창 Enter 실행(IME 조합 중 무시), 승인·질문 번호 선택 목록(기본 거부) | src/renderer/{hooks/useAgentRun,sidebar/*,styles}, e2e | 003, 004, 005 | ✅ 완료 | 2026-11-06 |

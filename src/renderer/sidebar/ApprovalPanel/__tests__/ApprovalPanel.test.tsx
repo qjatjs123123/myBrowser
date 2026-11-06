@@ -92,7 +92,9 @@ describe('ApprovalPanel', () => {
 
   it('모델 승인 창은 [승인]/[거부] 두 버튼만 있다', () => {
     renderPanel(MODEL_REQUEST);
-    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['승인', '거부']);
+    expect(screen.getAllByRole('button')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: '승인' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '거부' })).toBeInTheDocument();
   });
 
   it('모델 승인 창은 모델 문장을 “에이전트 설명” 라벨로 따로 보여준다', () => {
@@ -115,5 +117,41 @@ describe('ApprovalPanel', () => {
   it('가드 승인 창에는 “에이전트 설명” 이 없다', () => {
     renderPanel(GUARD_REQUEST);
     expect(screen.queryByText('에이전트 설명')).not.toBeInTheDocument();
+  });
+
+  describe('번호 선택 목록 (spec 009)', () => {
+    it('가드 승인 창은 열자마자 Enter 를 누르면 거부한다 (승인 아님)', async () => {
+      const { onDecide } = renderPanel(GUARD_REQUEST);
+      fireEvent.keyDown(screen.getByRole('button', { name: '거부' }), { key: 'Enter' });
+      await waitFor(() => expect(onDecide).toHaveBeenCalledExactlyOnceWith('denied'));
+    });
+
+    it('모델 승인 창도 열자마자 Enter 를 누르면 거부한다 (승인 아님)', async () => {
+      const { onDecide } = renderPanel(MODEL_REQUEST);
+      fireEvent.keyDown(screen.getByRole('button', { name: '거부' }), { key: 'Enter' });
+      await waitFor(() => expect(onDecide).toHaveBeenCalledExactlyOnceWith('denied'));
+    });
+
+    it('↑ 로 [에이전트가 누르기] 로 옮긴 뒤 Enter 를 누르면 agent 결정을 보낸다', async () => {
+      const { onDecide } = renderPanel(GUARD_REQUEST);
+      const group = screen.getByRole('group', { name: '승인 선택' });
+      fireEvent.keyDown(group, { key: 'ArrowUp' });
+      expect(screen.getByRole('button', { name: '에이전트가 누르기' })).toHaveFocus();
+      fireEvent.keyDown(group, { key: 'Enter' });
+      await waitFor(() => expect(onDecide).toHaveBeenCalledExactlyOnceWith('agent'));
+    });
+
+    it('숫자 2 를 누르면 agent 결정을 보낸다', async () => {
+      const { onDecide } = renderPanel(GUARD_REQUEST);
+      fireEvent.keyDown(screen.getByRole('group', { name: '승인 선택' }), { key: '2' });
+      await waitFor(() => expect(onDecide).toHaveBeenCalledExactlyOnceWith('agent'));
+    });
+
+    it('숫자 1 을 누르면 결정을 보내지 않고 직접 누르기 안내로 바뀐다', () => {
+      const { onDecide } = renderPanel(GUARD_REQUEST);
+      fireEvent.keyDown(screen.getByRole('group', { name: '승인 선택' }), { key: '1' });
+      expect(onDecide).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: '계속' })).toHaveFocus();
+    });
   });
 });

@@ -1,6 +1,6 @@
 # Spec: 사이드바 대화형 UI — Claude 스타일 입력창·Enter 실행·번호 선택 목록
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-06
 > **묶음**: renderer-sidebar
 > **관련 spec**: 003, 004, 005
@@ -19,7 +19,7 @@
 - **FR-3 (말풍선 복사)**: 할 일 말풍선 아래 [복사] 버튼 — 할 일 문구를 클립보드로.
 - **FR-4 (새 대화)**: 사이드바 헤더에 [새 대화] 버튼 — 기록을 비운다. 실행·대기 중에는 비활성.
 - **FR-5 (헤더)**: 헤더에 제목 `에이전트`(heading 유지) + 상태 배지(role=status "실행 상태", 문구·강조 규칙 그대로) + [새 대화].
-- **FR-6 (입력창)**: 하단 둥근 카드형 입력창 — 자동 높이 Textarea(aria "할 일", 최대 약 8줄 후 스크롤) + 오른쪽 아래 원형 버튼. 대기 시 위쪽 화살표(aria "작업 실행"), 실행 중엔 같은 자리 정지(aria "작업 중지").
+- **FR-6 (입력창)**: 하단 둥근 카드형 입력창 — 자동 높이 Textarea(aria "할 일", 최대 약 8줄 후 스크롤) + 오른쪽 아래 원형 버튼. 대기 시 위쪽 화살표(aria "작업 실행"), 실행 중엔 같은 자리 정지(aria "작업 중지"). 실행이 시작되면(start 성공) 입력창을 비운다 — 할 일은 말풍선으로 올라간다. 시작 실패면 입력을 그대로 둔다.
 - **FR-7 (Enter 실행)**: Textarea 에서 **Enter = [작업 실행] 클릭과 같다**. Shift+Enter 는 줄바꿈. Ctrl/Cmd+Enter 도 실행. **IME 조합 중 Enter(`isComposing` 또는 keyCode 229)는 무시** — 한글 마지막 글자가 두 번 실행되지 않게. 빈 입력·실행 중이면 아무 일도 없다.
 - **FR-8 (선택 목록)**: 공용 `ChoiceList` — 행마다 번호(`1.`) + 라벨, 강조 행은 배경 + `›`. ↑↓ 로 강조 이동(끝에서 순환), 숫자키 1~9 로 해당 행 바로 선택, Enter·Space·클릭 = 강조 행 선택. **Enter·Space 는 keydown 에서 `preventDefault()` 하고 `onChoose` 를 한 번만 부른다** (네이티브 button 의 키→click 과 중복 전송 금지). 강조 행에 실제 DOM 포커스(roving tabindex). 번호·`›` 는 `aria-hidden` 이라 버튼 접근 이름 = 라벨. 마운트 시 `defaultIndex` 행에 포커스.
 - **FR-9 (승인 창)**: `GuardChoice`(직접 누를게요 / 에이전트가 누르기 / 거부)와 `ModelChoice`(승인 / 거부)를 `ChoiceList` 로 — **기본 강조·포커스 = 거부**. 직접 누르기 후 [계속] 단계는 그대로.
@@ -76,7 +76,7 @@
 > ⚠️ **게이트 규칙**: 각 Task 는 명시된 **테스트와 검증이 모두 에러 0**이 될 때까지 수정 → 재실행을 반복하고, 전부 통과했을 때만 체크박스를 채우고 **Task 단위로 커밋**한 뒤 다음 Task 로 진행한다.
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: 대화 기록 상태 + brand 토큰**
+- [x] **Task 1: 대화 기록 상태 + brand 토큰**
   - **묶음**: renderer-sidebar
   - **작업**: `useAgentRun` 에 `pastTurnList`·`currentTask`·`reset`, `globals.css` 에 `--brand` 토큰
   - **파일**: `src/renderer/hooks/useAgentRun.ts`, `src/renderer/styles/globals.css`
@@ -86,7 +86,7 @@
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 사이드바 대화 기록 상태 (spec 009 Task 1)`
 
-- [ ] **Task 2: 번호 선택 목록 + 승인·질문 카드**
+- [x] **Task 2: 번호 선택 목록 + 승인·질문 카드**
   - **묶음**: renderer-sidebar
   - **작업**: `ChoiceList` 신규, GuardChoice·ModelChoice·QuestionCard 적용, 카드 스타일 (FR-8~11, SR-1)
   - **파일**: `src/renderer/sidebar/ChoiceList/index.tsx`, `src/renderer/sidebar/ApprovalPanel/*.tsx`, `src/renderer/sidebar/QuestionCard/index.tsx`
@@ -99,7 +99,7 @@
   - **통과 기준**: 테스트 + 검증 통과, 승인 전 클릭 0 (기존 e2e `__clickLog`)
   - **커밋**: `feat: 승인·질문 카드를 번호 선택 목록으로 (spec 009 Task 2)`
 
-- [ ] **Task 3: 입력창 — 둥근 카드·Enter 실행**
+- [x] **Task 3: 입력창 — 둥근 카드·Enter 실행**
   - **묶음**: renderer-sidebar
   - **작업**: `TaskInput` 재디자인 (FR-6·7, SR-2)
   - **파일**: `src/renderer/sidebar/AgentPanel/TaskInput.tsx`
@@ -109,21 +109,21 @@
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 할 일 입력창 Enter 실행·카드형 디자인 (spec 009 Task 3)`
 
-- [ ] **Task 4: 대화 화면 조립 + 헤더**
+- [x] **Task 4: 대화 화면 조립 + 헤더**
   - **묶음**: renderer-sidebar
   - **작업**: `Conversation`(UserBubble·AgentTurn·CopyButton), `SidebarHeader`, `RunResult` 평문화, `AgentPanel`·`App.tsx` 조립 (FR-1~5, FR-12)
   - **파일**: `src/renderer/sidebar/Conversation/*`, `src/renderer/sidebar/SidebarHeader/index.tsx`, `src/renderer/sidebar/RunResult/index.tsx`, `src/renderer/sidebar/AgentPanel/index.tsx`, `src/renderer/App.tsx`, `e2e/sidebar-chat.spec.ts`
   - **테스트**:
     - `src/renderer/sidebar/Conversation/__tests__/Conversation.test.tsx` — 빈 상태 문구(FR-12) / 지난 턴 + 현재 턴 순서대로 말풍선·턴 / 지난 턴은 접힘(진행 단계 숨김)·헤더 클릭으로 펼침 / 현재 턴은 완료 후에도 펼침 / 복사 버튼이 `navigator.clipboard.writeText` 호출
     - `src/renderer/sidebar/SidebarHeader/__tests__/SidebarHeader.test.tsx` — heading `에이전트`, 상태 배지, [새 대화] 비활성 조건·클릭 콜백
-    - `src/renderer/sidebar/AgentPanel/__tests__/AgentPanel.test.tsx`·`src/renderer/__tests__/App.test.tsx` — 바뀐 구조에 맞춤 (접근 이름 그대로)
+    - `src/renderer/sidebar/AgentPanel/__tests__/AgentPanel.test.tsx`·`src/renderer/__tests__/App.test.tsx` — 바뀐 구조에 맞춤 (접근 이름 그대로). 「step·종료 이벤트가 오면…」의 마지막 단언(완료 후 [작업 실행] 활성)은 FR-6 입력 비우기 때문에 「입력칸 활성 + 새 할 일을 쓰면 [작업 실행] 활성」으로 교체. 추가: 시작 시 입력 비움·말풍선 / 시작 실패 시 입력 유지 / [새 대화] 비활성 조건·비우기
     - `e2e/sidebar-chat.spec.ts` — (가짜 모델 default) 할 일 입력 후 **Enter** → 상태 `완료`·말풍선·결과 / 두 번째 할 일 Enter → 말풍선 2개·실행 결과 2개 / [새 대화] → 빈 상태 문구 `할 일을 입력하면 여기에 진행 상황이 표시됩니다`
   - **실행**: `pnpm test src/renderer` + `make e2e SPEC=e2e/sidebar-chat.spec.ts` + 전체 `make e2e`
   - **검증**: `desktop/app-check` — 위 흐름 + 승인 흐름(`approval-confirm`)·질문 흐름(`ask-user`)에서 카드 위치·스크린샷 확인, 콘솔·main 에러 0 + e2e 통과
   - **통과 기준**: 테스트 + 검증 통과, 기존 e2e 셀렉터 수정 없이 통과
   - **커밋**: `feat: 사이드바를 대화형 화면으로 (spec 009 Task 4)`
 
-- [ ] **Task 5: 디자인 기준 문서 갱신**
+- [x] **Task 5: 디자인 기준 문서 갱신**
   - **묶음**: renderer-sidebar
   - **작업**: design SKILL §1(레이아웃 그림)·§3(대화형·Enter 실행)·§4(번호 선택 목록·기본 강조 거부·Enter=거부), DESIGN.md 사이드바 서술
   - **파일**: `.claude/skills/desktop/design/SKILL.md`, `docs/DESIGN.md`
@@ -139,3 +139,9 @@
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-06 | 1 | useAgentRun +4 (대화 기록·reset) | 검증 반영 커밋 | 직접 방식 |
+| 2026-11-06 | 2 | ChoiceList 10 · ApprovalPanel +5 · QuestionCard +2 · agent-approval e2e 9 | 검증 반영 커밋 | |
+| 2026-11-06 | 3 | AgentPanel Enter·Shift+Enter·IME·빈 입력 | 검증 반영 커밋 | |
+| 2026-11-06 | 4 | Conversation 10 · SidebarHeader 3 · AgentPanel +3 · sidebar-chat e2e 3 | 검증 반영 커밋 | 입력 비우기(FR-6) 반영으로 기존 단언 1개 교체 |
+| 2026-11-06 | 5 | 문서만 | 검증 반영 커밋 | |
+| 2026-11-06 | 검증 | make check 1394 · make e2e 35 · 에러 0 | 검증 반영 커밋 | 다크 모드는 xvfb 에서 화면 확인 못 함(토큰만) |

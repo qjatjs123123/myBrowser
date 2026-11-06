@@ -34,7 +34,7 @@ export function ApprovalPanel({ request, onDecide }: IApprovalPanelProps) {
       role="alertdialog"
       aria-modal="false"
       aria-label="승인 필요"
-      className="flex flex-col gap-3 rounded-md border border-warning bg-warning/10 p-3 text-sm"
+      className="flex flex-col gap-3 rounded-xl border border-warning/60 bg-background p-3 text-sm shadow-sm"
     >
       <p className="flex items-center gap-1.5 font-semibold">
         <ShieldAlert aria-hidden className="size-4 text-warning" />

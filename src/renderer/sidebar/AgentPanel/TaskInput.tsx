@@ -1,10 +1,13 @@
-import { Play, Square } from 'lucide-react';
+import { ArrowUp, Square } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 
-const PLACEHOLDER = '예: 네이버에서 강남역 맛집 찾아 전화번호 알려줘';
+const PLACEHOLDER = '할 일을 입력하세요';
+const KEY_HINT = 'Enter 실행 · Shift+Enter 줄바꿈';
+/** IME 조합 중 keydown 의 keyCode — isComposing 이 없는 환경 대비 */
+const IME_PROCESS_KEY_CODE = 229;
 
 interface ITaskInputProps {
   task: string;
@@ -17,42 +20,67 @@ interface ITaskInputProps {
   onStop: () => void;
 }
 
-/** 하단 할 일 입력 + 실행/중지 버튼 — Ctrl/Cmd+Enter 로도 실행 */
+/**
+ * 하단 둥근 카드형 할 일 입력 + 원형 실행/중지 버튼 (spec 009 FR-6·7).
+ * Enter = [작업 실행] 클릭, Shift+Enter 줄바꿈, IME 조합 중 Enter 는 무시(한글 마지막 글자 확정용).
+ */
 export function TaskInput({ task, isBusy, canStop, onTaskChange, onStart, onStop }: ITaskInputProps) {
   const canStart = !isBusy && task.trim().length > 0;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    const isSubmitShortcut = event.key === 'Enter' && (event.ctrlKey || event.metaKey);
-    if (!isSubmitShortcut) return;
+    if (!isSubmitKey(event)) return;
     event.preventDefault();
     if (canStart) onStart();
   };
 
   return (
-    <div className="flex flex-col gap-2 border-t border-border p-3">
-      <Textarea
-        aria-label="할 일"
-        placeholder={PLACEHOLDER}
-        value={task}
-        disabled={isBusy}
-        rows={3}
-        onChange={(event) => onTaskChange(event.target.value)}
-        onKeyDown={handleKeyDown}
-        className="max-h-40 resize-none"
-      />
-      <div className="flex justify-end">
-        {isBusy ? (
-          <Button variant="outline" size="sm" aria-label="작업 중지" disabled={!canStop} onClick={onStop}>
-            <Square />
-            중지
-          </Button>
-        ) : (
-          <Button size="sm" aria-label="작업 실행" disabled={!canStart} onClick={onStart}>
-            <Play />
-            실행
-          </Button>
-        )}
+    <div className="px-3 pt-2 pb-3">
+      <div className="flex flex-col gap-1 rounded-2xl border border-border bg-background p-2 shadow-sm transition-colors focus-within:border-ring">
+        <Textarea
+          aria-label="할 일"
+          placeholder={PLACEHOLDER}
+          value={task}
+          disabled={isBusy}
+          rows={1}
+          onChange={(event) => onTaskChange(event.target.value)}
+          onKeyDown={handleKeyDown}
+          className="max-h-48 min-h-10 resize-none border-0 bg-transparent px-2 py-1.5 shadow-none focus-visible:ring-0 dark:bg-transparent"
+        />
+        <div className="flex items-center justify-between gap-2 pl-2">
+          <span className="text-xs text-muted-foreground">{KEY_HINT}</span>
+          {isBusy ? (
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="작업 중지"
+              title="중지"
+              disabled={!canStop}
+              onClick={onStop}
+              className="rounded-full"
+            >
+              <Square className="fill-current" />
+            </Button>
+          ) : (
+            <Button
+              size="icon-sm"
+              aria-label="작업 실행"
+              title="실행 (Enter)"
+              disabled={!canStart}
+              onClick={onStart}
+              className="rounded-full bg-brand text-brand-foreground hover:bg-brand/90"
+            >
+              <ArrowUp />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
+}
+
+/** 실행 키인가 — Enter(또는 Ctrl/Cmd+Enter), Shift+Enter·IME 조합 중 제외 */
+function isSubmitKey(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
+  if (event.key !== 'Enter' || event.shiftKey) return false;
+  const isComposing = event.nativeEvent.isComposing || event.keyCode === IME_PROCESS_KEY_CODE;
+  return !isComposing;
 }

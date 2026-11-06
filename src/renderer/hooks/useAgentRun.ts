@@ -19,6 +19,18 @@ export interface IRunResult {
   text: string;
 }
 
+/** 대화 기록의 한 턴 — 사용자가 준 할 일 + 그 run 의 상태·단계·결과 (renderer 메모리에만, spec 009) */
+export interface ITurn {
+  runId: string;
+  task: string;
+  status: TRunStatus | null;
+  stepList: TStep[];
+  result: IRunResult | null;
+}
+
+/** 아직 끝나지 않은 run 상태 — 이 동안에는 새 대화(reset)를 하지 않는다 */
+const ACTIVE_STATUS_LIST: TRunStatus[] = ['queued', 'running', 'waiting_user'];
+
 /** 승인 창의 결정 — kind=guard 는 agent·user_done·denied, kind=model 은 approved·denied */
 export type TDecision = TApprovalDecision | TModelApprovalDecision;
 
@@ -31,9 +43,14 @@ interface IAgentRunState {
   pendingApproval: TApprovalRequest | null;
   /** 답을 기다리는 질문 — question_answered 가 오면 null */
   pendingQuestion: TQuestion | null;
+  /** 현재 run 의 할 일 — run 이 없으면 null */
+  currentTask: string | null;
+  /** 이번 세션에서 끝난(또는 다음 run 에 밀려난) 지난 턴들, 오래된 순 */
+  pastTurnList: ITurn[];
 }
 
-type TRunAction = { type: 'started'; runId: string } | { type: 'event'; event: TAgentEvent };
+type TRunAction =
+  { type: 'started'; runId: string; task: string } | { type: 'event'; event: TAgentEvent } | { type: 'reset' };
 
 const INITIAL_STATE: IAgentRunState = {
   runId: null,
@@ -42,6 +59,8 @@ const INITIAL_STATE: IAgentRunState = {
   result: null,
   pendingApproval: null,
   pendingQuestion: null,
+  currentTask: null,
+  pastTurnList: [],
 };
 const START_FAILED_MESSAGE = '작업을 시작하지 못했습니다';
 const STOP_FAILED_MESSAGE = '작업을 중지하지 못했습니다';
@@ -78,7 +97,7 @@ export function useAgentRun() {
     bufferRef.current = null;
     if (!result.ok) return result;
     runIdRef.current = result.data.runId;
-    dispatch({ type: 'started', runId: result.data.runId });
+    dispatch({ type: 'started', runId: result.data.runId, task });
     bufferedList
       .filter((event) => event.runId === result.data.runId)
       .forEach((event) => dispatch({ type: 'event', event }));
@@ -93,7 +112,13 @@ export function useAgentRun() {
   const answer = (text: string): Promise<TIpcResult<null>> =>
     requestAnswer(runIdRef.current, state.pendingQuestion?.requestId ?? null, text);
 
-  return { ...state, start, stop, approve, answer };
+  /** 새 대화 — 실행·대기 중이면 무시한다 */
+  const reset = (): void => dispatch({ type: 'reset' });
+
+  /** 대화에 그릴 현재 턴 — run 이 없으면 null */
+  const currentTurn = state.runId === null ? null : toTurn(state);
+
+  return { ...state, currentTurn, start, stop, approve, answer, reset };
 }
 
 /** agent:start 호출 — IPC 자체가 실패해도 throw 하지 않고 실패 봉투로 바꾼다 */
@@ -136,14 +161,31 @@ async function callSafely<T>(call: () => Promise<TIpcResult<T>>, failMessage: st
   }
 }
 
-/** run 상태 전이 — started 는 새 run 으로 초기화(running), event 는 계약 순서대로 반영 */
+/** run 상태 전이 — started 는 직전 run 을 기록으로 넘기고 새 run(running), reset 은 기록까지 비움, event 는 계약 순서대로 반영 */
 function reduceAgentRun(state: IAgentRunState, action: TRunAction): IAgentRunState {
-  if (action.type === 'started') return { ...INITIAL_STATE, runId: action.runId, status: 'running' };
+  if (action.type === 'started') return startNewTurn(state, action.runId, action.task);
+  if (action.type === 'reset') return isRunActive(state.status) ? state : INITIAL_STATE;
   const { event } = action;
   if (event.type === 'status') return { ...state, status: event.status };
   if (event.type === 'step') return { ...state, stepList: upsertStep(state.stepList, event.step) };
   if (isWaitEvent(event)) return reduceWaitEvent(state, event);
   return { ...state, result: toRunResult(event), pendingApproval: null, pendingQuestion: null };
+}
+
+/** 새 run 시작 — 직전 run 이 있으면 지난 턴으로 쌓는다 */
+function startNewTurn(state: IAgentRunState, runId: string, task: string): IAgentRunState {
+  const pastTurnList = state.runId === null ? state.pastTurnList : [...state.pastTurnList, toTurn(state)];
+  return { ...INITIAL_STATE, runId, status: 'running', currentTask: task, pastTurnList };
+}
+
+/** 현재 run 상태 → 지난 턴 */
+function toTurn({ runId, currentTask, status, stepList, result }: IAgentRunState): ITurn {
+  return { runId: runId ?? '', task: currentTask ?? '', status, stepList, result };
+}
+
+/** 아직 끝나지 않은 run 인가 */
+export function isRunActive(status: TRunStatus | null): boolean {
+  return status !== null && ACTIVE_STATUS_LIST.includes(status);
 }
 
 type TWaitEvent = Extract<
