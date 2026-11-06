@@ -4,9 +4,16 @@ import { describe, expect, it, vi } from 'vitest';
 import type { TApprovalRequest } from '@shared/agent/run';
 import type { TAgentEvent } from '@shared/ipc/agent';
 
+import { useAgentRun } from '@/hooks/useAgentRun';
 import { toast } from '@/lib/toast';
 
 import { AgentPanel } from '..';
+
+/** App 처럼 run 을 한 번 구독해 넘기는 래퍼 (spec 011 — AgentPanel 은 run 을 prop 으로 받는다) */
+function PanelWithRun() {
+  const run = useAgentRun();
+  return <AgentPanel run={run} />;
+}
 
 vi.mock('@/lib/toast', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
@@ -36,7 +43,7 @@ const APPROVAL: TApprovalRequest = {
 /** 할 일을 실행해 run-1 을 세운다 */
 async function startRun(): Promise<void> {
   vi.mocked(window.api.agent.start).mockResolvedValue({ ok: true, data: { runId: 'run-1' } });
-  render(<AgentPanel />);
+  render(<PanelWithRun />);
   submitTask('할 일');
   const stopButton = await screen.findByRole('button', { name: '작업 중지' });
   await waitFor(() => expect(stopButton).toBeEnabled());
@@ -52,13 +59,13 @@ function emitApprovalWait(): void {
 
 describe('AgentPanel', () => {
   it('처음에는 대기 상태와 빈 상태 안내 문구를 보여준다', () => {
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     expect(screen.getByRole('status', { name: '실행 상태' })).toHaveTextContent('대기');
     expect(screen.getByText('할 일을 입력하면 여기에 진행 상황이 표시됩니다')).toBeInTheDocument();
   });
 
   it('입력이 비었거나 공백뿐이면 실행 버튼이 비활성이다', () => {
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     const button = screen.getByRole('button', { name: '작업 실행' });
     expect(button).toBeDisabled();
     fireEvent.change(screen.getByRole('textbox', { name: '할 일' }), { target: { value: '   ' } });
@@ -67,14 +74,14 @@ describe('AgentPanel', () => {
 
   it('실행을 누르면 입력한 할 일로 agent.start 를 부른다', async () => {
     vi.mocked(window.api.agent.start).mockResolvedValue({ ok: true, data: { runId: 'run-1' } });
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     submitTask('강남역 맛집 전화번호');
     await waitFor(() => expect(window.api.agent.start).toHaveBeenCalledWith({ task: '강남역 맛집 전화번호' }));
   });
 
   it('실행 중에는 작업 중지 버튼이 보이고 입력창이 비활성이다', async () => {
     vi.mocked(window.api.agent.start).mockResolvedValue({ ok: true, data: { runId: 'run-1' } });
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     submitTask('할 일');
     const stopButton = await screen.findByRole('button', { name: '작업 중지' });
     await waitFor(() => expect(stopButton).toBeEnabled());
@@ -87,7 +94,7 @@ describe('AgentPanel', () => {
   it('작업 중지를 누르면 현재 runId 로 agent.stop 을 부른다', async () => {
     vi.mocked(window.api.agent.start).mockResolvedValue({ ok: true, data: { runId: 'run-1' } });
     vi.mocked(window.api.agent.stop).mockResolvedValue({ ok: true, data: null });
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     submitTask('할 일');
     const stopButton = await screen.findByRole('button', { name: '작업 중지' });
     await waitFor(() => expect(stopButton).toBeEnabled());
@@ -100,7 +107,7 @@ describe('AgentPanel', () => {
       ok: false,
       error: { code: 'BUSY', message: '이미 실행 중인 작업이 있습니다' },
     });
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     submitTask('할 일');
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('이미 실행 중인 작업이 있습니다'));
     expect(screen.getByRole('button', { name: '작업 실행' })).toBeEnabled();
@@ -108,7 +115,7 @@ describe('AgentPanel', () => {
 
   it('Ctrl+Enter 를 누르면 실행한다', async () => {
     vi.mocked(window.api.agent.start).mockResolvedValue({ ok: true, data: { runId: 'run-1' } });
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     const textbox = screen.getByRole('textbox', { name: '할 일' });
     fireEvent.change(textbox, { target: { value: '할 일' } });
     fireEvent.keyDown(textbox, { key: 'Enter', ctrlKey: true });
@@ -117,7 +124,7 @@ describe('AgentPanel', () => {
 
   it('Enter 를 누르면 [작업 실행] 처럼 실행한다 (spec 009)', async () => {
     vi.mocked(window.api.agent.start).mockResolvedValue({ ok: true, data: { runId: 'run-1' } });
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     const textbox = screen.getByRole('textbox', { name: '할 일' });
     fireEvent.change(textbox, { target: { value: '할 일' } });
     fireEvent.keyDown(textbox, { key: 'Enter' });
@@ -125,7 +132,7 @@ describe('AgentPanel', () => {
   });
 
   it('Shift+Enter 는 실행하지 않는다', () => {
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     const textbox = screen.getByRole('textbox', { name: '할 일' });
     fireEvent.change(textbox, { target: { value: '할 일' } });
     fireEvent.keyDown(textbox, { key: 'Enter', shiftKey: true });
@@ -133,7 +140,7 @@ describe('AgentPanel', () => {
   });
 
   it('IME 조합 중 Enter 는 실행하지 않는다', () => {
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     const textbox = screen.getByRole('textbox', { name: '할 일' });
     fireEvent.change(textbox, { target: { value: '예약해' } });
     fireEvent.keyDown(textbox, { key: 'Enter', isComposing: true });
@@ -142,7 +149,7 @@ describe('AgentPanel', () => {
   });
 
   it('입력이 비었으면 Enter 를 눌러도 실행하지 않는다', () => {
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     const textbox = screen.getByRole('textbox', { name: '할 일' });
     fireEvent.change(textbox, { target: { value: '   ' } });
     fireEvent.keyDown(textbox, { key: 'Enter' });
@@ -151,7 +158,7 @@ describe('AgentPanel', () => {
 
   it('step·종료 이벤트가 오면 타임라인·결과·상태를 보여준다', async () => {
     vi.mocked(window.api.agent.start).mockResolvedValue({ ok: true, data: { runId: 'run-1' } });
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     submitTask('할 일');
     await screen.findByRole('button', { name: '작업 중지' });
     act(() => {
@@ -176,7 +183,7 @@ describe('AgentPanel', () => {
 
   it('실행이 시작되면 입력창을 비우고 할 일을 말풍선으로 보여준다 (spec 009)', async () => {
     vi.mocked(window.api.agent.start).mockResolvedValue({ ok: true, data: { runId: 'run-1' } });
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     submitTask('강남역 맛집');
     expect(await screen.findByRole('group', { name: '내 할 일' })).toHaveTextContent('강남역 맛집');
     expect(screen.getByRole('textbox', { name: '할 일' })).toHaveValue('');
@@ -184,7 +191,7 @@ describe('AgentPanel', () => {
 
   it('시작이 실패하면 입력을 그대로 둔다', async () => {
     vi.mocked(window.api.agent.start).mockResolvedValue({ ok: false, error: { code: 'BUSY', message: '바쁨' } });
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     submitTask('강남역 맛집');
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('바쁨'));
     expect(screen.getByRole('textbox', { name: '할 일' })).toHaveValue('강남역 맛집');
@@ -192,7 +199,7 @@ describe('AgentPanel', () => {
 
   it('끝난 뒤 [새 대화] 를 누르면 대화를 비운다', async () => {
     vi.mocked(window.api.agent.start).mockResolvedValue({ ok: true, data: { runId: 'run-1' } });
-    render(<AgentPanel />);
+    render(<PanelWithRun />);
     const resetButton = screen.getByRole('button', { name: '새 대화' });
     expect(resetButton).toBeDisabled();
     submitTask('할 일');
