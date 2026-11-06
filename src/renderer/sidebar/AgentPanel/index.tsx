@@ -6,9 +6,13 @@ import { ApprovalPanel } from '@/sidebar/ApprovalPanel';
 import { Conversation } from '@/sidebar/Conversation';
 import { QuestionCard } from '@/sidebar/QuestionCard';
 import { RunHistory } from '@/sidebar/RunHistory';
+import { Settings } from '@/sidebar/Settings';
 import { SidebarHeader } from '@/sidebar/SidebarHeader';
 
 import { TaskInput } from './TaskInput';
+
+/** 대화 자리에 보이는 것 — 기록·설정은 서로 배타 (spec 012 FR-1, spec 013 FR-1) */
+type TPanelView = 'conversation' | 'history' | 'settings';
 
 interface IAgentPanelProps {
   /** App 이 한 번 구독한 run 상태·동작 (spec 011 — 툴바 버튼과 같은 상태를 본다) */
@@ -23,17 +27,23 @@ interface IAgentPanelProps {
 
 /**
  * 에이전트 사이드바 본문 — 헤더(상태·실행 기록·새 대화)·대화(말풍선·턴)·승인 창·질문 카드·할 일 입력을 묶고 (spec 009),
- * [실행 기록]을 켜면 대화 자리에 기록 목록을 보인다 — 승인·질문 카드와 입력창은 그 아래에 그대로 (spec 012 FR-1).
+ * [실행 기록]·[설정]을 켜면 대화 자리에 기록 목록·설정 보기를 보인다 — 둘은 배타이고, 승인·질문 카드와 입력창은 그 아래에 그대로
+ * (spec 012 FR-1, spec 013 FR-1).
  * start/stop/approve/answer 실패는 main 의 메시지로 toast
  */
 export function AgentPanel({ run, accountSlot, onClose, onRequestHandled }: IAgentPanelProps) {
   const { runId, status, pendingApproval, pendingQuestion } = run;
   const [task, setTask] = useState('');
   const [isStarting, setIsStarting] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [view, setView] = useState<TPanelView>('conversation');
   const isBusy = isStarting || isRunActive(status);
   const canStop = runId !== null && !isStarting;
   const canReset = !isBusy && (runId !== null || run.pastTurnList.length > 0);
+
+  /** 같은 보기를 다시 누르면 대화로, 다른 보기면 그쪽으로 (배타 전환) */
+  const toggleView = (target: Exclude<TPanelView, 'conversation'>) =>
+    setView((current) => (current === target ? 'conversation' : target));
+  const showConversation = () => setView('conversation');
 
   const handleStart = async () => {
     setIsStarting(true);
@@ -77,18 +87,21 @@ export function AgentPanel({ run, accountSlot, onClose, onRequestHandled }: IAge
         status={status}
         canReset={canReset}
         onReset={run.reset}
-        isHistoryOpen={isHistoryOpen}
-        onToggleHistory={() => setIsHistoryOpen((value) => !value)}
+        isSettingsOpen={view === 'settings'}
+        onToggleSettings={() => toggleView('settings')}
+        isHistoryOpen={view === 'history'}
+        onToggleHistory={() => toggleView('history')}
         onClose={() => onClose?.()}
       />
       {accountSlot}
-      {isHistoryOpen ? (
+      {view === 'conversation' ? (
+        <Conversation pastTurnList={run.pastTurnList} currentTurn={run.currentTurn} footer={pendingCard || undefined} />
+      ) : (
         <>
-          <RunHistory onClose={() => setIsHistoryOpen(false)} />
+          {view === 'history' && <RunHistory onClose={showConversation} />}
+          {view === 'settings' && <Settings onClose={showConversation} />}
           {pendingCard && <div className="shrink-0 px-3 pb-2">{pendingCard}</div>}
         </>
-      ) : (
-        <Conversation pastTurnList={run.pastTurnList} currentTurn={run.currentTurn} footer={pendingCard || undefined} />
       )}
       <TaskInput
         task={task}
