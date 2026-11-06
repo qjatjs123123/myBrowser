@@ -60,6 +60,15 @@ function emitApproval(emit: (event: TAgentEvent) => void): void {
   });
 }
 
+/** main 이 판정한 toggleSidebar 단축키를 보낸다 — App·BrowserChrome 이 각각 구독하므로 모든 리스너에 */
+function pressToggleShortcut(): void {
+  const listenerList = vi.mocked(window.api.shortcut.onPressed).mock.calls.map(([listener]) => listener);
+  if (listenerList.length === 0) throw new Error('onPressed 가 구독되지 않았습니다');
+  act(() => {
+    for (const listener of listenerList) listener({ action: 'toggleSidebar' });
+  });
+}
+
 /** jsdom 에 없는 ResizeObserver 대역 — 콘텐츠 영역 bounds 훅이 쓴다 */
 class FakeResizeObserver {
   observe(): void {}
@@ -170,6 +179,56 @@ describe('App', () => {
       act(() => emit({ type: 'approval_resolved', runId: 'run-1', requestId: 'req-1', decision: 'denied' }));
       await waitFor(() => expect(getToggle()).toHaveAttribute('aria-pressed', 'true'));
       expect(getSidebarElement()).toBeVisible();
+    });
+  });
+
+  describe('단축키 토글·폭 조절 (spec 012)', () => {
+    it('toggleSidebar 단축키로 닫고 다시 연다', async () => {
+      await renderApp();
+      pressToggleShortcut();
+      expect(getSidebarElement()).not.toBeVisible();
+      expect(getToggle()).toHaveAttribute('aria-pressed', 'false');
+      pressToggleShortcut();
+      expect(getSidebarElement()).toBeVisible();
+      expect(getToggle()).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('승인 대기 중 단축키로 닫으면 숨겨지고 확인 필요 점이 생긴다', async () => {
+      await renderApp();
+      const emit = await startRun();
+      emitApproval(emit);
+      pressToggleShortcut();
+      expect(getSidebarElement()).not.toBeVisible();
+      expect(getToggle()).toHaveAccessibleDescription('확인 필요');
+    });
+
+    it('승인 대기 중 단축키로 닫기·열기를 해도 승인 결정을 보내지 않는다', async () => {
+      await renderApp();
+      const emit = await startRun();
+      emitApproval(emit);
+      pressToggleShortcut();
+      pressToggleShortcut();
+      expect(screen.getByRole('alertdialog', { name: '승인 필요' })).toBeVisible();
+      expect(window.api.agent.approve).not.toHaveBeenCalled();
+    });
+
+    it('폭 손잡이를 ← 로 조절하면 사이드바 폭 토큰이 바뀌고 저장된다', async () => {
+      await renderApp();
+      const handle = screen.getByRole('separator', { name: '사이드바 폭 조절' });
+      expect(handle).toHaveAttribute('aria-valuenow', '360');
+      fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+      expect(handle).toHaveAttribute('aria-valuenow', '376');
+      expect(getSidebarElement().style.getPropertyValue('--sidebar-width')).toBe('376px');
+      expect(JSON.parse(localStorage.getItem('mybrowser:layout') ?? 'null')).toEqual({
+        isSidebarOpen: true,
+        sidebarWidth: 376,
+      });
+    });
+
+    it('저장된 폭으로 사이드바를 그린다', async () => {
+      localStorage.setItem('mybrowser:layout', JSON.stringify({ isSidebarOpen: true, sidebarWidth: 500 }));
+      await renderApp();
+      expect(getSidebarElement().style.getPropertyValue('--sidebar-width')).toBe('500px');
     });
   });
 });
