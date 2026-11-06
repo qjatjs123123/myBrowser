@@ -26,4 +26,4 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
-      - run: MYBROWSER_FAKE_MODEL=1 xvfb-run -a pnpm test:e2e
+      - run: MYBROWSER_FAKE_MODEL=1 pnpm test:e2e  # scripts/e2eRun.ts 가 xvfb-run 으로 감싼다 (spec 008)
