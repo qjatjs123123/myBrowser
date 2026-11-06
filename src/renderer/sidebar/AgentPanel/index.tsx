@@ -5,6 +5,7 @@ import { toast } from '@/lib/toast';
 import { ApprovalPanel } from '@/sidebar/ApprovalPanel';
 import { Conversation } from '@/sidebar/Conversation';
 import { QuestionCard } from '@/sidebar/QuestionCard';
+import { RunHistory } from '@/sidebar/RunHistory';
 import { SidebarHeader } from '@/sidebar/SidebarHeader';
 
 import { TaskInput } from './TaskInput';
@@ -21,13 +22,15 @@ interface IAgentPanelProps {
 }
 
 /**
- * 에이전트 사이드바 본문 — 헤더(상태·새 대화)·대화(말풍선·턴)·승인 창·질문 카드·할 일 입력을 묶고 (spec 009),
+ * 에이전트 사이드바 본문 — 헤더(상태·실행 기록·새 대화)·대화(말풍선·턴)·승인 창·질문 카드·할 일 입력을 묶고 (spec 009),
+ * [실행 기록]을 켜면 대화 자리에 기록 목록을 보인다 — 승인·질문 카드와 입력창은 그 아래에 그대로 (spec 012 FR-1).
  * start/stop/approve/answer 실패는 main 의 메시지로 toast
  */
 export function AgentPanel({ run, accountSlot, onClose, onRequestHandled }: IAgentPanelProps) {
   const { runId, status, pendingApproval, pendingQuestion } = run;
   const [task, setTask] = useState('');
   const [isStarting, setIsStarting] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const isBusy = isStarting || isRunActive(status);
   const canStop = runId !== null && !isStarting;
   const canReset = !isBusy && (runId !== null || run.pastTurnList.length > 0);
@@ -70,9 +73,23 @@ export function AgentPanel({ run, accountSlot, onClose, onRequestHandled }: IAge
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <SidebarHeader status={status} canReset={canReset} onReset={run.reset} onClose={() => onClose?.()} />
+      <SidebarHeader
+        status={status}
+        canReset={canReset}
+        onReset={run.reset}
+        isHistoryOpen={isHistoryOpen}
+        onToggleHistory={() => setIsHistoryOpen((value) => !value)}
+        onClose={() => onClose?.()}
+      />
       {accountSlot}
-      <Conversation pastTurnList={run.pastTurnList} currentTurn={run.currentTurn} footer={pendingCard || undefined} />
+      {isHistoryOpen ? (
+        <>
+          <RunHistory onClose={() => setIsHistoryOpen(false)} />
+          {pendingCard && <div className="shrink-0 px-3 pb-2">{pendingCard}</div>}
+        </>
+      ) : (
+        <Conversation pastTurnList={run.pastTurnList} currentTurn={run.currentTurn} footer={pendingCard || undefined} />
+      )}
       <TaskInput
         task={task}
         isBusy={isBusy}
