@@ -4,7 +4,15 @@ import type { IPreventableEvent } from './electronTabView';
 
 /** [단축키] main 이 판정·실행하는 동작 — 메뉴 accelerator 대신 before-input-event 한 경로로 처리한다 */
 export type TShortcutAction =
-  'newTab' | 'closeTab' | 'focusAddressBar' | 'reload' | 'goBack' | 'goForward' | 'nextTab' | 'prevTab';
+  | 'newTab'
+  | 'closeTab'
+  | 'focusAddressBar'
+  | 'reload'
+  | 'goBack'
+  | 'goForward'
+  | 'nextTab'
+  | 'prevTab'
+  | 'toggleSidebar';
 
 /** before-input-event 의 input 중 판정에 필요한 부분 (Electron `Input` 과 호환) */
 export interface IShortcutInput {
@@ -51,6 +59,12 @@ const PRIMARY_KEY_ACTION: Readonly<Record<string, TShortcutAction>> = {
   tab: 'nextTab',
 };
 
+/** 주 수식키 + Shift + 키 — 이 밖의 Shift 조합(Ctrl+Shift+T 등)은 단축키가 아니다 */
+const PRIMARY_SHIFT_KEY_ACTION: Readonly<Record<string, TShortcutAction>> = {
+  tab: 'prevTab',
+  a: 'toggleSidebar',
+};
+
 /** Alt + 키 */
 const ALT_KEY_ACTION: Readonly<Record<string, TShortcutAction>> = {
   arrowleft: 'goBack',
@@ -59,7 +73,7 @@ const ALT_KEY_ACTION: Readonly<Record<string, TShortcutAction>> = {
 
 /**
  * [단축키 판정] 키 입력 → 동작. keyDown 만, darwin 은 Cmd·그 외 Ctrl 이 주 수식키.
- * 다른 수식키가 섞이면 null — 단 주 수식키+Shift+Tab 은 prevTab.
+ * 다른 수식키가 섞이면 null — 단 주 수식키+Shift+Tab 은 prevTab, +Shift+A 는 toggleSidebar.
  */
 export function toShortcutAction(input: IShortcutInput, platform: NodeJS.Platform): TShortcutAction | null {
   if (input.type !== 'keyDown') return null;
@@ -70,7 +84,7 @@ export function toShortcutAction(input: IShortcutInput, platform: NodeJS.Platfor
   if (isOtherModifier) return null;
   if (input.alt) return isPrimary || input.shift ? null : (ALT_KEY_ACTION[key] ?? null);
   if (!isPrimary) return null;
-  if (input.shift) return key === 'tab' ? 'prevTab' : null;
+  if (input.shift) return PRIMARY_SHIFT_KEY_ACTION[key] ?? null;
   return PRIMARY_KEY_ACTION[key] ?? null;
 }
 
@@ -83,7 +97,10 @@ export function createShortcutRunner(options: IShortcutRunnerOptions): TShortcut
   return (action) => actionMap[action]();
 }
 
-/** 크롬(renderer) 쪽으로 포커스를 옮기는 동작 — 새 탭은 시작 화면 검색창, 그 외는 주소창 */
+/**
+ * 크롬(renderer) 쪽 동작 — 새 탭은 시작 화면 검색창, 주소창 포커스, 사이드바 토글.
+ * toggleSidebar 는 탭·포커스를 건드리지 않고 renderer 에 알리기만 한다 (패널 상태는 renderer 가 들고 있다)
+ */
 function createFocusActions({ tabManager, emitShortcut, focusChrome }: IShortcutRunnerOptions) {
   return {
     newTab: () => {
@@ -95,6 +112,7 @@ function createFocusActions({ tabManager, emitShortcut, focusChrome }: IShortcut
       focusChrome();
       emitShortcut('focusAddressBar');
     },
+    toggleSidebar: () => emitShortcut('toggleSidebar'),
   };
 }
 

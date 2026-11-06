@@ -53,6 +53,10 @@ const api: IApi = {
     toggleMaximize: () => ipcRenderer.invoke(IPC.window.toggleMaximize),
     close: () => ipcRenderer.invoke(IPC.window.close),
   },
+  runs: {
+    list: () => ipcRenderer.invoke(IPC.runs.list),
+    get: (req) => ipcRenderer.invoke(IPC.runs.get, req),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

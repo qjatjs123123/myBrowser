@@ -50,6 +50,22 @@ describe('toShortcutAction', () => {
   it('Ctrl+Shift+T 는 null 이다 (Shift 는 Tab 에만)', () => {
     expect(toShortcutAction(key({ key: 'T', control: true, shift: true }), 'linux')).toBeNull();
   });
+
+  it('Ctrl+Shift+A 는 toggleSidebar 이다', () => {
+    expect(toShortcutAction(key({ key: 'A', control: true, shift: true }), 'linux')).toBe('toggleSidebar');
+  });
+
+  it('darwin 에서는 Cmd+Shift+A 가 toggleSidebar 이다', () => {
+    expect(toShortcutAction(key({ key: 'a', meta: true, shift: true }), 'darwin')).toBe('toggleSidebar');
+  });
+
+  it('Shift 없는 Ctrl+A 는 단축키가 아니다 (페이지 전체 선택 유지)', () => {
+    expect(toShortcutAction(key({ key: 'a', control: true }), 'linux')).toBeNull();
+  });
+
+  it.each(['t', 'l', 'w', 'r', 'b'])('Ctrl+Shift+%s 처럼 다른 키는 null 이다', (k) => {
+    expect(toShortcutAction(key({ key: k, control: true, shift: true }), 'linux')).toBeNull();
+  });
 });
 
 function setupRunner(activeTabId: string | null = 'tab-1') {
@@ -82,6 +98,14 @@ describe('createShortcutRunner', () => {
     runner('focusAddressBar');
     expect(focusChrome).toHaveBeenCalledTimes(1);
     expect(emitShortcut).toHaveBeenCalledWith('focusAddressBar');
+  });
+
+  it('toggleSidebar 는 toggleSidebar 만 보내고 탭·크롬 포커스는 건드리지 않는다', () => {
+    const { runner, tabManager, emitShortcut, focusChrome } = setupRunner();
+    runner('toggleSidebar');
+    expect(emitShortcut.mock.calls).toEqual([['toggleSidebar']]);
+    expect(focusChrome).not.toHaveBeenCalled();
+    expect(Object.values(tabManager).filter((fn) => vi.mocked(fn).mock.calls.length > 0)).toEqual([]);
   });
 
   it.each([
