@@ -333,4 +333,77 @@ describe('AgentPanel', () => {
       expect(screen.getByText('아직 실행 기록이 없습니다')).toBeInTheDocument();
     });
   });
+  describe('[설정] 전환 (spec 013)', () => {
+    const EMPTY_CONVERSATION_TEXT = '할 일을 입력하면 여기에 진행 상황이 표시됩니다';
+
+    /** 스킬 목록 응답(빈 목록)을 주고 [설정] 을 누른다 */
+    async function openSettings(): Promise<void> {
+      vi.mocked(window.api.skills.list).mockResolvedValue({ ok: true, data: { skillList: [] } });
+      fireEvent.click(screen.getByRole('button', { name: '설정' }));
+      await screen.findByText('아직 스킬이 없습니다');
+    }
+
+    it('[설정] 을 누르면 대화 자리에 설정 보기가 보이고 입력창은 그대로 있다', async () => {
+      render(<PanelWithRun />);
+      await openSettings();
+      expect(screen.getByRole('region', { name: '설정' })).toBeInTheDocument();
+      expect(screen.queryByText(EMPTY_CONVERSATION_TEXT)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '설정' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('textbox', { name: '할 일' })).toBeInTheDocument();
+    });
+
+    it('[설정] 을 다시 누르면 대화로 돌아온다', async () => {
+      render(<PanelWithRun />);
+      await openSettings();
+      fireEvent.click(screen.getByRole('button', { name: '설정' }));
+      expect(screen.queryByRole('region', { name: '설정' })).not.toBeInTheDocument();
+      expect(screen.getByText(EMPTY_CONVERSATION_TEXT)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '설정' })).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('설정 보기에서 [대화로 돌아가기] 를 누르면 대화로 돌아온다', async () => {
+      render(<PanelWithRun />);
+      await openSettings();
+      fireEvent.click(screen.getByRole('button', { name: '대화로 돌아가기' }));
+      expect(screen.getByText(EMPTY_CONVERSATION_TEXT)).toBeInTheDocument();
+    });
+
+    it('설정을 보는 중에 [실행 기록] 을 누르면 설정은 꺼지고 기록이 보인다', async () => {
+      render(<PanelWithRun />);
+      await openSettings();
+      vi.mocked(window.api.runs.list).mockResolvedValue({ ok: true, data: { runList: [] } });
+      fireEvent.click(screen.getByRole('button', { name: '실행 기록' }));
+      expect(await screen.findByText('아직 실행 기록이 없습니다')).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: '설정' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '설정' })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('button', { name: '실행 기록' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('기록을 보는 중에 [설정] 을 누르면 기록은 꺼지고 설정이 보인다', async () => {
+      render(<PanelWithRun />);
+      vi.mocked(window.api.runs.list).mockResolvedValue({ ok: true, data: { runList: [] } });
+      fireEvent.click(screen.getByRole('button', { name: '실행 기록' }));
+      await screen.findByText('아직 실행 기록이 없습니다');
+      await openSettings();
+      expect(screen.queryByText('아직 실행 기록이 없습니다')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '실행 기록' })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('button', { name: '설정' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('열 때마다 스킬 목록을 새로 읽는다', async () => {
+      render(<PanelWithRun />);
+      await openSettings();
+      fireEvent.click(screen.getByRole('button', { name: '대화로 돌아가기' }));
+      await openSettings();
+      expect(window.api.skills.list).toHaveBeenCalledTimes(2);
+    });
+
+    it('설정을 보는 중에도 승인 카드가 입력창 위에 보인다', async () => {
+      await startRun();
+      await openSettings();
+      emitApprovalWait();
+      expect(screen.getByRole('alertdialog', { name: '승인 필요' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: '설정' })).toBeInTheDocument();
+    });
+  });
 });

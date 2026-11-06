@@ -2,7 +2,14 @@
  * [IPC 봉투] 모든 invoke 응답의 공통 모양 — renderer 는 ok 로 분기하고 message 를 그대로 사용자에게 보여준다.
  * 규칙: .claude/rules/electron/ipc.md 「봉투」
  */
-export type TIpcErrorCode = 'INVALID_INPUT' | 'NOT_FOUND' | 'BUSY' | 'AGENT_ERROR' | 'INTERNAL';
+export type TIpcErrorCode =
+  | 'INVALID_INPUT'
+  | 'NOT_FOUND'
+  | 'CONFLICT'
+  | 'LIMIT'
+  | 'BUSY'
+  | 'AGENT_ERROR'
+  | 'INTERNAL';
 
 export interface IIpcError {
   code: TIpcErrorCode;

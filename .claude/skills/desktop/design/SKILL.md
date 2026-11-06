@@ -38,6 +38,7 @@ description: 화면(크롬형 상단바·탭·주소창, 에이전트 사이드�
 - **에이전트 패널 열기·닫기 (Edge형, spec 011)**: 탭 줄·툴바는 창 전체 폭, 툴바 오른쪽 끝 [✻ 에이전트] 알약 버튼(`aria-pressed` = 패널 보임). 그 아래 [탭 콘텐츠 | 패널]. 패널 헤더(44px, 드래그 아님)의 ✕ 로 닫는다. 닫아도 언마운트하지 않고 `hidden` — run·대화·입력 유지. **승인·질문이 오면 닫혀 있어도 자동으로 보이고**(렌더 중 계산 — 거부 포커스 유지), 사용자가 다시 닫으면 버튼에 `--warning` 점·`aria-description="확인 필요"`. 열림 상태는 `localStorage` `mybrowser:layout`.
 - **폭 조절·단축키 (spec 012)**: 패널 왼쪽 가장자리 손잡이(`role=separator`, 300~640px, ←/→ 16px)로 폭을 바꾸고 `mybrowser:layout.sidebarWidth` 에 기억. Ctrl+Shift+A(mac Cmd+Shift+A)로 [에이전트] 와 같은 토글.
 - **실행 기록 (spec 012)**: 패널 헤더 [실행 기록](History) → 대화 자리에 최근 50개 목록 → 줄을 누르면 말풍선·에이전트 턴으로 읽기 전용 보기. 실행·승인 버튼 없음, 도구 입력값 원문 없음.
+- **설정 (spec 013)**: 패널 헤더 [설정](Settings, [실행 기록] 왼쪽, 서로 배타) → 대화 자리에 설정 보기. 섹션 `스킬` — 줄마다 이름·설명·켜기 스위치·편집·삭제(AlertDialog, 기본 포커스 취소). 편집 폼은 이름·설명·내용 + 글자 수 + "민감 정보는 적지 마세요" 안내. 섹션 틀은 나중 섹션을 붙일 자리.
 - 신호등: macOS 는 네이티브(`hiddenInset`, 72px 자리만 비움), Linux·Windows 는 `chrome/WindowControls` 가 닫기·최소화·최대화 원(12px, `--traffic-*` 토큰)을 그리고 `window:*` IPC 로 동작. 묶음 hover 시 ×·−·+.
 - 상단 크롬 높이는 탭 줄 36px + 주소창 줄 40px. 사이드바는 오른쪽 360px, [에이전트] 버튼으로 토글.
 - 탭 영역의 크기는 main 이 `WebContentsView.setBounds` 로 맞춘다 — renderer 는 자기 레이아웃만 그리고 크기 변화를 IPC 로 알린다.

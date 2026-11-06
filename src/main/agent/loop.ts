@@ -42,6 +42,8 @@ export interface IRunAgentLoopOptions {
   model: string;
   tools: TRunnableTool[];
   systemPrompt: string;
+  /** 켜진 스킬 블록 (spec 013) — 있으면 cache_control 없는 system 두 번째 블록으로 붙인다 */
+  skillSection?: string | null;
   firstUserMessage: string;
   signal: AbortSignal;
   /** 없으면 DEFAULT_MODEL_REQUEST */
@@ -85,6 +87,7 @@ function createRunner({
   model,
   tools,
   systemPrompt,
+  skillSection,
   firstUserMessage,
   signal,
   request = DEFAULT_MODEL_REQUEST,
@@ -95,7 +98,7 @@ function createRunner({
       max_tokens: MAX_TOKENS,
       stream: true,
       thread: false,
-      system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+      system: toSystemBlockList(systemPrompt, skillSection),
       tools,
       messages: [{ role: 'user', content: firstUserMessage }],
       output_config: { effort: 'high' },
@@ -105,6 +108,14 @@ function createRunner({
     },
     { signal },
   );
+}
+
+/** 고정 블록만 cache_control — 스킬 블록은 캐시 prefix 뒤에 둔다 (FR-10) */
+function toSystemBlockList(systemPrompt: string, skillSection: string | null | undefined) {
+  return [
+    { type: 'text' as const, text: systemPrompt, cache_control: { type: 'ephemeral' as const } },
+    ...(skillSection ? [{ type: 'text' as const, text: skillSection }] : []),
+  ];
 }
 
 function checkStopReason(message: BetaMessage): TLoopOutcome | null {

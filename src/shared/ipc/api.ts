@@ -12,6 +12,12 @@ import type { TIpcResult } from './result';
 import type { TRunGetRequest, TRunGetResponse, TRunListResponse } from './runs';
 import type { TShortcutPressedEvent } from './shortcut';
 import type {
+  TSkillCreateRequest,
+  TSkillDeleteRequest,
+  TSkillListResponse,
+  TSkillUpdateRequest,
+} from './skills';
+import type {
   TCreateTabRequest,
   TCreateTabResponse,
   TListTabsResponse,
@@ -74,5 +80,12 @@ export interface IApi {
   runs: {
     list: () => Promise<TIpcResult<TRunListResponse>>;
     get: (req: TRunGetRequest) => Promise<TIpcResult<TRunGetResponse>>;
+  };
+  /** 에이전트 스킬 (spec 013) — 모든 응답은 만든 순서의 최신 목록 */
+  skills: {
+    list: () => Promise<TIpcResult<TSkillListResponse>>;
+    create: (req: TSkillCreateRequest) => Promise<TIpcResult<TSkillListResponse>>;
+    update: (req: TSkillUpdateRequest) => Promise<TIpcResult<TSkillListResponse>>;
+    delete: (req: TSkillDeleteRequest) => Promise<TIpcResult<TSkillListResponse>>;
   };
 }

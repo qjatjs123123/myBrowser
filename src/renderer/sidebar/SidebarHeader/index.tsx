@@ -1,4 +1,4 @@
-import { History, Plus, X } from 'lucide-react';
+import { History, Plus, Settings, X } from 'lucide-react';
 
 import type { TRunStatus } from '@shared/agent/run';
 
@@ -12,6 +12,10 @@ interface ISidebarHeaderProps {
   /** 실행·대기 중이 아니고 비울 대화가 있을 때만 */
   canReset: boolean;
   onReset: () => void;
+  /** 대화 자리에 설정 보기가 보이는 중인가 (spec 013 FR-1) */
+  isSettingsOpen: boolean;
+  /** [설정] — 대화 ↔ 설정 전환 */
+  onToggleSettings: () => void;
   /** 대화 자리에 실행 기록이 보이는 중인가 (spec 012 FR-1) */
   isHistoryOpen: boolean;
   /** [실행 기록] — 대화 ↔ 기록 전환 */
@@ -20,11 +24,16 @@ interface ISidebarHeaderProps {
   onClose: () => void;
 }
 
-/** 패널 맨 위 줄 — 제목 + 현재 상태 배지 + [실행 기록] + [새 대화] + [사이드바 닫기] (spec 009 FR-4·5, spec 011 FR-3·8, spec 012 FR-1) */
+/**
+ * 패널 맨 위 줄 — 제목 + 현재 상태 배지 + [설정] + [실행 기록] + [새 대화] + [사이드바 닫기]
+ * (spec 009 FR-4·5, spec 011 FR-3·8, spec 012 FR-1, spec 013 FR-1)
+ */
 export function SidebarHeader({
   status,
   canReset,
   onReset,
+  isSettingsOpen,
+  onToggleSettings,
   isHistoryOpen,
   onToggleHistory,
   onClose,
@@ -36,11 +45,22 @@ export function SidebarHeader({
       <Button
         variant="ghost"
         size="icon-sm"
+        aria-label="설정"
+        aria-pressed={isSettingsOpen}
+        title="설정"
+        onClick={onToggleSettings}
+        className={cn('ml-auto text-muted-foreground', isSettingsOpen && 'bg-muted text-foreground')}
+      >
+        <Settings />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
         aria-label="실행 기록"
         aria-pressed={isHistoryOpen}
         title="실행 기록"
         onClick={onToggleHistory}
-        className={cn('ml-auto text-muted-foreground', isHistoryOpen && 'bg-muted text-foreground')}
+        className={cn('text-muted-foreground', isHistoryOpen && 'bg-muted text-foreground')}
       >
         <History />
       </Button>

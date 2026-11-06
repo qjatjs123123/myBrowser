@@ -13,6 +13,7 @@ import { AccountStatusSchema } from '@shared/ipc/account';
 import { IPC } from '@shared/ipc/channels';
 import { ShortcutPressedEventSchema } from '@shared/ipc/shortcut';
 import { TabsChangedEventSchema } from '@shared/ipc/tabs';
+import type { ISkillStore } from '@shared/ipc/skills';
 
 import { createAccountService, createGatewayClient, sleepWithSignal, type IAccountService } from './account';
 import { createModelProfile, type IModelProfile } from './agent/profiles';
@@ -31,12 +32,14 @@ import { createAccountHandlers } from './ipc/handlers/account';
 import { createAgentHandlers } from './ipc/handlers/agent';
 import { createAppHandlers } from './ipc/handlers/app';
 import { createRunsHandlers } from './ipc/handlers/runs';
+import { createSkillsHandlers } from './ipc/handlers/skills';
 import { createWindowHandlers } from './ipc/handlers/window';
 import { createTabsHandlers } from './ipc/handlers/tabs';
 import { registerIpc } from './ipc/registry';
 import { log } from './log';
 import { openDatabase } from './store/db';
 import { createRunHistoryRepo } from './store/repos/runHistory';
+import { createSkillRepo } from './store/repos/skills';
 import { createRunRepo } from './store/repos/runs';
 import { createElectronTabView } from './tabs/electronTabView';
 import { attachShortcuts, createShortcutInputHandler, createShortcutRunner } from './tabs/shortcuts';
@@ -92,7 +95,9 @@ function startBrowser(): void {
   accountService = createAccountRuntime(tabManager, emitToSidebar);
   const runDatabase = openDatabase(join(app.getPath('userData'), DATABASE_FILE_NAME));
   database = runDatabase;
-  agentService = createAgentRuntime({ tabManager, emitToSidebar, account: accountService, runDatabase });
+  // 핸들러와 에이전트가 같은 저장소를 쓴다 — 저장 직후 다음 run 에 반영 (spec 013)
+  const skillRepo = createSkillRepo(runDatabase, { now: () => new Date(), createId: randomUUID });
+  agentService = createAgentRuntime({ tabManager, emitToSidebar, account: accountService, runDatabase, skills: skillRepo });
   registerIpc(ipcMain, {
     ...createAppHandlers({ getName: () => app.getName(), getVersion: () => app.getVersion(), mode: env.mode }),
     ...createTabsHandlers(tabManager),
@@ -100,6 +105,7 @@ function startBrowser(): void {
     ...createAccountHandlers(accountService),
     ...createWindowHandlers(createWindowControls(window)),
     ...createRunsHandlers(createRunHistoryRepo(runDatabase)),
+    ...createSkillsHandlers(skillRepo),
   });
   tabManager.createTab();
 }
@@ -181,10 +187,12 @@ interface IAgentRuntimeDeps {
   account: IAccountService;
   /** runs·steps 저장 DB — 실행 기록 조회(runs:*)와 같은 연결을 쓴다 (spec 012) */
   runDatabase: ReturnType<typeof openDatabase>;
+  /** 켜진 스킬 — run 시작 때 시스템 프롬프트 두 번째 블록으로 (spec 013) */
+  skills: Pick<ISkillStore, 'listEnabled'>;
 }
 
 /** 에이전트 실행 서비스 조립 — 저장소·탭 포트·드라이버·모델 클라이언트·이벤트 발신 */
-function createAgentRuntime({ tabManager, emitToSidebar, account, runDatabase }: IAgentRuntimeDeps) {
+function createAgentRuntime({ tabManager, emitToSidebar, account, runDatabase, skills }: IAgentRuntimeDeps) {
   const tabsPort: ITabsPort = {
     list: () => tabManager.getSnapshot(),
     activate: (id) => tabManager.activateTab(id),
@@ -199,6 +207,7 @@ function createAgentRuntime({ tabManager, emitToSidebar, account, runDatabase }:
       return createBrowserDriver({ tabs: tabsPort, cdp, startTabId });
     },
     runStore: createRunRepo(runDatabase),
+    skills,
     emit: (event) => emitToSidebar(IPC.agent.event, AgentEventSchema, event),
     now: () => new Date(),
     createId: randomUUID,

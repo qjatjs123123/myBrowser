@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -24,19 +25,24 @@ describe('openDatabase', () => {
     expect(MIGRATION_LIST[0]?.sql).toContain('CREATE TABLE runs');
   });
 
-  it(':memory: 로 열면 user_version 이 1 이 된다', () => {
+  it('MIGRATION_LIST 의 버전 2 는 skills 생성문을 담는다', () => {
+    expect(MIGRATION_LIST[1]).toMatchObject({ version: 2 });
+    expect(MIGRATION_LIST[1]?.sql).toContain('CREATE TABLE skills');
+  });
+
+  it(':memory: 로 열면 user_version 이 2 가 된다', () => {
     const db = openDatabase(':memory:');
-    expect(db.prepare('PRAGMA user_version').get()).toEqual({ user_version: 1 });
+    expect(db.prepare('PRAGMA user_version').get()).toEqual({ user_version: 2 });
     db.close();
   });
 
-  it(':memory: 로 열면 runs·steps 테이블이 생긴다', () => {
+  it(':memory: 로 열면 runs·skills·steps 테이블이 생긴다', () => {
     const db = openDatabase(':memory:');
     const tableList = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all()
       .map((row) => row['name']);
-    expect(tableList).toEqual(['runs', 'steps']);
+    expect(tableList).toEqual(['runs', 'skills', 'steps']);
     db.close();
   });
 
@@ -65,8 +71,25 @@ describe('openDatabase', () => {
     firstDb.close();
 
     const secondDb = openDatabase(path);
-    expect(secondDb.prepare('PRAGMA user_version').get()).toEqual({ user_version: 1 });
+    expect(secondDb.prepare('PRAGMA user_version').get()).toEqual({ user_version: 2 });
     expect(secondDb.prepare('SELECT COUNT(*) AS count FROM runs').get()).toEqual({ count: 1 });
     secondDb.close();
+  });
+
+  it('버전 1 DB 를 열면 버전 2 만 이어서 적용하고 기존 runs 는 남는다', () => {
+    const path = createTempDbPath();
+    const legacyDb = new DatabaseSync(path);
+    legacyDb.exec(MIGRATION_LIST[0]?.sql ?? '');
+    legacyDb.exec('PRAGMA user_version = 1');
+    legacyDb
+      .prepare(`INSERT INTO runs (id, task, status, created_at) VALUES (?, ?, ?, ?)`)
+      .run('run-1', '예약해줘', 'done', '2026-11-05T00:00:00.000Z');
+    legacyDb.close();
+
+    const db = openDatabase(path);
+    expect(db.prepare('PRAGMA user_version').get()).toEqual({ user_version: 2 });
+    expect(db.prepare('SELECT COUNT(*) AS count FROM runs').get()).toEqual({ count: 1 });
+    expect(db.prepare('SELECT COUNT(*) AS count FROM skills').get()).toEqual({ count: 0 });
+    db.close();
   });
 });
