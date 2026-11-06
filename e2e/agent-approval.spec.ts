@@ -138,3 +138,38 @@ test.describe('픽셀 확정 버튼', () => {
     expect(await readLog(app, 'pixel-confirm.html', '__clickLog')).toEqual([]);
   });
 });
+
+test.describe('픽셀 입력 (spec 008)', () => {
+  test.use({ fakeScenario: 'pixel-type' });
+
+  /** 이름 없는 칸 클릭 승인을 통과시키고 입력 승인 창을 기다린다 — 그때까지 입력은 0 이어야 한다 */
+  async function reachTypeApproval(app: ElectronApplication, win: Page): Promise<Locator> {
+    await runTask(win, '검색칸에 강남역 입력해줘');
+    const clickPanel = await waitForApproval(win);
+    await expect(clickPanel).toContainText('요소를 확인할 수 없음');
+    await clickPanel.getByRole('button', { name: '에이전트가 누르기' }).click();
+    const typePanel = getSidebar(win).getByRole('alertdialog', { name: '승인 필요' });
+    await expect(typePanel).toContainText('이름 없는 입력칸');
+    expect(await readLog(app, 'pixel-type.html', '__inputLog')).toEqual([]);
+    return typePanel;
+  }
+
+  test('이름 없는 칸에 픽셀로 입력하려면 승인을 받고, 거부하면 입력하지 않는다', async ({ app, win, fixtureUrl }) => {
+    await openInActiveTab(win, fixtureUrl('pixel-type.html'), '이름 없는 입력칸');
+    const panel = await reachTypeApproval(app, win);
+    await panel.getByRole('button', { name: '거부' }).click();
+
+    await expect(getStatus(win)).toHaveText('완료');
+    expect(await readLog(app, 'pixel-type.html', '__inputLog')).toEqual([]);
+    await expect((await findTabPage(app, 'pixel-type.html')).locator('#field')).toHaveValue('');
+  });
+
+  test('입력 승인에서 에이전트가 누르기를 고르면 그 칸에 입력한다', async ({ app, win, fixtureUrl }) => {
+    await openInActiveTab(win, fixtureUrl('pixel-type.html'), '이름 없는 입력칸');
+    const panel = await reachTypeApproval(app, win);
+    await panel.getByRole('button', { name: '에이전트가 누르기' }).click();
+
+    await expect(getStatus(win)).toHaveText('완료');
+    await expect((await findTabPage(app, 'pixel-type.html')).locator('#field')).toHaveValue('강남역');
+  });
+});

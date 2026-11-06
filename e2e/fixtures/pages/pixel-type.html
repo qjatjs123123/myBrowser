@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>이름 없는 입력칸</title>
+    <style>
+      body { margin: 0; }
+      #field { position: absolute; left: 40px; top: 40px; width: 200px; height: 40px; }
+    </style>
+  </head>
+  <body>
+    <!-- label·placeholder·aria 가 없는 입력칸 — 픽셀 type 은 무엇을 채우는지 알 수 없어 칸마다 승인을 받아야 한다 (spec 008) -->
+    <input id="field" type="text" />
+    <script>
+      window.__inputLog = [];
+      document.getElementById('field').addEventListener('input', (event) => window.__inputLog.push(event.target.value));
+    </script>
+  </body>
+</html>
