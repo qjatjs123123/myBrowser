@@ -42,7 +42,7 @@ Electron 45 · electron-vite 6 · Vite 8 · React 19.3 · Tailwind 4.3 · Zod 4 
 └────────────────────────────────┘
 ```
 
-- 모델 호출 경로 (spec 005, `env.modelMode`): `fake`(e2e) / `direct`(dev — `.env` 키 → api.anthropic.com, `.env` 에 `ANTHROPIC_BASE_URL` 이 있으면 그 프록시로 — spec 006, 개발 전용·다른 모드는 무시) / `gateway`(설치판 — 기기 토큰 → `mybrowser-gateway` → Anthropic). 기기 토큰은 `account/` 모듈이 기기 코드 방식(구매 탭 + 폴링)으로 받아 `app/credentialStore.ts`(safeStorage)에 둔다. 원격 디버깅은 항상 127.0.0.1, 설치판 기본 port 0.
+- 모델 호출 경로 = **모델 프로필(전략)** (spec 007, `env.profileKind` → `agent/profiles/` 의 `IModelProfile`: 클라이언트·모델 id·요청 옵션·도구 구성 한 묶음). `fake`(`MYBROWSER_FAKE_MODEL=1` — e2e) / `dev`(사내 GenAI 프록시 — `.env` 의 `ANTHROPIC_API_KEY` + 필수 `ANTHROPIC_BASE_URL`, 기본 모델 `bedrock.anthropic.claude-opus-5-5`, 프록시 비호환이라 computer toolset·`fallbacks`·server-side-fallback 베타를 보내지 않는다) / `prod`(Claude API 비즈니스 — 기기 토큰 → `mybrowser-gateway` → Anthropic, 전체 옵션). 판정: fake → 설치판은 항상 prod → 개발 실행은 `MYBROWSER_PROFILE=dev|prod` **필수**(없으면 시작 실패). 콘솔 키 직접 호출(direct)은 없앴다 (spec 007). 기기 토큰은 `account/` 모듈이 기기 코드 방식(구매 탭 + 폴링)으로 받아 `app/credentialStore.ts`(safeStorage)에 둔다. 원격 디버깅은 항상 127.0.0.1, 설치판 기본 port 0.
 - 에이전트 루프는 **main 프로세스**에서 돈다 (1차). 무거워지면 `utilityProcess` 로 분리.
 - 렌더러는 Node 접근 금지(`contextIsolation: true`, `nodeIntegration: false`), 모든 통신은 preload 의 타입 API.
 - 사이드바 UI 와 탭은 같은 창 안의 별도 View 라 사용자 조작과 에이전트 조작이 한 화면에서 보인다.
