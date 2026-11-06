@@ -5,28 +5,7 @@
 import type { ElectronApplication, Locator, Page } from '@playwright/test';
 
 import { expect, findTabPage, test } from './fixtures';
-
-/** 주소창으로 활성 탭을 픽스처로 옮기고 탭 제목이 바뀔 때까지 기다린다 */
-async function openInActiveTab(win: Page, url: string, title: string): Promise<void> {
-  const addressBar = win.getByRole('combobox', { name: '주소창' });
-  // 앱 시작 직후 포커스·값 동기화와 겹쳐 글자가 섞이는 경합을 피한다 (browser-chrome.spec 과 같은 순서 + 값 확인)
-  await addressBar.click();
-  await addressBar.fill(url);
-  await expect(addressBar).toHaveValue(url);
-  await addressBar.press('Enter');
-  await expect(win.getByRole('tab', { name: title })).toBeVisible();
-}
-
-/** 사이드바 영역 — 크롬 버튼과 섞이지 않게 이 안에서만 찾는다 */
-function getSidebar(win: Page): Locator {
-  return win.getByRole('complementary', { name: '에이전트 사이드바' });
-}
-
-async function runTask(win: Page, task: string): Promise<void> {
-  const sidebar = getSidebar(win);
-  await sidebar.getByRole('textbox', { name: '할 일' }).fill(task);
-  await sidebar.getByRole('button', { name: '작업 실행' }).click();
-}
+import { getSidebar, openInActiveTab, runTask } from './helpers';
 
 /** 승인 창이 떠 있을 때까지 기다려 돌려준다 */
 async function waitForApproval(win: Page): Promise<Locator> {

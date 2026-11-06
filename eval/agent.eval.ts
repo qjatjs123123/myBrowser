@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import type { ElectronApplication, Locator, Page } from '@playwright/test';
 
 import { expect, test, type TAppEnv } from '../e2e/fixtures';
+import { getSidebar, openInActiveTab as openWithTitle, runTask } from '../e2e/helpers';
 import { EVAL_REAL_ENV } from './cliArgs';
 import { DB_FILE_NAME, isPassed, readRunMetrics, type TEvalResult } from './report';
 import { EVAL_SCENARIO_LIST, type IEvalScenario, type TApprovalAnswer } from './scenarios';
@@ -96,31 +97,15 @@ function collectResult({
   };
 }
 
-function getSidebar(win: Page): Locator {
-  return win.getByRole('complementary', { name: '에이전트 사이드바' });
-}
-
 /** 주소창으로 활성 탭을 픽스처로 옮기고 탭 제목이 바뀔 때까지 기다린다 (e2e/agent-*.spec.ts 와 같은 순서) */
 async function openInActiveTab(win: Page, url: string): Promise<void> {
-  const title = await getPageTitle(win, url);
-  const addressBar = win.getByRole('combobox', { name: '주소창' });
-  await addressBar.click();
-  await addressBar.fill(url);
-  await expect(addressBar).toHaveValue(url);
-  await addressBar.press('Enter');
-  await expect(win.getByRole('tab', { name: title })).toBeVisible();
+  await openWithTitle(win, url, await getPageTitle(win, url));
 }
 
 /** 픽스처의 <title> — 파일을 바꿔도 따라가게 서버에서 읽는다 */
 async function getPageTitle(win: Page, url: string): Promise<string> {
   const response = await win.request.get(url);
   return /<title>([^<]+)<\/title>/.exec(await response.text())?.[1] ?? '';
-}
-
-async function runTask(win: Page, task: string): Promise<void> {
-  const sidebar = getSidebar(win);
-  await sidebar.getByRole('textbox', { name: '할 일' }).fill(task);
-  await sidebar.getByRole('button', { name: '작업 실행' }).click();
 }
 
 /** 끝 상태가 될 때까지 승인 창·질문 카드에 답한다 — 답한 승인 창 수를 돌려준다 (시간 상한은 테스트 timeout) */

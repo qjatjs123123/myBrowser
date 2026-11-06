@@ -5,9 +5,12 @@ import { z } from 'zod';
  * 키는 snake_case, 시각은 UTC `Z` 형식. 앱은 모든 응답을 이 스키마로 검증한다.
  */
 
+/** 기기 이름 최대 길이 — 앱이 hostname 을 이 길이로 자른다 (게이트웨이 계약) */
+export const DEVICE_NAME_MAX_LENGTH = 64;
+
 /** [POST /v1/activations] 요청 본문 */
 export const CreateActivationRequestSchema = z.strictObject({
-  device_name: z.string().min(1).max(64),
+  device_name: z.string().min(1).max(DEVICE_NAME_MAX_LENGTH),
 });
 
 /** [POST /v1/activations] 201 data */

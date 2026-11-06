@@ -13,7 +13,8 @@ import type {
 } from '@shared/tools';
 
 import * as actions from './actions';
-import { ActionError, DEFAULT_TIMEOUT_MS, toActionFailure, type IActionOptions } from './actions';
+import { ActionError, toActionFailure, type IActionOptions } from './actions';
+import { DEFAULT_TIMEOUT_MS } from './browserConstants';
 import { clearHighlight, getRefCenter, showCursor, showHighlight } from './overlay';
 import * as pointer from './pointer';
 import { takeScreenshot } from './screenshot';

@@ -9,12 +9,8 @@ import { join } from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
+import { getSidebar, runTask } from './helpers';
 import { type IFakeGateway, type TFakeMessagesStatus, startFakeGateway } from './fixtures/gateway';
-
-/** 사이드바 영역 */
-function getSidebar(win: Page): Locator {
-  return win.getByRole('complementary', { name: '에이전트 사이드바' });
-}
 
 function getAccountCard(win: Page): Locator {
   return getSidebar(win).getByRole('region', { name: '계정' });
@@ -37,12 +33,6 @@ async function activate(win: Page): Promise<void> {
   await expect(card).toContainText('구매 페이지에서 결제를 마치면 자동으로 연결됩니다');
   await expect(win.getByRole('tab', { name: '가짜 구독 결제' })).toBeVisible();
   await expect(card).toContainText('크레딧 1000', { timeout: 15_000 });
-}
-
-async function runTask(win: Page, task: string): Promise<void> {
-  const sidebar = getSidebar(win);
-  await sidebar.getByRole('textbox', { name: '할 일' }).fill(task);
-  await sidebar.getByRole('button', { name: '작업 실행' }).click();
 }
 
 /** 테스트마다 새 가짜 게이트웨이 + 임시 프로필 */
