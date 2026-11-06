@@ -2,6 +2,7 @@
  * [모델 클라이언트] 실제 Anthropic SDK 클라이언트 또는 가짜 fetch 를 단 같은 SDK 클라이언트를 만든다.
  * 가짜도 SDK toolRunner·스트림 파서를 그대로 거친다 — HTTP 만 가짜 (spec 003 「가짜 모델」).
  * gateway 모드(spec 005)는 baseURL = 게이트웨이, apiKey = 기기 토큰 — SDK 1.5.0 은 Authorization: Bearer 로 보낸다(게이트웨이는 x-api-key 와 둘 다 받는다).
+ * SDK 는 baseURL 이 없으면 process.env.ANTHROPIC_BASE_URL 을 스스로 읽으므로 런타임 클라이언트는 주소를 항상 명시한다 (spec 006).
  * API 키·기기 토큰은 여기서만 SDK 에 넘기고 로그·이벤트·DB 에 싣지 않는다 (SR-6, spec 005 SR-1).
  */
 import Anthropic from '@anthropic-ai/sdk';
@@ -9,6 +10,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { TFakeScenario } from '@shared/agent/fakeScenario';
 
 import { createFakeFetch } from './fake/fakeFetch';
+
+/** SDK 기본 주소 — 환경변수 누출을 막으려고 명시해서 넘긴다 (spec 006) */
+export const ANTHROPIC_DEFAULT_BASE_URL = 'https://api.anthropic.com';
 
 /** 루프가 쓰는 SDK 표면 — 테스트는 가짜 fetch 를 단 실제 SDK 인스턴스를 넣는다 */
 export interface IModelClient {
@@ -35,8 +39,10 @@ export interface ICreateModelClientOptions {
   isFake: boolean;
   /** direct 모드는 ANTHROPIC_API_KEY, gateway 모드는 기기 토큰 */
   apiKey?: string;
-  /** gateway 모드의 게이트웨이 주소 — 주면 재시도 없이(maxRetries 0) 이 주소로 부른다 */
+  /** 호출 주소 — direct 는 프록시(ANTHROPIC_BASE_URL) 또는 기본 주소, gateway 는 게이트웨이 주소 */
   baseURL?: string;
+  /** SDK 재시도 횟수 — 없으면 SDK 기본(2). gateway 모드는 0 */
+  maxRetries?: number;
   /** 가짜 모드에서 재생할 시나리오 — 없으면 바로 끝나는 빈 시나리오 */
   scenario?: TFakeScenario;
   /** 키가 없을 때 던질 오류 — 기본은 baseURL 이 있으면 MissingCredentialError, 없으면 MissingApiKeyError */
@@ -45,14 +51,29 @@ export interface ICreateModelClientOptions {
 
 /** 모드에 맞는 클라이언트 — 실제 모드에서 키(토큰)가 없으면 throw */
 export function createModelClient(options: ICreateModelClientOptions): IModelClient {
-  const { isFake, apiKey, baseURL, scenario } = options;
+  const { isFake, apiKey, baseURL, maxRetries, scenario } = options;
   if (isFake) {
     const { fetch } = createFakeFetch(scenario ?? { turns: [] });
-    return new Anthropic({ apiKey: 'fake', fetch, maxRetries: 0 });
+    return new Anthropic({ apiKey: 'fake', baseURL: ANTHROPIC_DEFAULT_BASE_URL, fetch, maxRetries: 0 });
   }
   if (!apiKey) throw toMissingKeyError(options);
-  if (baseURL) return new Anthropic({ apiKey, baseURL, maxRetries: 0 });
-  return new Anthropic({ apiKey });
+  return new Anthropic({ apiKey, baseURL, ...(maxRetries === undefined ? {} : { maxRetries }) });
+}
+
+/** direct 모드(개발) 옵션 — 프록시 주소가 없으면 기본 주소, 재시도는 SDK 기본, 키가 없으면 .env 안내 오류 (spec 006) */
+export function toDirectClientOptions({
+  apiKey,
+  baseUrl,
+}: {
+  apiKey?: string;
+  baseUrl?: string;
+}): ICreateModelClientOptions {
+  return {
+    isFake: false,
+    apiKey,
+    baseURL: baseUrl ?? ANTHROPIC_DEFAULT_BASE_URL,
+    missingKeyError: () => new MissingApiKeyError(),
+  };
 }
 
 function toMissingKeyError({ baseURL, missingKeyError }: ICreateModelClientOptions): Error {
