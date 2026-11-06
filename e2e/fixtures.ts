@@ -100,10 +100,39 @@ async function launchElectron(options: ILaunchElectronOptions): Promise<Electron
   });
   app.process().stderr?.on('data', (chunk: Buffer) => {
     for (const line of chunk.toString().split('\n')) {
-      if (line.startsWith('[main.error]') && !isIgnored(line)) errorList.push(line);
+      if (line.startsWith(EXTERNAL_REQUEST_PREFIX)) errorList.push(line);
+      else if (line.startsWith('[main.error]') && !isIgnored(line)) errorList.push(line);
     }
   });
+  await blockExternalRequests(app);
   return app;
+}
+
+/** e2e 중 외부 사이트 요청을 막았다는 표시 — errorList 에 들어가 테스트를 실패시킨다 (spec 008 FR-3) */
+export const EXTERNAL_REQUEST_PREFIX = '[e2e.external]';
+
+/**
+ * 탭(브라우징 세션)의 외부 host 요청을 취소하고 stderr 에 남긴다 — 테스트가 외부 사이트에 기대지 않게 한다.
+ * 앱 코드(src/)에는 넣지 않는다 (SR-4). app.evaluate 안은 main 프로세스로 직렬화되므로 판정을 함수 안에 둔다.
+ */
+async function blockExternalRequests(app: ElectronApplication): Promise<void> {
+  await app.evaluate(({ session }, prefix) => {
+    const LOCAL_HOST_LIST = ['127.0.0.1', 'localhost', '[::1]'];
+    const LOCAL_SCHEME_LIST = ['about:', 'data:', 'blob:', 'devtools:', 'chrome:', 'file:'];
+    const isLocal = (url: string) => {
+      try {
+        const { protocol, hostname } = new URL(url);
+        return LOCAL_SCHEME_LIST.includes(protocol) || LOCAL_HOST_LIST.includes(hostname);
+      } catch {
+        return false;
+      }
+    };
+    session.fromPartition('persist:browsing').webRequest.onBeforeRequest((details, callback) => {
+      if (isLocal(details.url)) return callback({});
+      process.stderr.write(`${prefix} ${details.url}\n`);
+      callback({ cancel: true });
+    });
+  }, EXTERNAL_REQUEST_PREFIX);
 }
 
 const CHROME_URL_PATTERN = /\/renderer\/index\.html$|^http:\/\/localhost:\d+\/?$/;

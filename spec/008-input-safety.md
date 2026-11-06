@@ -19,6 +19,7 @@
 - **FR-1**: `pnpm test:e2e`(= `make e2e`, 품질 게이트)는 Linux 에서 `xvfb-run` 이 있으면 가상 디스플레이에서 Playwright 를 돌린다 — `WAYLAND_DISPLAY` 를 지우고 `xvfb-run -a`. `E2E_HEADED=1` 이면 지금처럼 화면에 띄운다. `xvfb-run` 이 없거나 Linux 가 아니면 그대로 돈다. 인자(`SPEC` 경로·`-c` 설정)는 Playwright 에 그대로 넘긴다.
 - **FR-2**: `pnpm e2e:packaged` 도 같은 실행기를 쓴다.
 - **FR-3**: e2e 픽스처는 앱을 띄운 직후 브라우징 세션(`persist:browsing`)의 요청 중 외부 host 를 **취소**하고, 취소한 URL 을 `[e2e.external] {url}` 로 errorList 에 넣는다 → 테스트 실패. 허용: `127.0.0.1`·`localhost`·`[::1]` host, `about:`·`data:`·`blob:`·`devtools:`·`chrome:`·`file:` 스킴.
+- **FR-3b**: (FR-3 작업 중 발견) 앱 종료 직전에 탭 로드가 실패하면 늦게 온 탭 상태 이벤트가 이미 파괴된 메인 창의 `webContents` 를 읽어 `uncaughtException: Object has been destroyed` 가 난다. 사이드바 이벤트 발신은 창이 파괴됐으면 조용히 건너뛴다 (`src/main/index.ts` 의 `createSidebarEmitter` getter).
 - **FR-4**: 픽셀 `type`(가드 tool `type_text`) 의 포커스 대상이 **이름·텍스트·값이 모두 빈** 요소면 `require_approval` — reason `이름 없는 입력칸`, display `{ action: submit ? '입력 후 제출' : '입력', target: '이름 없는 입력칸' }` — 픽셀 `type` 가드 호출에는 좌표(point)가 없으므로(`computer/toolset.ts` 의 `type_`) 고정 문구를 쓴다. [에이전트가 누르기] 재판정 때 `isSameDisplay` 가 같은 값을 내도록 display 는 입력값·시점과 무관해야 한다.
 - **FR-5**: FR-4 보다 비밀 입력 차단이 먼저다 — 이름 없는 `type=password` 칸은 지금처럼 `block`. 확정 패턴(submit 의 formSubmitText)에 걸리면 그 승인 판정을 그대로 쓴다.
 - **FR-6**: 이름 있는 칸(예: `검색어`)의 픽셀 `type` 은 지금처럼 `allow`. 구조 도구 `type_text` 는 바뀌지 않는다 (ref 로 고른 요소라 모델·사용자가 대상을 안다).
@@ -79,7 +80,7 @@
 - [ ] **Task 2: e2e 외부 요청 차단**
   - **묶음**: 기반
   - **작업**: `e2e/fixtures.ts` 에 `blockExternalRequests` + stderr `[e2e.external]` 수집
-  - **파일**: `e2e/fixtures.ts`, `e2e/external-block.spec.ts`(신규)
+  - **파일**: `e2e/fixtures.ts`, `e2e/external-block.spec.ts`(신규), `src/main/index.ts`(FR-3b)
   - **테스트**: `e2e/external-block.spec.ts` — 주소창으로 `http://example.invalid/` 이동 → errorList 에 `[e2e.external] http://example.invalid/` 가 들어오고(확인 후 테스트에서 비움) 탭은 그 페이지를 열지 않는다 / 로컬 픽스처(`basic.html`) 이동은 차단 기록 없음
   - **실행**: `make e2e SPEC=e2e/external-block.spec.ts` + 전체 `make e2e`(기존 테스트에 외부 요청 0)
   - **검증**: `desktop/app-check` — 위 흐름, 콘솔·main 에러 0(차단 확인 테스트 제외) + e2e 통과
