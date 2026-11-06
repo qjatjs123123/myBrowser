@@ -81,8 +81,12 @@ Claude 는 에러를 만나면 이 문서를 먼저 확인한다. 새 문제를 
 - 해결: `package.json`·lock 을 되돌리고 `pnpm install --frozen-lockfile`, 파일을 `src/renderer/components/ui/{부품}.tsx` 로 옮겨 `import { cn } from '@/lib/utils'` 로 고친다.
 
 ## 에이전트 e2e 첫 테스트에서 주소창 값이 `nhttp://…` 가 되어 네이버 검색으로 이동
-- 원인: 앱 시작 직후 `fill` 이 주소창 포커스·값 동기화와 경합 (spec 004, 품질 게이트 e2e 에서 1회).
-- 해결: 헬퍼에서 `click` → `fill` → `toHaveValue(url)` 확인 → `Enter` (browser-chrome.spec 과 같은 순서). 타임아웃을 늘리지 않는다.
+- 원인 (spec 008 에서 정정): 앱 경합이 아니다. e2e 가 데스크톱(WSLg)에 창을 띄우면 OS 포커스를 가져가고, 그때 사용자가 친 **실제 키보드·한글 IME 입력**이 테스트 창으로 들어간다. 시작 직후 `pressSequentially` 16회 중 5회 오염(`로그이`·`chttp`, body 로 간 `w k`·`r m d`), xvfb 에서는 16/16 통과.
+- 해결: `pnpm test:e2e` 가 xvfb 가상 디스플레이로 돈다 (`scripts/e2eRun.ts`). 헬퍼의 `click` → `fill` → `toHaveValue(url)` → `Enter` 순서도 유지한다. 화면을 볼 때(`E2E_HEADED=1`)는 실행 중 키보드를 쓰지 않는다.
+
+## e2e 종료 때 `uncaughtException: Object has been destroyed` (spec 008)
+- 원인: 앱 종료 직전 탭 로드가 실패(외부 요청 차단 등)하면 늦게 온 탭 상태 이벤트가 이미 파괴된 메인 창의 `window.webContents` 를 읽는다.
+- 해결: `createSidebarEmitter` getter 가 `window.isDestroyed()` 면 null 을 돌려준다 (`src/main/index.ts`). 재현은 차단 후 바로 `app.close()` 를 16회 반복.
 
 ## vitest 의 chromium 테스트가 전부 `Test timed out in 5000ms` — rAF·스크린샷이 영원히 대기 (spec 005)
 - 증상: `src/main/browser/__tests__` 의 click·scroll·screenshot 테스트만 실패. 레포 코드 없이 `chromium.launch()` → `requestAnimationFrame` 도 5초 안에 안 온다. 부하·플래그(`--disable-gpu`)와 무관.

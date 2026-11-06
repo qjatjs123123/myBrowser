@@ -39,7 +39,7 @@ type TGuardVerdict =
    | 멤버 | 가드 tool | 판정 대상 |
    |---|---|---|
    | `left_click`·`double_click` | `click` | 좌표의 요소 — **null·이름 없음이면 require_approval**(fail-closed) |
-   | `type` (포커스가 글 입력칸) | `type_text` (`\n`·`\r` 있으면 submit) | 포커스된 요소 **그 자체**(`resolveTarget({ focused: 'element' })`) — 비밀 칸 block, submit 은 그 칸의 formSubmitText 로 확정 검사 |
+   | `type` (포커스가 글 입력칸) | `type_text` (`\n`·`\r` 있으면 submit) | 포커스된 요소 **그 자체**(`resolveTarget({ focused: 'element' })`) — 비밀 칸 block, submit 은 그 칸의 formSubmitText 로 확정 검사, 그다음 **이름·텍스트·값이 모두 빈 칸이면 require_approval**(display `입력`/`입력 후 제출` · `이름 없는 입력칸` 고정 — 픽셀 type 은 좌표가 없다, spec 008) |
    | `type` (포커스가 글 입력칸이 아님) | `click` | 포커스된 요소 (버튼에 `" "` = 클릭) |
    | `key` 에 Return·Enter·KP_Enter·space (조합 포함) | `press_key` Enter | 포커스 대상(폼 안 입력이면 submit 버튼) |
    좌표가 뷰포트 밖이거나 좌표·저장된 커서 위치가 모두 없으면 block. 수식키 클릭(text 필드)은 block.

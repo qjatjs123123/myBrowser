@@ -27,4 +27,5 @@ paths:
 - 가짜 모델 시나리오는 `e2e/fixtures/model/{이름}.json` — `tool_use` 시퀀스. 테스트가 `MYBROWSER_FAKE_SCENARIO` 로 고른다.
 - 콘솔·main 에러는 fixtures 가 `HARNESS_RUN_DIR/console-errors.log` 에 기록하고, **에러가 1건이라도 있으면 테스트 실패**.
 - 선택자는 역할·이름. 데이터는 테스트마다 새 프로필이라 정리 불필요.
-- 창을 띄울 수 없는 환경은 `xvfb-run -a pnpm test:e2e`.
+- `pnpm test:e2e`(`make e2e`·품질 게이트·CI)는 `scripts/e2eRun.ts` 가 Linux 에서 **xvfb 가상 디스플레이**로 돌린다 — 데스크톱(WSLg)에 창이 뜨면 사용자의 실제 키보드·IME 입력이 테스트 창에 섞인다 (spec 008). 창을 보며 디버깅할 때만 `E2E_HEADED=1`.
+- 탭(브라우징 세션)의 외부 host 요청은 fixtures 가 취소하고 `[e2e.external] {url}` 로 errorList 에 넣는다 → 테스트 실패. 페이지·리소스는 로컬 픽스처 서버(127.0.0.1)만 쓴다.
