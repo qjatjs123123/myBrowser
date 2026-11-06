@@ -106,6 +106,26 @@ describe('runAgentLoop', () => {
     });
   });
 
+  it('skillSection 이 없으면 system 은 cache_control 이 붙은 고정 블록 1개다', async () => {
+    const { requestList } = await runWith({ turns: [{ content: [{ type: 'text', text: '끝' }] }] });
+    expect(requestList[0]?.system).toEqual([{ type: 'text', text: '시스템', cache_control: { type: 'ephemeral' } }]);
+  });
+
+  it('skillSection 이 있으면 system 두 번째 블록으로 cache_control 없이 붙인다', async () => {
+    const { client, requestList } = createClient({ turns: [{ content: [{ type: 'text', text: '끝' }] }] });
+    await runAgentLoop({ ...baseOptions(client), tools: [createEchoTool().tool], skillSection: '# 사용자 지침' });
+    expect(requestList[0]?.system).toEqual([
+      { type: 'text', text: '시스템', cache_control: { type: 'ephemeral' } },
+      { type: 'text', text: '# 사용자 지침' },
+    ]);
+  });
+
+  it('skillSection 이 null 이면 system 은 고정 블록 1개다', async () => {
+    const { client, requestList } = createClient({ turns: [{ content: [{ type: 'text', text: '끝' }] }] });
+    await runAgentLoop({ ...baseOptions(client), tools: [createEchoTool().tool], skillSection: null });
+    expect(requestList[0]?.system).toHaveLength(1);
+  });
+
   it('stop_reason 이 max_tokens 이면 그 턴의 도구를 실행하지 않고 failed 로 끝낸다', async () => {
     const { outcome, run } = await runWith({
       turns: [{ content: [{ type: 'tool_use', name: 'echo', input: { word: '잘림' } }], stop_reason: 'max_tokens' }],

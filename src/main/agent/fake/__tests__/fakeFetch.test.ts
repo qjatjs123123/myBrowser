@@ -104,3 +104,34 @@ describe('createFakeFetch', () => {
     expect(message.content[1]).not.toHaveProperty('toolset_name');
   });
 });
+
+describe('createFakeFetch — {{skillNames}}', () => {
+  const ECHO_SCENARIO: TFakeScenario = {
+    turns: [{ content: [{ type: 'text', text: '적용한 스킬: {{skillNames}}' }] }],
+  };
+
+  async function getEchoText(system?: { type: 'text'; text: string }[]): Promise<string> {
+    const { client } = createClient(ECHO_SCENARIO);
+    const message = await client.beta.messages
+      .stream({ ...BASE_PARAMS, ...(system ? { system } : {}), messages: [{ role: 'user', content: '할 일' }] })
+      .finalMessage();
+    const block = message.content[0];
+    return block?.type === 'text' ? block.text : '';
+  }
+
+  it('system 블록의 ## 이름 줄을 모아 쉼표로 이어 바꾼다', async () => {
+    const text = await getEchoText([
+      { type: 'text', text: '# 역할\n고정 프롬프트' },
+      { type: 'text', text: '# 사용자 지침\n머리말\n\n## 캐치테이블\n날짜 먼저\n\n## 기본 인원\n2명' },
+    ]);
+    expect(text).toBe('적용한 스킬: 캐치테이블, 기본 인원');
+  });
+
+  it('## 이름 줄이 없으면 없음 으로 바꾼다', async () => {
+    expect(await getEchoText([{ type: 'text', text: '# 역할\n고정 프롬프트' }])).toBe('적용한 스킬: 없음');
+  });
+
+  it('system 이 없으면 없음 으로 바꾼다', async () => {
+    expect(await getEchoText()).toBe('적용한 스킬: 없음');
+  });
+});

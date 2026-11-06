@@ -21,6 +21,10 @@ type TFakeEvent = Record<string, unknown> & { type: string };
 const END_OF_SCENARIO_TURN: TFakeTurn = { content: [{ type: 'text', text: '(시나리오 끝)' }], stop_reason: 'end_turn' };
 /** 가짜 usage 토큰 수 — 서비스의 usage 합산 경로만 태우면 되므로 고정값 */
 const FAKE_TOKEN_COUNT = 10;
+/** text 블록의 `{{skillNames}}` — 요청 system 에 붙은 스킬 이름(`## {이름}` 줄)으로 바꾼다 (spec 013, e2e 확인용) */
+const SKILL_NAMES_PLACEHOLDER = '{{skillNames}}';
+const SKILL_HEADING_PATTERN = /^## (.+)$/gm;
+const NO_SKILL_TEXT = '없음';
 /** refusal 턴의 가짜 분류 — 시나리오 형식에 category 가 없어 고정값을 쓴다 */
 const FAKE_REFUSAL_DETAILS = { type: 'refusal', category: 'general_harms', explanation: '(가짜 거절)' };
 
@@ -54,7 +58,7 @@ function createMessage({ turn, body, index, createToolUseId }: ICreateMessage) {
   const messageList = Array.isArray(body.messages) ? body.messages : [];
   const content = turn.content.map((block) =>
     block.type === 'text'
-      ? { type: 'text' as const, text: block.text, citations: null }
+      ? { type: 'text' as const, text: resolveSkillNames(block.text, body.system), citations: null }
       : {
           type: 'tool_use' as const,
           id: createToolUseId(),
@@ -80,6 +84,25 @@ function createMessage({ turn, body, index, createToolUseId }: ICreateMessage) {
 }
 
 type TFakeMessage = ReturnType<typeof createMessage>;
+
+function resolveSkillNames(text: string, system: unknown): string {
+  if (!text.includes(SKILL_NAMES_PLACEHOLDER)) return text;
+  const nameList = getSystemText(system).flatMap((blockText) =>
+    [...blockText.matchAll(SKILL_HEADING_PATTERN)].map((matched) => matched[1] ?? ''),
+  );
+  return text.replaceAll(SKILL_NAMES_PLACEHOLDER, nameList.length > 0 ? nameList.join(', ') : NO_SKILL_TEXT);
+}
+
+/** 요청 system — 문자열 또는 text 블록 배열 */
+function getSystemText(system: unknown): string[] {
+  if (typeof system === 'string') return [system];
+  if (!Array.isArray(system)) return [];
+  return system.flatMap((block: unknown) =>
+    typeof block === 'object' && block !== null && 'text' in block && typeof block.text === 'string'
+      ? [block.text]
+      : [],
+  );
+}
 
 function createSseResponse(message: TFakeMessage): Response {
   const text = toEventList(message)

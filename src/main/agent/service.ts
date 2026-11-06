@@ -21,11 +21,13 @@ import {
   type TStepStatus,
 } from '@shared/agent/run';
 import type { TAgentEvent } from '@shared/ipc/agent';
+import type { ISkillStore, TSkill } from '@shared/ipc/skills';
 import type { IBrowserDriver, TOverlayCommand } from '@shared/tools';
 
 import { runAgentLoop, type TLoopOutcome } from './loop';
 import { MissingApiKeyError, MissingCredentialError, type IModelClient } from './modelClient';
 import type { IModelProfile } from './profiles';
+import { buildSkillSection } from './prompts/skills';
 import { buildFirstUserMessage, SYSTEM_PROMPT } from './prompts/system';
 import { isFinalStatus, transition, type TRunEvent } from './runs';
 import { createExclusiveQueue, createToolList, type IToolRunContext, type TUserRequest } from './tools';
@@ -54,6 +56,8 @@ export interface IAgentServiceDeps {
   guardOptions: { allowedHostList: string[] };
   maxToolCalls: number;
   log?: IAgentLog;
+  /** 켜진 스킬 읽기 (spec 013) — 없으면 스킬 없이 실행 */
+  skills?: Pick<ISkillStore, 'listEnabled'>;
   /** prod 프로필 401 — 계정 서비스가 저장 토큰을 지우고 inactive 로 */
   onAuthFailure?: () => void;
   /** run 종료(done·failed·stopped) 직후 — 계정 서비스의 크레딧 갱신 (spec 005 FR-5) */
@@ -248,10 +252,21 @@ async function runLoopFor(
     request: deps.profile.request,
     tools: createToolList(createToolContext(deps, session), { hasComputerToolset: deps.profile.hasComputerToolset }),
     systemPrompt: SYSTEM_PROMPT,
+    skillSection: buildSkillSection(readEnabledSkillList(deps)),
     firstUserMessage: buildFirstUserMessage({ today: deps.now(), pageUrl: page.url, pageTitle: page.title, task }),
     signal: session.controller.signal,
     onFinal: (message) => addUsage(session, message),
   });
+}
+
+/** run 시작 때 1회 읽는다 — 실패하면 스킬 없이 진행하고 로그에는 오류만 싣는다 (스킬 내용 금지, SR-3) */
+function readEnabledSkillList(deps: IAgentServiceDeps): TSkill[] {
+  try {
+    return deps.skills?.listEnabled() ?? [];
+  } catch (error) {
+    deps.log?.error(LOG_SCOPE, '스킬 읽기 실패 — 스킬 없이 진행', toLogMeta(error));
+    return [];
+  }
 }
 
 /** 루프 결과 → 종료 전이 (중지 플래그가 섰으면 결과와 상관없이 stopped) */

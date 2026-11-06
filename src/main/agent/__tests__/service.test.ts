@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { IRunStore, TRunRecord, TStepRecord, TStepUpsert } from '@shared/agent/run';
 import type { TFakeScenario, TFakeTurn } from '@shared/agent/fakeScenario';
 import { AgentEventSchema, type TAgentEvent } from '@shared/ipc/agent';
+import type { TSkill } from '@shared/ipc/skills';
 import type { IBrowserDriver, IGuardTarget, TActionResult } from '@shared/tools';
 
 import { createFakeFetch, type TFakeRequestBody } from '../fake/fakeFetch';
@@ -131,6 +132,7 @@ function setup({ scenario = { turns: [] }, deps = {}, profile = {}, driver = cre
     guardOptions: { allowedHostList: [] },
     maxToolCalls: 60,
     log,
+    skills: { listEnabled: () => [] },
     ...deps,
   });
   const waitForEnd = async () => {
@@ -1120,5 +1122,76 @@ describe('AgentService — prod 프로필 오류 문장 (spec 005 FR-6)', () => 
     await t.service.start('할 일');
     await t.waitForEnd();
     await vi.waitFor(() => expect(onRunEnd).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('AgentService — 스킬 (spec 013)', () => {
+  const SKILL_BODY = '인원 말이 없으면 2명 — 비밀 지침 본문';
+  const SKILL: TSkill = {
+    id: '00000000-0000-4000-8000-000000000001',
+    name: '기본 인원',
+    description: '',
+    body: SKILL_BODY,
+    isEnabled: true,
+    createdAt: '2026-11-06T10:00:00.000Z',
+    updatedAt: '2026-11-06T10:00:00.000Z',
+  };
+
+  it('켜진 스킬이 있으면 요청 system 두 번째 블록에 이름과 내용이 들어간다', async () => {
+    const t = setup({ scenario: { turns: [textTurn('끝')] }, deps: { skills: { listEnabled: () => [SKILL] } } });
+    await t.service.start('할 일');
+    await t.waitForEnd();
+    const systemList = t.requestList[0]?.system as { text: string; cache_control?: unknown }[];
+    expect(systemList).toHaveLength(2);
+    expect(systemList[1]).toEqual({ type: 'text', text: expect.stringContaining(`## 기본 인원\n${SKILL_BODY}`) });
+  });
+
+  it('켜진 스킬이 없으면 요청 system 은 고정 블록 1개다', async () => {
+    const t = setup({ scenario: { turns: [textTurn('끝')] } });
+    await t.service.start('할 일');
+    await t.waitForEnd();
+    expect(t.requestList[0]?.system).toHaveLength(1);
+  });
+
+  it('skills 의존이 없으면 스킬 없이 실행한다', async () => {
+    const t = setup({ scenario: { turns: [textTurn('끝')] }, deps: { skills: undefined } });
+    await t.service.start('할 일');
+    await t.waitForEnd();
+    expect(t.requestList[0]?.system).toHaveLength(1);
+  });
+
+  it('listEnabled 가 throw 하면 스킬 없이 끝까지 실행한다', async () => {
+    const listEnabled = () => {
+      throw new Error('database is locked');
+    };
+    const t = setup({ scenario: { turns: [textTurn('끝')] }, deps: { skills: { listEnabled } } });
+    await t.service.start('할 일');
+    await t.waitForEnd();
+    expect(t.requestList[0]?.system).toHaveLength(1);
+    expect(t.eventList.some((event) => event.type === 'done')).toBe(true);
+  });
+
+  it('listEnabled 가 throw 하면 오류 이름·메시지만 로그에 남긴다', async () => {
+    const listEnabled = () => {
+      throw new Error('database is locked');
+    };
+    const t = setup({ scenario: { turns: [textTurn('끝')] }, deps: { skills: { listEnabled } } });
+    await t.service.start('할 일');
+    await t.waitForEnd();
+    expect(t.log.error).toHaveBeenCalledWith('agent', expect.any(String), {
+      name: 'Error',
+      message: 'database is locked',
+    });
+  });
+
+  it('스킬 내용은 로그·실행 기록·이벤트에 남지 않는다 (SR-3)', async () => {
+    const t = setup({
+      scenario: { turns: [toolTurn('snapshot'), textTurn('끝')] },
+      deps: { skills: { listEnabled: () => [SKILL] } },
+    });
+    await t.service.start('할 일');
+    await t.waitForEnd();
+    const recorded = JSON.stringify([t.callList, t.eventList, t.log.error.mock.calls]);
+    expect(recorded).not.toContain(SKILL_BODY);
   });
 });
