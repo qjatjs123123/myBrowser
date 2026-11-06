@@ -33,6 +33,12 @@ export const IPC = {
     signOut: 'account:signOut',
     changed: 'account:changed',
   },
+  /** 프레임 없는 창의 신호등 버튼 (spec 010) — macOS 는 네이티브 신호등이라 renderer 가 부르지 않는다 */
+  window: {
+    minimize: 'window:minimize',
+    toggleMaximize: 'window:toggleMaximize',
+    close: 'window:close',
+  },
 } as const;
 
 type TValues<T> = T extends string ? T : { [K in keyof T]: TValues<T[K]> }[keyof T];

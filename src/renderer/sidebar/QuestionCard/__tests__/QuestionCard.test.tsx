@@ -74,6 +74,7 @@ describe('QuestionCard', () => {
 
   it('선택지가 없으면 선택지 버튼 없이 [보내기] 만 있다', () => {
     renderCard({ ...QUESTION, optionList: [] });
-    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['보내기']);
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: '보내기' })).toBeInTheDocument();
   });
 });

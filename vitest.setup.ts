@@ -42,6 +42,7 @@ Object.defineProperty(window, 'api', {
       signOut: vi.fn(),
       onChanged: createSubscribeMock(),
     },
+    window: { minimize: vi.fn(), toggleMaximize: vi.fn(), close: vi.fn() },
   },
 });
 

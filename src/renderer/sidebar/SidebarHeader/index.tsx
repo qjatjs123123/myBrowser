@@ -13,12 +13,14 @@ interface ISidebarHeaderProps {
   onReset: () => void;
 }
 
-/** 사이드바 맨 위 줄 — 제목 + 현재 상태 배지 + [새 대화] (spec 009 FR-4·5) */
+/** 사이드바 맨 위 줄 — 제목 + 현재 상태 배지 + [새 대화] (spec 009 FR-4·5). 탭 줄과 같은 36px·bg-muted 드래그 줄 (spec 010) */
 export function SidebarHeader({ status, canReset, onReset }: ISidebarHeaderProps) {
   return (
-    <header className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
+    <header className="flex h-9 shrink-0 items-center gap-2 bg-muted px-3 [-webkit-app-region:drag]">
       <h2 className="text-sm font-semibold">에이전트</h2>
-      <StatusBadge status={status} />
+      <span className="flex [-webkit-app-region:no-drag]">
+        <StatusBadge status={status} />
+      </span>
       <Button
         variant="ghost"
         size="icon-sm"
@@ -26,7 +28,7 @@ export function SidebarHeader({ status, canReset, onReset }: ISidebarHeaderProps
         title="새 대화"
         disabled={!canReset}
         onClick={onReset}
-        className="ml-auto text-muted-foreground"
+        className="ml-auto size-7 text-muted-foreground [-webkit-app-region:no-drag]"
       >
         <Plus />
       </Button>

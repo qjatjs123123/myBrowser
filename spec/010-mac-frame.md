@@ -1,6 +1,6 @@
 # Spec: mac 브라우저 프레임 — 신호등·탭 줄 통합 + 질문 카드 보내기 아이콘
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-06
 > **묶음**: 기반
 > **관련 spec**: 002, 009
@@ -71,7 +71,7 @@
 > ⚠️ **게이트 규칙**: 각 Task 는 명시된 **테스트와 검증이 모두 에러 0**이 될 때까지 수정 → 재실행을 반복하고, 전부 통과했을 때만 체크박스를 채우고 **Task 단위로 커밋**한 뒤 다음 Task 로 진행한다.
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: 창 제어 IPC + 프레임 없는 창 옵션**
+- [x] **Task 1: 창 제어 IPC + 프레임 없는 창 옵션**
   - **묶음**: 기반
   - **작업**: `window` 채널 3개·`IApi.window`·preload·핸들러·registry 연결, `createWindowOptions` 플랫폼별 프레임, `vitest.setup.ts` 의 `window.api.window` mock, app-shell e2e 노출 키 갱신
   - **파일**: `src/shared/ipc/channels.ts`, `src/shared/ipc/api.ts`, `src/preload/index.ts`, `src/main/ipc/handlers/window.ts`, `src/main/index.ts`, `src/main/app/window.ts`, `src/main/app/__tests__/window.test.ts`, `vitest.setup.ts`, `e2e/app-shell.spec.ts`
@@ -84,7 +84,7 @@
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 프레임 없는 창과 창 제어 IPC (spec 010 Task 1)`
 
-- [ ] **Task 2: 신호등 버튼 + 맨 윗줄 통합**
+- [x] **Task 2: 신호등 버튼 + 맨 윗줄 통합**
   - **묶음**: 기반
   - **작업**: `useWindowControls`·`isMacPlatform`·`WindowControls`, TabBar 왼쪽 slot·드래그 영역, SidebarHeader 36px·`bg-muted`·드래그, 신호등 토큰 (FR-2~5)
   - **파일**: `src/renderer/hooks/useWindowControls.ts`, `src/renderer/utils/platform.ts`, `src/renderer/chrome/WindowControls/index.tsx`, `src/renderer/chrome/TabBar/index.tsx`, `src/renderer/chrome/BrowserChrome/index.tsx`, `src/renderer/sidebar/SidebarHeader/index.tsx`, `src/renderer/styles/globals.css`, `e2e/window-frame.spec.ts`
@@ -99,7 +99,7 @@
   - **통과 기준**: 테스트 + 검증 통과, 기존 browser-chrome e2e(탭·주소창·단축키) 그대로 통과
   - **커밋**: `design: mac 브라우저 프레임 — 신호등·탭 줄 통합 (spec 010 Task 2)`
 
-- [ ] **Task 3: 질문 카드 보내기 아이콘**
+- [x] **Task 3: 질문 카드 보내기 아이콘**
   - **묶음**: 기반
   - **작업**: FR-6
   - **파일**: `src/renderer/sidebar/QuestionCard/index.tsx`
@@ -109,7 +109,7 @@
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `design: 질문 카드 보내기를 아이콘으로 (spec 010 Task 3)`
 
-- [ ] **Task 4: 디자인·설계 문서 갱신**
+- [x] **Task 4: 디자인·설계 문서 갱신**
   - **묶음**: 기반
   - **작업**: design SKILL §1 그림·§2 크롬 원칙(프레임 없음·신호등·드래그 영역), DESIGN.md §2 창 서술
   - **파일**: `.claude/skills/desktop/design/SKILL.md`, `docs/DESIGN.md`
@@ -125,3 +125,8 @@
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-06 | 1 | window 핸들러 4 · createWindowOptions/Controls 11 · app-shell e2e 2 | 검증 반영 커밋 | 직접 방식 |
+| 2026-11-06 | 2 | platform 3 · useWindowControls 4 · WindowControls 6 · TabBar +1 · window-frame e2e 4 | 검증 반영 커밋 | 실제 최대화·복원은 화면(E2E_HEADED=1, WSLg)에서 확인 |
+| 2026-11-06 | 3 | QuestionCard 10 · agent-approval e2e | 검증 반영 커밋 | |
+| 2026-11-06 | 4 | 문서만 | 검증 반영 커밋 | |
+| 2026-11-06 | 검증 | make check 1421 · make e2e 39 · 에러 0 | 검증 반영 커밋 | 바퀴 1 vitest 5s 타임아웃 2건은 부하(load 14) — 단독 재실행 통과 |

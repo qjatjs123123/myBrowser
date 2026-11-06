@@ -48,6 +48,11 @@ const api: IApi = {
     signOut: () => ipcRenderer.invoke(IPC.account.signOut),
     onChanged: (cb) => subscribe(IPC.account.changed, cb),
   },
+  window: {
+    minimize: () => ipcRenderer.invoke(IPC.window.minimize),
+    toggleMaximize: () => ipcRenderer.invoke(IPC.window.toggleMaximize),
+    close: () => ipcRenderer.invoke(IPC.window.close),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

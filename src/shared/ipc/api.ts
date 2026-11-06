@@ -63,4 +63,10 @@ export interface IApi {
     signOut: () => Promise<TIpcResult<TAccountStatus>>;
     onChanged: (cb: (e: TAccountStatus) => void) => TUnsubscribe;
   };
+  /** 창 제어 (spec 010) — 요청 인자 없음 */
+  window: {
+    minimize: () => Promise<TIpcResult<null>>;
+    toggleMaximize: () => Promise<TIpcResult<null>>;
+    close: () => Promise<TIpcResult<null>>;
+  };
 }

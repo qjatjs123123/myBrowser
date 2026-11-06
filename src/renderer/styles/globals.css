@@ -15,6 +15,11 @@
   /* 사이드바 전송 버튼·에이전트 ✻ 아이콘 전용 강조 (spec 009) — 크롬에는 쓰지 않는다 */
   --brand: oklch(0.646 0.143 39.4);
   --brand-foreground: oklch(0.985 0 0);
+  /* 창 신호등 (spec 010) — mac 고유 색이라 라이트·다크 같은 값 */
+  --traffic-close: oklch(0.7 0.19 25.6);
+  --traffic-minimize: oklch(0.84 0.164 82.5);
+  --traffic-maximize: oklch(0.74 0.2 145.2);
+  --traffic-glyph: oklch(0.32 0.06 30);
   --secondary: oklch(0.967 0.001 286.4);
   --secondary-foreground: oklch(0.21 0.006 285.9);
   --accent: oklch(0.967 0.001 286.4);
@@ -64,6 +69,10 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-traffic-close: var(--traffic-close);
+  --color-traffic-minimize: var(--traffic-minimize);
+  --color-traffic-maximize: var(--traffic-maximize);
+  --color-traffic-glyph: var(--traffic-glyph);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-accent: var(--accent);

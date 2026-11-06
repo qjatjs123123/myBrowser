@@ -7,12 +7,15 @@ import { AddressBar } from '@/chrome/AddressBar';
 import { NavButtons } from '@/chrome/NavButtons';
 import { NewTabPage } from '@/chrome/NewTabPage';
 import { TabBar } from '@/chrome/TabBar';
+import { WindowControls } from '@/chrome/WindowControls';
 import { useContentBounds } from '@/hooks/useContentBounds';
 import { useShortcut } from '@/hooks/useShortcut';
 import { useTabs } from '@/hooks/useTabs';
 import { toast } from '@/lib/toast';
+import { isMacPlatform } from '@/utils/platform';
 
 const NO_ACTIVE_TAB_MESSAGE = '탭을 찾을 수 없습니다';
+const IS_MAC = isMacPlatform(navigator.userAgent);
 
 /**
  * 브라우저 크롬 조립 — 탭 줄 + 툴바(탐색 버튼·주소창) + 탭 콘텐츠 영역.
@@ -49,6 +52,7 @@ export function BrowserChrome() {
           onActivate={(tabId) => tabs.activate({ tabId })}
           onClose={(tabId) => tabs.close({ tabId })}
           onCreate={() => tabs.create({})}
+          leading={<WindowControls isMac={IS_MAC} />}
         />
         <div className="flex min-h-10 items-start gap-1 border-b border-border bg-background px-2 py-1">
           <NavButtons

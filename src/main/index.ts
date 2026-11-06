@@ -20,7 +20,7 @@ import { createAgentService } from './agent/service';
 import { getCdpSwitches, removeStaleActivePort } from './app/cdp';
 import { createCredentialStore } from './app/credentialStore';
 import { createAppMenuTemplate } from './app/menu';
-import { createMainWindow } from './app/window';
+import { createMainWindow, createWindowControls } from './app/window';
 import { createCdpConnection } from './browser/cdp';
 import { createBrowserDriver } from './browser/driver';
 import { resolveCdpEndpoint } from './browser/endpoint';
@@ -30,6 +30,7 @@ import { createSidebarEmitter } from './ipc/emit';
 import { createAccountHandlers } from './ipc/handlers/account';
 import { createAgentHandlers } from './ipc/handlers/agent';
 import { createAppHandlers } from './ipc/handlers/app';
+import { createWindowHandlers } from './ipc/handlers/window';
 import { createTabsHandlers } from './ipc/handlers/tabs';
 import { registerIpc } from './ipc/registry';
 import { log } from './log';
@@ -93,6 +94,7 @@ function startBrowser(): void {
     ...createTabsHandlers(tabManager),
     ...createAgentHandlers(agentService),
     ...createAccountHandlers(accountService),
+    ...createWindowHandlers(createWindowControls(window)),
   });
   tabManager.createTab();
 }
