@@ -32,12 +32,13 @@
 }
 
 @media (prefers-color-scheme: dark) {
+  /* 대비 보정 (spec 012 FR-9) — --background 는 고정하고, 그 위에 놓이는 면(말풍선·배지·눌린 버튼·상단 줄)과 선을 밝혀 구분되게 */
   :root {
     --background: oklch(0.21 0.006 285.9);
     --foreground: oklch(0.985 0 0);
-    --muted: oklch(0.274 0.006 286);
+    --muted: oklch(0.32 0.006 286);
     --muted-foreground: oklch(0.705 0.015 286.1);
-    --border: oklch(1 0 0 / 10%);
+    --border: oklch(1 0 0 / 15%);
     --primary: oklch(0.623 0.214 259.8);
     --primary-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.2);
@@ -45,13 +46,13 @@
     --warning-foreground: oklch(0.279 0.077 45.6);
     --brand: oklch(0.705 0.14 41.1);
     --brand-foreground: oklch(0.21 0.006 285.9);
-    --secondary: oklch(0.274 0.006 286);
+    --secondary: oklch(0.32 0.006 286);
     --secondary-foreground: oklch(0.985 0 0);
-    --accent: oklch(0.274 0.006 286);
+    --accent: oklch(0.36 0.006 286);
     --accent-foreground: oklch(0.985 0 0);
     --popover: oklch(0.21 0.006 285.9);
     --popover-foreground: oklch(0.985 0 0);
-    --input: oklch(1 0 0 / 15%);
+    --input: oklch(1 0 0 / 20%);
     --ring: oklch(0.552 0.016 285.9);
   }
 }
