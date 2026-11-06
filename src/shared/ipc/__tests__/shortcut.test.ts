@@ -8,6 +8,10 @@ describe('ShortcutPressedEventSchema', () => {
     expect(ShortcutPressedEventSchema.safeParse({ action: 'focusNewTabSearch' }).success).toBe(true);
   });
 
+  it('toggleSidebar 면 통과한다', () => {
+    expect(ShortcutPressedEventSchema.safeParse({ action: 'toggleSidebar' }).success).toBe(true);
+  });
+
   it('알 수 없는 action 이면 실패한다', () => {
     expect(ShortcutPressedEventSchema.safeParse({ action: 'newTab' }).success).toBe(false);
   });

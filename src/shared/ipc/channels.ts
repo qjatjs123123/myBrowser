@@ -39,6 +39,11 @@ export const IPC = {
     toggleMaximize: 'window:toggleMaximize',
     close: 'window:close',
   },
+  /** 지난 실행 기록 조회 (spec 012) — 조회만 한다 */
+  runs: {
+    list: 'runs:list',
+    get: 'runs:get',
+  },
 } as const;
 
 type TValues<T> = T extends string ? T : { [K in keyof T]: TValues<T[K]> }[keyof T];

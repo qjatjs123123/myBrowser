@@ -9,6 +9,7 @@ import type {
 } from './agent';
 import type { TAppInfo } from './app';
 import type { TIpcResult } from './result';
+import type { TRunGetRequest, TRunGetResponse, TRunListResponse } from './runs';
 import type { TShortcutPressedEvent } from './shortcut';
 import type {
   TCreateTabRequest,
@@ -68,5 +69,10 @@ export interface IApi {
     minimize: () => Promise<TIpcResult<null>>;
     toggleMaximize: () => Promise<TIpcResult<null>>;
     close: () => Promise<TIpcResult<null>>;
+  };
+  /** 지난 실행 기록 (spec 012) — 읽기 전용, 도구 입력값·결과 원문 없음 */
+  runs: {
+    list: () => Promise<TIpcResult<TRunListResponse>>;
+    get: (req: TRunGetRequest) => Promise<TIpcResult<TRunGetResponse>>;
   };
 }

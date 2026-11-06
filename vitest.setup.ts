@@ -43,6 +43,7 @@ Object.defineProperty(window, 'api', {
       onChanged: createSubscribeMock(),
     },
     window: { minimize: vi.fn(), toggleMaximize: vi.fn(), close: vi.fn() },
+    runs: { list: vi.fn(), get: vi.fn() },
   },
 });
 
