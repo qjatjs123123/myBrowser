@@ -4,7 +4,8 @@
  * - 종료 전이는 run 당 정확히 1회: 종료 이벤트 → store 갱신 → status 이벤트. 이미 끝났으면 아무것도 하지 않는다.
  * - 승인·질문은 도구 run 안의 await — 대기 레지스트리(waits.ts)로 기다리고 approve()/answer() 가 푼다.
  * - stop()·shutdown()·상한 실패는 정지 플래그 → 대기 전부 취소(실행 없음, SR-1) → 즉시 모델 요청 abort.
- * - API 키는 여기에 들어오지 않는다 (createModelClient 안에만) — 이벤트·store·로그에 키를 싣지 않는다 (SR-6).
+ * - 모델 경로는 프로필(profiles/)이 정한다 — 클라이언트·모델 id·요청 옵션·도구 구성 (spec 007).
+ * - API 키는 여기에 들어오지 않는다 (profile.createClient 안에만) — 이벤트·store·로그에 키를 싣지 않는다 (SR-6).
  * - ask_user 답 원문은 store 에 싣지 않는다 (SR-5) — 모델 tool_result 로만 간다.
  */
 import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta/messages/messages';
@@ -23,8 +24,8 @@ import type { TAgentEvent } from '@shared/ipc/agent';
 import type { IBrowserDriver, TOverlayCommand } from '@shared/tools';
 
 import { runAgentLoop, type TLoopOutcome } from './loop';
-import type { TModelMode } from '../env';
 import { MissingApiKeyError, MissingCredentialError, type IModelClient } from './modelClient';
+import type { IModelProfile } from './profiles';
 import { buildFirstUserMessage, SYSTEM_PROMPT } from './prompts/system';
 import { isFinalStatus, transition, type TRunEvent } from './runs';
 import { createExclusiveQueue, createToolList, type IToolRunContext, type TUserRequest } from './tools';
@@ -43,19 +44,17 @@ export interface IAgentLog {
 }
 
 export interface IAgentServiceDeps {
-  createModelClient: () => IModelClient;
+  /** 모델 전략 — run 시작마다 createClient() (spec 007) */
+  profile: IModelProfile;
   createDriver: () => Promise<IBrowserDriver>;
   runStore: IRunStore;
   emit: (event: TAgentEvent) => void;
   now: () => Date;
   createId: () => string;
   guardOptions: { allowedHostList: string[] };
-  model: string;
   maxToolCalls: number;
   log?: IAgentLog;
-  /** 모델 호출 경로 — 'gateway' 일 때만 401/402/429 를 구독 문장으로 바꾼다 (spec 005 FR-6). 없으면 direct 와 같다 */
-  modelMode?: TModelMode;
-  /** gateway 모드 401 — 계정 서비스가 저장 토큰을 지우고 inactive 로 */
+  /** prod 프로필 401 — 계정 서비스가 저장 토큰을 지우고 inactive 로 */
   onAuthFailure?: () => void;
   /** run 종료(done·failed·stopped) 직후 — 계정 서비스의 크레딧 갱신 (spec 005 FR-5) */
   onRunEnd?: () => void;
@@ -183,7 +182,7 @@ type TPrepared = { ok: true; client: IModelClient; driver: IBrowserDriver } | Ex
 async function prepareRun(deps: IAgentServiceDeps): Promise<TPrepared> {
   let client: IModelClient;
   try {
-    client = deps.createModelClient();
+    client = deps.profile.createClient();
   } catch (error) {
     if (error instanceof MissingApiKeyError)
       return { ok: false, code: 'AGENT_ERROR', message: AGENT_MESSAGE.missingApiKey };
@@ -245,8 +244,9 @@ async function runLoopFor(
   const page = await session.driver.getPageInfo();
   return runAgentLoop({
     client,
-    model: deps.model,
-    tools: createToolList(createToolContext(deps, session)),
+    model: deps.profile.model,
+    request: deps.profile.request,
+    tools: createToolList(createToolContext(deps, session), { hasComputerToolset: deps.profile.hasComputerToolset }),
     systemPrompt: SYSTEM_PROMPT,
     firstUserMessage: buildFirstUserMessage({ today: deps.now(), pageUrl: page.url, pageTitle: page.title, task }),
     signal: session.controller.signal,
@@ -390,9 +390,9 @@ const GATEWAY_REASON_MAP: Record<number, string> = {
   429: AGENT_MESSAGE.gatewayRateLimited,
 };
 
-/** 루프 실패 사유 — gateway 모드의 401·402·429 만 구독 문장으로 바꾸고 401 이면 계정 해제를 알린다 (direct 문장은 그대로) */
+/** 루프 실패 사유 — prod 프로필의 401·402·429 만 구독 문장으로 바꾸고 401 이면 계정 해제를 알린다 (dev·fake 문장은 그대로) */
 function toFailureReason(deps: IAgentServiceDeps, outcome: Extract<TLoopOutcome, { kind: 'failed' }>): string {
-  if (deps.modelMode !== 'gateway' || outcome.apiStatus === undefined) return outcome.reason;
+  if (deps.profile.kind !== 'prod' || outcome.apiStatus === undefined) return outcome.reason;
   const gatewayReason = GATEWAY_REASON_MAP[outcome.apiStatus];
   if (!gatewayReason) return outcome.reason;
   if (outcome.apiStatus === 401) deps.onAuthFailure?.();

@@ -20,9 +20,14 @@ function getAccountCard(win: Page): Locator {
   return getSidebar(win).getByRole('region', { name: '계정' });
 }
 
-/** gateway 모드 env — 가짜 모델을 끄고 가짜 게이트웨이로 보낸다 (.env 는 test 모드라 읽지 않는다) */
+/** prod 프로필 env — 가짜 모델을 끄고 가짜 게이트웨이로 보낸다 (.env 는 test 모드라 읽지 않는다, spec 007) */
 function toGatewayEnv(gateway: IFakeGateway) {
-  return { MYBROWSER_FAKE_MODEL: '0', MYBROWSER_FAKE_SCENARIO: undefined, MYBROWSER_GATEWAY_URL: gateway.url };
+  return {
+    MYBROWSER_FAKE_MODEL: '0',
+    MYBROWSER_FAKE_SCENARIO: undefined,
+    MYBROWSER_PROFILE: 'prod',
+    MYBROWSER_GATEWAY_URL: gateway.url,
+  };
 }
 
 /** [구독하고 시작하기] → 구매 탭이 열리고 → 폴링으로 자동 연결돼 크레딧이 보일 때까지 */

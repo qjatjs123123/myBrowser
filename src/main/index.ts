@@ -14,7 +14,7 @@ import { ShortcutPressedEventSchema } from '@shared/ipc/shortcut';
 import { TabsChangedEventSchema } from '@shared/ipc/tabs';
 
 import { createAccountService, createGatewayClient, sleepWithSignal, type IAccountService } from './account';
-import { createModelClient, toDirectClientOptions } from './agent/modelClient';
+import { createModelProfile, type IModelProfile } from './agent/profiles';
 import { createAgentService } from './agent/service';
 import { getCdpSwitches, removeStaleActivePort } from './app/cdp';
 import { createCredentialStore } from './app/credentialStore';
@@ -128,7 +128,7 @@ function createAccountRuntime(tabManager: TabManager, emitToSidebar: ReturnType<
   // test 모드(password-store=basic)에서만 basic_text 백엔드로도 암호화 API 를 쓰게 한다 — production 은 그대로 (SR-1)
   if (env.mode === 'test' && process.platform === 'linux') safeStorage.setUsePlainTextEncryption(true);
   return createAccountService({
-    modelMode: env.modelMode,
+    profileKind: env.profileKind,
     gateway: createGatewayClient({ baseUrl: env.gatewayUrl }),
     store: createCredentialStore({
       filePath: join(app.getPath('userData'), CREDENTIAL_FILE_NAME),
@@ -144,18 +144,23 @@ function createAccountRuntime(tabManager: TabManager, emitToSidebar: ReturnType<
   });
 }
 
-/** 모델 클라이언트 — gateway: 기기 토큰 + 게이트웨이(재시도 0) / fake: 시나리오 / direct: .env 키 + 프록시 주소 (spec 005 FR-3, spec 006) */
-function createRuntimeModelClient(account: IAccountService) {
-  if (env.modelMode === 'gateway') {
-    return createModelClient({
-      isFake: false,
-      apiKey: account.getDeviceToken() ?? undefined,
-      baseURL: env.gatewayUrl,
-      maxRetries: 0,
+/** 모델 프로필(전략) — env 의 profileKind 로 1번 고른다. 키·토큰은 프로필의 createClient 안에서만 쓴다 (spec 007) */
+function createRuntimeProfile(account: IAccountService): IModelProfile {
+  if (env.profileKind === 'prod') {
+    return createModelProfile({
+      kind: 'prod',
+      gatewayUrl: env.gatewayUrl,
+      getDeviceToken: () => account.getDeviceToken(),
+      model: env.model,
     });
   }
-  if (env.isFakeModel) return createModelClient({ isFake: true, scenario: readFakeScenario() });
-  return createModelClient(toDirectClientOptions({ apiKey: env.anthropicApiKey, baseUrl: env.anthropicBaseUrl }));
+  if (env.profileKind === 'dev') {
+    // readEnv 가 dev 면 anthropicBaseUrl 을 보장한다 (없으면 시작 시점에 실패 — spec 007 FR-3)
+    const baseUrl = env.anthropicBaseUrl;
+    if (!baseUrl) throw new Error('dev 프로필에 ANTHROPIC_BASE_URL 이 없습니다');
+    return createModelProfile({ kind: 'dev', apiKey: env.anthropicApiKey, baseUrl, model: env.model });
+  }
+  return createModelProfile({ kind: 'fake', model: env.model, readScenario: readFakeScenario });
 }
 
 /** 에이전트 실행 서비스 조립 — 저장소·탭 포트·드라이버·모델 클라이언트·이벤트 발신 */
@@ -172,7 +177,7 @@ function createAgentRuntime(
     getCdpTargetId: (id) => tabManager.getCdpTargetId(id),
   };
   return createAgentService({
-    createModelClient: () => createRuntimeModelClient(account),
+    profile: createRuntimeProfile(account),
     createDriver: async () => {
       const cdp = await getCdp();
       const startTabId = tabManager.getActiveTabId() ?? tabManager.createTab();
@@ -183,10 +188,8 @@ function createAgentRuntime(
     now: () => new Date(),
     createId: randomUUID,
     guardOptions: { allowedHostList: env.mode === 'test' ? ['127.0.0.1'] : [] },
-    model: env.model,
     maxToolCalls: MAX_TOOL_CALLS,
     log,
-    modelMode: env.modelMode,
     onAuthFailure: () => account.handleAuthFailure(),
     onRunEnd: () => void account.refreshCredits(),
   });
@@ -194,7 +197,7 @@ function createAgentRuntime(
 
 void app.whenReady().then(() => {
   startBrowser();
-  log.info('app', `시작 (${env.mode})`);
+  log.info('app', `시작 (${env.mode}, profile=${env.profileKind}, model=${env.model})`);
 });
 
 // 종료 전에 로그인 쿠키를 디스크에 확실히 쓴다 (재실행 시 세션 유지 — spec 002 FR-8)

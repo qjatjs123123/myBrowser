@@ -4,7 +4,7 @@ import type { TAccountInfo, TActivationCreated, TActivationPoll } from '@shared/
 import type { TAccountStatus } from '@shared/ipc/account';
 
 import type { ICredentialStore } from '../../app/credentialStore';
-import type { TModelMode } from '../../env';
+import type { TProfileKind } from '../../env';
 import { ACCOUNT_MESSAGE, createAccountService, sleepWithSignal } from '../accountService';
 import { GatewayError } from '../gatewayClient';
 import type { IGatewayClient } from '../types';
@@ -48,14 +48,14 @@ function createMemoryStore(initial: string | null = null): ICredentialStore & { 
 }
 
 interface ISetupOptions {
-  modelMode?: TModelMode;
+  profileKind?: TProfileKind;
   storedToken?: string | null;
   pollList?: Array<TActivationPoll | Error>;
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
 }
 
 /** 가짜 게이트웨이·저장소·시계 — sleep 은 시계를 그만큼 앞으로 돌리고 바로 끝난다 */
-function setup({ modelMode = 'gateway', storedToken = null, pollList = [], sleep }: ISetupOptions = {}) {
+function setup({ profileKind = 'prod', storedToken = null, pollList = [], sleep }: ISetupOptions = {}) {
   let nowMs = START_MS;
   const queue = [...pollList];
   const gateway = {
@@ -71,7 +71,7 @@ function setup({ modelMode = 'gateway', storedToken = null, pollList = [], sleep
   const store = createMemoryStore(storedToken);
   const emitList: TAccountStatus[] = [];
   const deps = {
-    modelMode,
+    profileKind,
     gateway,
     store,
     openTab: vi.fn<(url: string) => unknown>(),
@@ -92,15 +92,15 @@ function setup({ modelMode = 'gateway', storedToken = null, pollList = [], sleep
 
 const lastEmit = (emitList: TAccountStatus[]) => emitList.at(-1);
 
-describe('direct·fake 모드', () => {
-  it.each(['direct', 'fake'] as const)('%s 모드면 상태는 not_required 다', (modelMode) => {
-    const { service } = setup({ modelMode });
+describe('dev·fake 프로필', () => {
+  it.each(['dev', 'fake'] as const)('%s 프로필이면 상태는 not_required 다', (profileKind) => {
+    const { service } = setup({ profileKind });
     expect(service.getStatus()).toEqual({ state: 'not_required' });
     expect(service.getDeviceToken()).toBeNull();
   });
 
   it('not_required 모드에서 startActivation 은 AGENT_ERROR 이고 게이트웨이를 부르지 않는다', async () => {
-    const { service, gateway } = setup({ modelMode: 'direct' });
+    const { service, gateway } = setup({ profileKind: 'dev' });
     expect(await service.startActivation()).toEqual({
       ok: false,
       code: 'AGENT_ERROR',
@@ -110,7 +110,7 @@ describe('direct·fake 모드', () => {
   });
 
   it('not_required 모드에서는 저장소를 읽지 않는다', () => {
-    const { service, store } = setup({ modelMode: 'fake', storedToken: TOKEN });
+    const { service, store } = setup({ profileKind: 'fake', storedToken: TOKEN });
     service.getStatus();
     expect(store.read).not.toHaveBeenCalled();
   });
@@ -399,7 +399,7 @@ describe('openManage', () => {
   });
 
   it('not_required 모드면 AGENT_ERROR 다', async () => {
-    const { service } = setup({ modelMode: 'direct' });
+    const { service } = setup({ profileKind: 'dev' });
     expect(await service.openManage()).toMatchObject({ ok: false, code: 'AGENT_ERROR' });
   });
 });
