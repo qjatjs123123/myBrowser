@@ -283,6 +283,54 @@ describe('checkGuard — 승인 상한 (SR-4)', () => {
   });
 });
 
+describe('checkGuard — 이름 없는 입력칸 픽셀 type (spec 008)', () => {
+  const pixel = { source: 'pixel' } as const;
+  const nameless = () => createTarget({ role: 'textbox' });
+
+  it('이름 없는 칸에 픽셀 type(submit:false) 이면 require_approval 이고 display 는 입력·이름 없는 입력칸이다', () => {
+    const verdict = check({
+      ...pixel,
+      tool: 'type_text',
+      input: { text: '강남역', submit: false },
+      target: nameless(),
+    });
+    expect(verdict).toEqual({
+      kind: 'require_approval',
+      reason: '이름 없는 입력칸',
+      display: { action: '입력', target: '이름 없는 입력칸' },
+    });
+  });
+
+  it('이름 없는 칸에 픽셀 type(submit:true) 이면 display action 은 입력 후 제출이다', () => {
+    const verdict = check({ ...pixel, tool: 'type_text', input: { text: 'x', submit: true }, target: nameless() });
+    expect(verdict).toMatchObject({
+      kind: 'require_approval',
+      display: { action: '입력 후 제출', target: '이름 없는 입력칸' },
+    });
+  });
+
+  it('이름 없는 password 칸은 승인이 아니라 block 이다 (비밀 입력 차단이 먼저)', () => {
+    const target = createTarget({ role: 'textbox', inputType: 'password' });
+    const verdict = check({ ...pixel, tool: 'type_text', input: { text: 'x', submit: false }, target });
+    expect(verdict).toEqual({ kind: 'block', reason: GUARD_MESSAGE.secretField });
+  });
+
+  it('이름 없는 칸 submit:true 이고 폼 submit 이 “예약 확정” 이면 확정 승인 판정을 그대로 쓴다', () => {
+    const target = createTarget({ role: 'textbox', formSubmitText: '예약 확정' });
+    const verdict = check({ ...pixel, tool: 'type_text', input: { text: 'x', submit: true }, target });
+    expect(verdict).toMatchObject({
+      kind: 'require_approval',
+      display: { action: '입력 후 제출', target: '예약 확정' },
+    });
+  });
+
+  it('구조 도구 type_text 는 이름 없는 칸이어도 allow 한다 (ref 로 고른 요소)', () => {
+    expect(check({ tool: 'type_text', input: { ref: 'e5', text: 'abc' }, target: nameless() })).toEqual({
+      kind: 'allow',
+    });
+  });
+});
+
 describe('checkGuard — 픽셀 (source=pixel)', () => {
   const pixel = { source: 'pixel' } as const;
 

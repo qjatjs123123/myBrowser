@@ -41,11 +41,14 @@ const DISPLAY_ACTION = {
   click: '클릭',
   selectOption: '선택',
   pressEnter: 'Enter 키',
+  type: '입력',
   typeSubmit: '입력 후 제출',
   modelRequest: '확인 요청',
 } as const;
 
 const UNKNOWN_ELEMENT_REASON = '좌표의 요소를 확인할 수 없음';
+/** 이름·텍스트·값이 모두 빈 입력칸 — 픽셀 type 가드 호출에는 좌표가 없어 고정 문구로 보인다 (spec 008 FR-4) */
+const NAMELESS_INPUT = '이름 없는 입력칸';
 const MODEL_REQUEST_REASON = '에이전트가 확인을 요청함';
 
 const DISPLAY_TARGET_MAX = 80;
@@ -104,12 +107,24 @@ function judgePixel(guardInput: IGuardInput): TGuardVerdict {
     case 'click':
       return checkConfirmTarget({ target, pageUrl, action: DISPLAY_ACTION.click });
     case 'type_text':
-      return checkTypeText(readPixelTypeInput(input), target, pageUrl);
+      return checkPixelTypeText(input, target, pageUrl);
     case 'press_key':
       return checkPressKey(readPixelKeyInput(input), target, pageUrl);
     default:
       return ALLOW;
   }
+}
+
+/**
+ * 픽셀 type — 비밀 칸 block·확정 승인이 먼저(checkTypeText), 그다음 이름 없는 칸이면 칸마다 승인 (spec 008 FR-4·FR-5).
+ * 무엇을 채우는지 사용자가 알 수 없는 칸이라 allow 를 require_approval 로만 바꾼다 (강화만, SR-1).
+ */
+function checkPixelTypeText(input: unknown, target: IGuardTarget, pageUrl: string): TGuardVerdict {
+  const parsed = readPixelTypeInput(input);
+  const verdict = checkTypeText(parsed, target, pageUrl);
+  if (verdict.kind !== 'allow' || !parsed.success || !isNamelessTarget(target)) return verdict;
+  const action = parsed.data.submit ? DISPLAY_ACTION.typeSubmit : DISPLAY_ACTION.type;
+  return { kind: 'require_approval', reason: NAMELESS_INPUT, display: { action, target: NAMELESS_INPUT } };
 }
 
 function isNamelessTarget(target: IGuardTarget): boolean {

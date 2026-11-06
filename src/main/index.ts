@@ -71,7 +71,8 @@ function startBrowser(): void {
     Menu.buildFromTemplate(createAppMenuTemplate({ platform: process.platform, isDev: env.mode === 'development' })),
   );
   const window = createMainWindow(env);
-  const emitToSidebar = createSidebarEmitter(() => window.webContents);
+  // 종료 중에 탭 상태 변경(로드 실패 등)이 늦게 오면 창이 이미 파괴돼 webContents 접근이 throw 한다 (spec 008)
+  const emitToSidebar = createSidebarEmitter(() => (window.isDestroyed() ? null : window.webContents));
   let shortcutInput: ReturnType<typeof createShortcutInputHandler> = () => {};
   const tabManager = new TabManager({
     host: window.contentView,
