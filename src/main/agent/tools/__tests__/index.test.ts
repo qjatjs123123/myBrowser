@@ -129,6 +129,12 @@ describe('createToolList', () => {
     expect(toolList.at(-1)).toBeInstanceOf(BrowserComputerToolset);
   });
 
+  it('hasComputerToolset false 면 픽셀 computer toolset 없이 15개다 (spec 007 FR-5)', () => {
+    const toolList = createToolList(createContext(), { hasComputerToolset: false });
+    expect(toolList).toHaveLength(ALL_TOOL_NAME_LIST.length);
+    expect(toolList.some((tool) => tool instanceof BrowserComputerToolset)).toBe(false);
+  });
+
   it('모든 도구가 eager_input_streaming 을 켠다', () => {
     for (const tool of getZodToolList(createContext())) {
       expect(tool).toMatchObject({ eager_input_streaming: true });
@@ -148,16 +154,19 @@ describe('createToolList', () => {
     expect(vi.mocked(checkGuard).mock.calls.length).toBe(isStateful ? 1 : 0);
   });
 
-  it.each(HUMAN_TOOL_NAME_LIST)('사람 개입 도구 %s 는 구조 가드·드라이버를 부르지 않고 사용자 대기로 답한다', async (name) => {
-    vi.mocked(checkGuard).mockClear();
-    const ctx = createContext();
-    const result = await findRunnable(ctx, name).run(VALID_INPUT[name]);
-    expect(result).toBe(name === 'ask_user' ? '사용자 답: 2명' : 'approved');
-    expect(ctx.waitForUser).toHaveBeenCalledOnce();
-    expect(ctx.driver.resolveTarget).not.toHaveBeenCalled();
-    const toolList = vi.mocked(checkGuard).mock.calls.map(([guardInput]) => guardInput.tool);
-    expect(toolList).toEqual(name === 'request_approval' ? ['request_approval'] : []);
-  });
+  it.each(HUMAN_TOOL_NAME_LIST)(
+    '사람 개입 도구 %s 는 구조 가드·드라이버를 부르지 않고 사용자 대기로 답한다',
+    async (name) => {
+      vi.mocked(checkGuard).mockClear();
+      const ctx = createContext();
+      const result = await findRunnable(ctx, name).run(VALID_INPUT[name]);
+      expect(result).toBe(name === 'ask_user' ? '사용자 답: 2명' : 'approved');
+      expect(ctx.waitForUser).toHaveBeenCalledOnce();
+      expect(ctx.driver.resolveTarget).not.toHaveBeenCalled();
+      const toolList = vi.mocked(checkGuard).mock.calls.map(([guardInput]) => guardInput.tool);
+      expect(toolList).toEqual(name === 'request_approval' ? ['request_approval'] : []);
+    },
+  );
 
   it('request_approval 은 승인 수를 1 늘리고 kind=model 요청에 모델 문장을 modelNote 로만 싣는다', async () => {
     const ctx = createContext();

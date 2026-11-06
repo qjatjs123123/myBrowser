@@ -1,7 +1,7 @@
 /**
  * [모델 클라이언트] 실제 Anthropic SDK 클라이언트 또는 가짜 fetch 를 단 같은 SDK 클라이언트를 만든다.
  * 가짜도 SDK toolRunner·스트림 파서를 그대로 거친다 — HTTP 만 가짜 (spec 003 「가짜 모델」).
- * gateway 모드(spec 005)는 baseURL = 게이트웨이, apiKey = 기기 토큰 — SDK 1.5.0 은 Authorization: Bearer 로 보낸다(게이트웨이는 x-api-key 와 둘 다 받는다).
+ * prod 프로필(게이트웨이, spec 005)은 baseURL = 게이트웨이, apiKey = 기기 토큰 — SDK 1.5.0 은 Authorization: Bearer 로 보낸다(게이트웨이는 x-api-key 와 둘 다 받는다).
  * SDK 는 baseURL 이 없으면 process.env.ANTHROPIC_BASE_URL 을 스스로 읽으므로 런타임 클라이언트는 주소를 항상 명시한다 (spec 006).
  * API 키·기기 토큰은 여기서만 SDK 에 넘기고 로그·이벤트·DB 에 싣지 않는다 (SR-6, spec 005 SR-1).
  */
@@ -27,7 +27,7 @@ export class MissingApiKeyError extends Error {
   }
 }
 
-/** gateway 모드인데 기기 토큰이 없다 — 서비스가 run 을 시작하지 않고 구독 안내 문장으로 바꾼다 (spec 005 FR-6) */
+/** prod 프로필인데 기기 토큰이 없다 — 서비스가 run 을 시작하지 않고 구독 안내 문장으로 바꾼다 (spec 005 FR-6) */
 export class MissingCredentialError extends Error {
   constructor() {
     super('기기 토큰이 없습니다');
@@ -37,11 +37,11 @@ export class MissingCredentialError extends Error {
 
 export interface ICreateModelClientOptions {
   isFake: boolean;
-  /** direct 모드는 ANTHROPIC_API_KEY, gateway 모드는 기기 토큰 */
+  /** dev 프로필은 ANTHROPIC_API_KEY, prod 프로필은 기기 토큰 */
   apiKey?: string;
-  /** 호출 주소 — direct 는 프록시(ANTHROPIC_BASE_URL) 또는 기본 주소, gateway 는 게이트웨이 주소 */
+  /** 호출 주소 — dev 는 프록시(ANTHROPIC_BASE_URL), prod 는 게이트웨이 주소. 없으면 SDK 가 환경변수를 읽으므로 실제 모드는 항상 준다 */
   baseURL?: string;
-  /** SDK 재시도 횟수 — 없으면 SDK 기본(2). gateway 모드는 0 */
+  /** SDK 재시도 횟수 — 없으면 SDK 기본(2). prod 프로필은 0 */
   maxRetries?: number;
   /** 가짜 모드에서 재생할 시나리오 — 없으면 바로 끝나는 빈 시나리오 */
   scenario?: TFakeScenario;
@@ -58,22 +58,6 @@ export function createModelClient(options: ICreateModelClientOptions): IModelCli
   }
   if (!apiKey) throw toMissingKeyError(options);
   return new Anthropic({ apiKey, baseURL, ...(maxRetries === undefined ? {} : { maxRetries }) });
-}
-
-/** direct 모드(개발) 옵션 — 프록시 주소가 없으면 기본 주소, 재시도는 SDK 기본, 키가 없으면 .env 안내 오류 (spec 006) */
-export function toDirectClientOptions({
-  apiKey,
-  baseUrl,
-}: {
-  apiKey?: string;
-  baseUrl?: string;
-}): ICreateModelClientOptions {
-  return {
-    isFake: false,
-    apiKey,
-    baseURL: baseUrl ?? ANTHROPIC_DEFAULT_BASE_URL,
-    missingKeyError: () => new MissingApiKeyError(),
-  };
 }
 
 function toMissingKeyError({ baseURL, missingKeyError }: ICreateModelClientOptions): Error {

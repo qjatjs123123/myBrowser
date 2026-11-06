@@ -12,6 +12,7 @@ paths:
 ## 모델 호출 (loop.ts)
 - `@anthropic-ai/sdk` 의 `client.beta.messages.toolRunner(...)` + `betaZodTool` 을 쓴다 — 루프를 손으로 쓰지 않는다. 턴별 훅에서 가드·로그·이벤트 발신을 한다.
 - 기본값: `model: 'claude-opus-5-5'`, `output_config: { effort: 'high' }`, `max_tokens: 64000` 이상, **스트리밍**(`.stream`), `thinking` 파라미터는 보내지 않는다(기본 adaptive). `betas: ['server-side-fallback-2026-07-01']` + `fallbacks: 'default'`. 모델 id 는 `env.ts`/settings 에서 바꿀 수 있게 하되 **날짜 접미사 금지**.
+- 클라이언트·모델 id·`betas`·`fallbacks`·computer toolset 포함 여부는 **모델 프로필**(`agent/profiles/`, spec 007)이 정한다 — 서비스·루프에서 프로필 kind 로 분기하지 않는다. `dev`(사내 프록시)는 프록시 비호환으로 computer toolset·`fallbacks`·server-side-fallback 베타를 뺀다. 새 경로는 전략 파일 하나 + `createModelProfile` 분기 하나로 더한다.
 - 클라이언트 도구는 `eager_input_streaming: true` + 실행 전 zod `safeParse` (`skills/desktop/zod-usage` §2). `stop_reason` 이 `max_tokens`·`refusal` 이면 도구를 실행하지 않고 run 을 `failed` 로 (refusal 은 `stop_details.category` 를 reason 에).
 - **히스토리는 append-only** — 이전 턴의 content(thinking 블록 포함)를 그대로 되돌려 보낸다. 편집·삭제 금지. 긴 run 은 `context_management: { edits: [{ type: 'clear_tool_uses_20250919' }] }` (beta `context-management-2025-06-27`) 로 오래된 도구 결과를 정리한다.
 - 프롬프트 캐싱: `system` 과 `tools` 는 고정 prefix, 날짜·위치·선호 같은 가변 정보는 **첫 user 메시지**에. `system` 에 `cache_control: { type: 'ephemeral' }`.

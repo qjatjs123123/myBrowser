@@ -8,7 +8,9 @@ import type { IBrowserDriver, IGuardTarget, TActionResult } from '@shared/tools'
 
 import { createFakeFetch, type TFakeRequestBody } from '../fake/fakeFetch';
 import { GUARD_MESSAGE } from '../guard';
+import { DEFAULT_MODEL_REQUEST } from '../loop';
 import { MissingApiKeyError, MissingCredentialError } from '../modelClient';
+import { DEV_MODEL_REQUEST, type IModelProfile } from '../profiles';
 import { AGENT_MESSAGE, createAgentService, type IAgentServiceDeps } from '../service';
 import { DENIED_RESULT, USER_DONE_RESULT } from '../tools';
 
@@ -101,24 +103,32 @@ function createMemoryStore() {
 interface ISetupOptions {
   scenario?: TFakeScenario;
   deps?: Partial<IAgentServiceDeps>;
+  /** 기본 fake 프로필(가짜 fetch 클라이언트) 위에 덮어쓴다 */
+  profile?: Partial<IModelProfile>;
   driver?: ReturnType<typeof createFakeDriver>;
 }
 
-function setup({ scenario = { turns: [] }, deps = {}, driver = createFakeDriver() }: ISetupOptions = {}) {
+function setup({ scenario = { turns: [] }, deps = {}, profile = {}, driver = createFakeDriver() }: ISetupOptions = {}) {
   const fake = createFakeFetch(scenario);
   const { store, callList } = createMemoryStore();
   const eventList: TAgentEvent[] = [];
   const log = { error: vi.fn() };
   let idCount = 0;
   const service = createAgentService({
-    createModelClient: () => new Anthropic({ apiKey: 'fake', fetch: fake.fetch, maxRetries: 0 }),
+    profile: {
+      kind: 'fake',
+      model: 'claude-opus-5-5',
+      createClient: () => new Anthropic({ apiKey: 'fake', fetch: fake.fetch, maxRetries: 0 }),
+      request: DEFAULT_MODEL_REQUEST,
+      hasComputerToolset: true,
+      ...profile,
+    },
     createDriver: async () => driver,
     runStore: store,
     emit: (event) => eventList.push(AgentEventSchema.parse(event)),
     now: () => new Date(2026, 10, 5, 9, 0),
     createId: () => `run-${++idCount}`,
     guardOptions: { allowedHostList: [] },
-    model: 'claude-opus-5-5',
     maxToolCalls: 60,
     log,
     ...deps,
@@ -233,6 +243,33 @@ describe('AgentService — 정상 흐름 ①', () => {
     expect(firstMessage).toBe(
       '오늘: 2026-11-05 (목)\n현재 탭: https://shop.example.com/ — 가게\n\n할 일: 전화번호 찾아줘',
     );
+  });
+
+  it('fake 프로필 요청 tools 끝에 computer toolset 이 있다', async () => {
+    const t = setup({ scenario });
+    await t.service.start('전화번호 찾아줘');
+    await t.waitForEnd();
+    const toolTypeList = ((t.requestList[0]?.tools ?? []) as { type?: string }[]).map((tool) => tool.type);
+    expect(toolTypeList).toContain('computer_toolset_20260801');
+  });
+
+  it('dev 프로필이면 요청 tools 에 computer toolset 이 없고 fallbacks·모델은 프로필 값이다 (spec 007 FR-4·FR-5)', async () => {
+    const t = setup({
+      scenario,
+      profile: {
+        kind: 'dev',
+        model: 'bedrock.anthropic.claude-opus-5-5',
+        request: DEV_MODEL_REQUEST,
+        hasComputerToolset: false,
+      },
+    });
+    await t.service.start('전화번호 찾아줘');
+    await t.waitForEnd();
+    const body = t.requestList[0] ?? {};
+    const toolTypeList = ((body.tools ?? []) as { type?: string }[]).map((tool) => tool.type);
+    expect(toolTypeList).not.toContain('computer_toolset_20260801');
+    expect(body).not.toHaveProperty('fallbacks');
+    expect(body).toMatchObject({ model: 'bedrock.anthropic.claude-opus-5-5' });
   });
 });
 
@@ -863,10 +900,10 @@ describe('AgentService — 시작 실패·BUSY ⑤', () => {
 });
 
 describe('AgentService — 시작 실패 ⑤-1', () => {
-  it('createModelClient 가 MissingApiKeyError 면 FR-8 문장의 AGENT_ERROR 이고 run 을 만들지 않는다', async () => {
+  it('profile.createClient 가 MissingApiKeyError 면 FR-8 문장의 AGENT_ERROR 이고 run 을 만들지 않는다', async () => {
     const t = setup({
-      deps: {
-        createModelClient: () => {
+      profile: {
+        createClient: () => {
           throw new MissingApiKeyError();
         },
       },
@@ -992,7 +1029,7 @@ describe('AgentService — 키 보호 ⑪ (SR-6)', () => {
 
   it('성공 run 의 이벤트·store·log 어디에도 키가 없다', async () => {
     const fake = createFakeFetch({ turns: [toolTurn('snapshot'), textTurn('끝')] });
-    const t = setup({ deps: { createModelClient: createKeyedClient(fake.fetch) } });
+    const t = setup({ profile: { createClient: createKeyedClient(fake.fetch) } });
     await t.service.start('할 일');
     await t.waitForEnd();
     expect(t.store.getRun('run-1')?.status).toBe('done');
@@ -1005,7 +1042,7 @@ describe('AgentService — 키 보호 ⑪ (SR-6)', () => {
         { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } },
         { status: 401 },
       );
-    const t = setup({ deps: { createModelClient: createKeyedClient(unauthorized) } });
+    const t = setup({ profile: { createClient: createKeyedClient(unauthorized) } });
     await t.service.start('할 일');
     await t.waitForEnd();
     expect(t.eventList).toContainEqual({ type: 'failed', runId: 'run-1', reason: expect.stringContaining('API 키') });
@@ -1016,7 +1053,7 @@ describe('AgentService — 키 보호 ⑪ (SR-6)', () => {
     const driver = createFakeDriver();
     driver.getPageInfo.mockRejectedValueOnce(new Error(`page closed ${'x'}`));
     const fake = createFakeFetch({ turns: [] });
-    const t = setup({ driver, deps: { createModelClient: createKeyedClient(fake.fetch) } });
+    const t = setup({ driver, profile: { createClient: createKeyedClient(fake.fetch) } });
     await t.service.start('할 일');
     await t.waitForEnd();
     expect(t.store.getRun('run-1')).toMatchObject({ status: 'failed', reason: AGENT_MESSAGE.unexpected });
@@ -1025,7 +1062,7 @@ describe('AgentService — 키 보호 ⑪ (SR-6)', () => {
   });
 });
 
-describe('AgentService — 게이트웨이 모드 오류 문장 (spec 005 FR-6)', () => {
+describe('AgentService — prod 프로필 오류 문장 (spec 005 FR-6)', () => {
   /** 상태 코드만 돌려주는 가짜 게이트웨이 fetch */
   function createStatusClient(status: number, type: string) {
     const fetch = async () => Response.json({ type: 'error', error: { type, message: 'x' } }, { status });
@@ -1036,19 +1073,23 @@ describe('AgentService — 게이트웨이 모드 오류 문장 (spec 005 FR-6)'
     [401, 'authentication_error', AGENT_MESSAGE.gatewayUnauthorized],
     [402, 'insufficient_credits', AGENT_MESSAGE.gatewayNoCredits],
     [429, 'rate_limit_error', AGENT_MESSAGE.gatewayRateLimited],
-  ])('gateway 모드 %i 이면 구독 문장으로 failed', async (status, type, reason) => {
+  ])('prod 프로필 %i 이면 구독 문장으로 failed', async (status, type, reason) => {
     const onAuthFailure = vi.fn();
-    const t = setup({ deps: { modelMode: 'gateway', onAuthFailure, createModelClient: createStatusClient(status, type) } });
+    const t = setup({
+      deps: { onAuthFailure },
+      profile: { kind: 'prod', createClient: createStatusClient(status, type) },
+    });
     await t.service.start('할 일');
     await t.waitForEnd();
     expect(t.store.getRun('run-1')).toMatchObject({ status: 'failed', reason });
     expect(onAuthFailure).toHaveBeenCalledTimes(status === 401 ? 1 : 0);
   });
 
-  it('direct 모드 401 은 기존 API 키 문장 그대로이고 onAuthFailure 를 부르지 않는다', async () => {
+  it('dev 프로필 401 은 기존 API 키 문장 그대로이고 onAuthFailure 를 부르지 않는다', async () => {
     const onAuthFailure = vi.fn();
     const t = setup({
-      deps: { modelMode: 'direct', onAuthFailure, createModelClient: createStatusClient(401, 'authentication_error') },
+      deps: { onAuthFailure },
+      profile: { kind: 'dev', createClient: createStatusClient(401, 'authentication_error') },
     });
     await t.service.start('할 일');
     await t.waitForEnd();
@@ -1058,9 +1099,9 @@ describe('AgentService — 게이트웨이 모드 오류 문장 (spec 005 FR-6)'
 
   it('MissingCredentialError 면 구독 안내 AGENT_ERROR 이고 run 을 만들지 않는다', async () => {
     const t = setup({
-      deps: {
-        modelMode: 'gateway',
-        createModelClient: () => {
+      profile: {
+        kind: 'prod',
+        createClient: () => {
           throw new MissingCredentialError();
         },
       },

@@ -20,7 +20,7 @@ paths:
 - 비동기는 `async/await`, 콜백 API 는 `promisify`. 모든 `Promise` 는 await 하거나 `void` 명시. `process.on('unhandledRejection')` 은 `index.ts` 에서 로그(`[main.error]`)로 남긴다.
 - 로그는 `src/main/log.ts` 의 `log.{info,warn,error}(scope, msg, meta)` 로만. `console.log` 직접 금지. 에러는 `[main.error]` 접두사로 stderr — e2e fixtures 가 이 접두사를 센다.
 - 파일 경로는 `app.getPath('userData')` 기준. 테스트·e2e 는 `MYBROWSER_USER_DATA` 환경변수로 덮어쓴다.
-- 환경변수는 `src/main/env.ts` 한 곳에서 zod 로 읽는다 (`ANTHROPIC_API_KEY`, `MYBROWSER_FAKE_MODEL`, `MYBROWSER_CDP_PORT`, `MYBROWSER_USER_DATA`). 다른 파일에서 `process.env` 직접 접근 금지.
+- 환경변수는 `src/main/env.ts` 한 곳에서 zod 로 읽는다 (`MYBROWSER_PROFILE`(dev|prod, 개발 실행 필수 — spec 007), `ANTHROPIC_API_KEY`·`ANTHROPIC_BASE_URL`(dev), `MYBROWSER_GATEWAY_URL`(prod), `MYBROWSER_FAKE_MODEL`, `MYBROWSER_CDP_PORT`, `MYBROWSER_USER_DATA`). 다른 파일에서 `process.env` 직접 접근 금지.
 
 ## 탭 (tabs/)
 - `TabManager` 가 `WebContentsView` 의 생성·전환·닫기·`setBounds` 를 전담. renderer 가 보낸 레이아웃 rect(사이드바 폭 반영)로 bounds 를 맞춘다.

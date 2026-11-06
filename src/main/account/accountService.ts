@@ -2,7 +2,7 @@ import type { TAccountInfo, TActivationCreated, TActivationPoll } from '@shared/
 import type { TAccountStatus } from '@shared/ipc/account';
 
 import type { ICredentialStore } from '../app/credentialStore';
-import type { TModelMode } from '../env';
+import type { TProfileKind } from '../env';
 import { GatewayError } from './gatewayClient';
 import type { IAccountService, IGatewayClient, TAccountResult } from './types';
 
@@ -24,7 +24,7 @@ export interface IAccountLog {
 }
 
 export interface IAccountServiceDeps {
-  modelMode: TModelMode;
+  profileKind: TProfileKind;
   gateway: IGatewayClient;
   store: ICredentialStore;
   /** 새 탭으로 연다 — index.ts 에서 tabManager.createTab(url) */
@@ -96,7 +96,7 @@ class AccountService {
   constructor(private readonly deps: IAccountServiceDeps) {}
 
   private get isGateway(): boolean {
-    return this.deps.modelMode === 'gateway';
+    return this.deps.profileKind === 'prod';
   }
 
   getStatus(): TAccountStatus {

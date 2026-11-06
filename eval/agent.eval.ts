@@ -17,10 +17,11 @@ import { EVAL_SCENARIO_LIST, type IEvalScenario, type TApprovalAnswer } from './
 const isReal = process.env[EVAL_REAL_ENV] === '1';
 const RESULT_FILE = process.env['MYBROWSER_EVAL_RESULT_FILE'];
 
-/** 실제 모델 평가 — 가짜 모델·가짜 시나리오·게이트웨이를 빼서 direct 모드(ANTHROPIC_API_KEY)로 띄운다 */
+/** 실제 모델 평가 — 가짜 모델·가짜 시나리오·게이트웨이를 빼서 dev 프로필(사내 GenAI 프록시: ANTHROPIC_API_KEY + ANTHROPIC_BASE_URL)로 띄운다 (spec 007) */
 const REAL_APP_ENV: TAppEnv = {
   MYBROWSER_FAKE_MODEL: '0',
   MYBROWSER_FAKE_SCENARIO: undefined,
+  MYBROWSER_PROFILE: 'dev',
   MYBROWSER_GATEWAY_URL: undefined,
 };
 

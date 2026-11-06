@@ -4,16 +4,16 @@ import { z } from 'zod';
 
 import type { TAppMode } from '@shared/ipc/app';
 
-/**
- * 모델 호출 경로 (spec 005 FR-3) — fake: 가짜 fetch / gateway: 기기 토큰 + 게이트웨이 / direct: ANTHROPIC_API_KEY
- */
-export type TModelMode = 'fake' | 'gateway' | 'direct';
+import { DEV_DEFAULT_MODEL, type TProfileKind } from './agent/profiles';
+
+export type { TProfileKind } from './agent/profiles';
 
 /** 환경변수에서 읽은 실행 설정 — process.env 는 이 파일에서만 읽는다 (.claude/rules/electron/main.md) */
 export interface IEnv {
   mode: TAppMode;
   isFakeModel: boolean;
-  modelMode: TModelMode;
+  /** 모델 프로필 (spec 007) — fake / dev(사내 GenAI 프록시) / prod(게이트웨이) */
+  profileKind: TProfileKind;
   /** 런타임 MYBROWSER_GATEWAY_URL → 없으면 빌드 상수(readEnv 의 defaultGatewayUrl) */
   gatewayUrl: string;
   cdpPort: number;
@@ -21,21 +21,22 @@ export interface IEnv {
   userDataDir?: string;
   /** electron-vite dev 가 넣어 주는 renderer 개발 서버 주소 — 없으면 빌드된 파일을 연다 */
   rendererDevUrl?: string;
-  /** main 에서만 쓴다 — renderer·로그·DB·이벤트에 싣지 않는다 (SR-6) */
+  /** dev 프로필만 값 — main 에서만 쓴다, renderer·로그·DB·이벤트에 싣지 않는다 (SR-6) */
   anthropicApiKey?: string;
-  /** direct 모드(개발)의 모델 프록시 주소 — 그 외 모드는 항상 undefined (spec 006) */
+  /** dev 프로필의 모델 프록시 주소(필수) — 그 외 프로필은 항상 undefined (spec 006, spec 007 FR-3) */
   anthropicBaseUrl?: string;
   /** 가짜 모델 시나리오 이름 — e2e/fixtures/model/{이름}.json */
   fakeScenario?: string;
   /** 가짜 시나리오 폴더 — test 모드에서만 (패키징된 앱에는 e2e/ 가 없다) */
   fakeScenarioDir?: string;
-  /** 모델 id — 날짜 접미사 금지. gateway 모드는 GATEWAY_MODEL 고정 */
+  /** 모델 id — 날짜 접미사 금지. prod 는 GATEWAY_MODEL 고정, dev 기본은 DEV_DEFAULT_MODEL */
   model: string;
 }
 
 const DEFAULT_CDP_PORT = 9222;
+/** fake 프로필 기본 모델 */
 const DEFAULT_MODEL = 'claude-opus-5-5';
-/** 게이트웨이 허용 목록과 같은 모델 — gateway 모드는 MYBROWSER_MODEL 을 무시한다 */
+/** 게이트웨이 허용 목록과 같은 모델 — prod 프로필은 MYBROWSER_MODEL 을 무시한다 */
 const GATEWAY_MODEL = 'claude-opus-5-5';
 
 const RawEnvSchema = z.object({
@@ -46,6 +47,7 @@ const RawEnvSchema = z.object({
   ELECTRON_RENDERER_URL: z.url().optional(),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   ANTHROPIC_BASE_URL: z.url({ protocol: /^https?$/ }).optional(),
+  MYBROWSER_PROFILE: z.enum(['dev', 'prod']).optional(),
   MYBROWSER_FAKE_SCENARIO: z
     .string()
     .regex(/^[a-z0-9-]+$/)
@@ -65,19 +67,31 @@ function getMode(isTest: boolean, isPackaged: boolean): TAppMode {
   return isPackaged ? 'production' : 'development';
 }
 
-/** 모델 호출 경로 판정 — 위에서부터 첫 일치 (spec 005 FR-3) */
-function getModelMode({
-  isFakeModel,
-  hasGatewayUrl,
-  isPackaged,
-}: {
-  isFakeModel: boolean;
-  hasGatewayUrl: boolean;
-  isPackaged: boolean;
-}): TModelMode {
-  if (isFakeModel) return 'fake';
-  if (hasGatewayUrl || isPackaged) return 'gateway';
-  return 'direct';
+type TRawEnv = z.infer<typeof RawEnvSchema>;
+
+/** 모델 프로필 판정 — 위에서부터 첫 일치. 개발 실행은 MYBROWSER_PROFILE 필수 (spec 007 FR-1·FR-2) */
+function getProfileKind(raw: TRawEnv, isPackaged: boolean): TProfileKind {
+  if (raw.MYBROWSER_FAKE_MODEL === '1') return 'fake';
+  if (isPackaged) return 'prod';
+  if (!raw.MYBROWSER_PROFILE) throw toEnvError(['MYBROWSER_PROFILE']);
+  return raw.MYBROWSER_PROFILE;
+}
+
+/** 프로필별 모델 id (spec 007 FR-4·FR-6) */
+function getModel(kind: TProfileKind, raw: TRawEnv): string {
+  if (kind === 'prod') return GATEWAY_MODEL;
+  return raw.MYBROWSER_MODEL ?? (kind === 'dev' ? DEV_DEFAULT_MODEL : DEFAULT_MODEL);
+}
+
+/** dev 프로필의 프록시 주소 — 없으면 프록시 키가 api.anthropic.com 으로 새므로 시작 시점에 실패 (spec 007 FR-3) */
+function getDevBaseUrl(kind: TProfileKind, raw: TRawEnv): string | undefined {
+  if (kind !== 'dev') return undefined;
+  if (!raw.ANTHROPIC_BASE_URL) throw toEnvError(['ANTHROPIC_BASE_URL']);
+  return raw.ANTHROPIC_BASE_URL;
+}
+
+function toEnvError(nameList: string[]): Error {
+  return new Error(`환경변수가 올바르지 않습니다: ${nameList.join(', ')}`);
 }
 
 export interface IReadEnvOptions {
@@ -92,26 +106,24 @@ export interface IReadEnvOptions {
  */
 export function readEnv(source: NodeJS.ProcessEnv, { isPackaged, defaultGatewayUrl }: IReadEnvOptions): IEnv {
   const parsed = RawEnvSchema.safeParse(source);
-  if (!parsed.success) {
-    throw new Error(`환경변수가 올바르지 않습니다: ${parsed.error.issues.map((i) => i.path.join('.')).join(', ')}`);
-  }
+  if (!parsed.success) throw toEnvError(parsed.error.issues.map((i) => i.path.join('.')));
   const raw = parsed.data;
   const isFakeModel = raw.MYBROWSER_FAKE_MODEL === '1';
   const mode = getMode(raw.NODE_ENV === 'test' || isFakeModel, isPackaged);
-  const modelMode = getModelMode({ isFakeModel, hasGatewayUrl: raw.MYBROWSER_GATEWAY_URL !== undefined, isPackaged });
+  const profileKind = getProfileKind(raw, isPackaged);
   return {
     mode,
     isFakeModel,
-    modelMode,
+    profileKind,
     gatewayUrl: raw.MYBROWSER_GATEWAY_URL ?? defaultGatewayUrl,
     ...getCdpPort(raw.MYBROWSER_CDP_PORT, isPackaged),
     userDataDir: raw.MYBROWSER_USER_DATA,
     rendererDevUrl: raw.ELECTRON_RENDERER_URL,
-    anthropicApiKey: raw.ANTHROPIC_API_KEY,
-    anthropicBaseUrl: modelMode === 'direct' ? raw.ANTHROPIC_BASE_URL : undefined,
+    anthropicApiKey: profileKind === 'dev' ? raw.ANTHROPIC_API_KEY : undefined,
+    anthropicBaseUrl: getDevBaseUrl(profileKind, raw),
     fakeScenario: raw.MYBROWSER_FAKE_SCENARIO,
     fakeScenarioDir: mode === 'test' ? raw.MYBROWSER_FAKE_SCENARIO_DIR : undefined,
-    model: modelMode === 'gateway' ? GATEWAY_MODEL : (raw.MYBROWSER_MODEL ?? DEFAULT_MODEL),
+    model: getModel(profileKind, raw),
   };
 }
 
