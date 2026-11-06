@@ -24,7 +24,7 @@ export const IPC = {
 ```ts
 type TIpcResult<T> = { ok: true; data: T } | { ok: false; error: { code: TIpcErrorCode; message: string; issues?: unknown } };
 ```
-- `code`: `INVALID_INPUT` | `NOT_FOUND` | `BUSY` | `AGENT_ERROR` | `INTERNAL`. `message` 는 **한국어 사용자용 문장** (renderer 가 그대로 toast).
+- `code`: `INVALID_INPUT` | `NOT_FOUND` | `CONFLICT` | `LIMIT` | `BUSY` | `AGENT_ERROR` | `INTERNAL`. `message` 는 **한국어 사용자용 문장** (renderer 가 그대로 toast).
 - 핸들러는 throw 하지 않는다 — 예외는 `fail('INTERNAL', …)` 로 감싸고 `[main.error]` 로 로그.
 
 ## 스키마
