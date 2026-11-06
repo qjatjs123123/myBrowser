@@ -54,7 +54,7 @@ src/renderer/
 ├── main.tsx            React 루트 + Providers + <Toaster/>
 ├── App.tsx             레이아웃 조립 (Chrome + Sidebar)
 ├── chrome/             상단바·탭 영역 — BrowserChrome/(조립), TabBar/, AddressBar/, NavButtons/, NewTabPage/(시작 화면), AgentToggleButton/, WindowControls/(신호등), SidebarResizer/(폭 손잡이)
-├── sidebar/            에이전트 패널 — AgentPanel/(조립), SidebarHeader/, Conversation/(말풍선·에이전트 턴), Timeline/, RunResult/, ApprovalPanel/, QuestionCard/, ChoiceList/, AccountCard/, AppInfoFooter/, RunHistory/(지난 실행 기록)
+├── sidebar/            에이전트 패널 — AgentPanel/(조립), SidebarHeader/, Conversation/(말풍선·에이전트 턴), Timeline/, RunResult/, ApprovalPanel/, QuestionCard/, ChoiceList/, AccountCard/, AppInfoFooter/, RunHistory/(지난 실행 기록), Settings/(설정 보기 — 스킬)
 ├── components/ui/      shadcn 부품 (CLI 생성, 규칙 예외)
 ├── components/shared/  두 영역 이상이 쓰는 복합 부품 (필요할 때만)
 ├── hooks/              IPC 구독·호출 훅 (useTabs, useAgentRun, useApproval …) — 컴포넌트는 IPC 를 직접 부르지 않는다

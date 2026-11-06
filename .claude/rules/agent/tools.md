@@ -15,7 +15,7 @@ paths:
 - 클라이언트·모델 id·`betas`·`fallbacks`·computer toolset 포함 여부는 **모델 프로필**(`agent/profiles/`, spec 007)이 정한다 — 서비스·루프에서 프로필 kind 로 분기하지 않는다. `dev`(사내 프록시)는 프록시 비호환으로 computer toolset·`fallbacks`·server-side-fallback 베타를 뺀다. 새 경로는 전략 파일 하나 + `createModelProfile` 분기 하나로 더한다.
 - 클라이언트 도구는 `eager_input_streaming: true` + 실행 전 zod `safeParse` (`skills/desktop/zod-usage` §2). `stop_reason` 이 `max_tokens`·`refusal` 이면 도구를 실행하지 않고 run 을 `failed` 로 (refusal 은 `stop_details.category` 를 reason 에).
 - **히스토리는 append-only** — 이전 턴의 content(thinking 블록 포함)를 그대로 되돌려 보낸다. 편집·삭제 금지. 긴 run 은 `context_management: { edits: [{ type: 'clear_tool_uses_20250919' }] }` (beta `context-management-2025-06-27`) 로 오래된 도구 결과를 정리한다.
-- 프롬프트 캐싱: `system` 과 `tools` 는 고정 prefix, 날짜·위치·선호 같은 가변 정보는 **첫 user 메시지**에. `system` 에 `cache_control: { type: 'ephemeral' }`.
+- 프롬프트 캐싱: `system` 과 `tools` 는 고정 prefix, 날짜·위치·선호 같은 가변 정보는 **첫 user 메시지**에. `system` 에 `cache_control: { type: 'ephemeral' }`. 예외: 사용자 지침(스킬)은 run 내내 같은 값이라 cache_control 없는 `system` 두 번째 블록에 둔다 — 고정 블록만 cache_control (spec 013).
 - 모델 클라이언트는 `IModelClient` 인터페이스로 주입한다. `fake/` 의 가짜 구현이 e2e·테스트에서 스크립트된 `tool_use` 시퀀스를 재생한다 (`MYBROWSER_FAKE_MODEL=1`).
 
 ## 도구 설계 (tools/)

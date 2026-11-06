@@ -1,0 +1,3 @@
+{
+  "turns": [{ "content": [{ "type": "text", "text": "적용한 스킬: {{skillNames}}" }] }]
+}
