@@ -24,7 +24,7 @@ export function TabItem({ tab, isActive, hasSeparator, onSelect, onClose }: ITab
   return (
     <div
       className={cn(
-        'group relative flex h-8 max-w-60 min-w-18 flex-[1_1_240px] items-center gap-1 rounded-t-lg pr-1.5 pl-3 text-xs',
+        'group relative flex h-8 max-w-60 min-w-18 flex-[1_1_240px] items-center gap-1 rounded-t-lg pr-1.5 pl-3 text-xs [-webkit-app-region:no-drag]',
         'transition-colors [&:hover+*_[data-tab-separator]]:opacity-0',
         isActive ? 'bg-background text-foreground' : 'text-muted-foreground hover:bg-background/60',
       )}

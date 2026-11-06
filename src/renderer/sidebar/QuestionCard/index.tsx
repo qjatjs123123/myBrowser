@@ -1,4 +1,4 @@
-import { MessageCircleQuestion } from 'lucide-react';
+import { ArrowUp, MessageCircleQuestion } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 
 import type { TQuestion } from '@shared/agent/run';
@@ -62,7 +62,7 @@ interface IAnswerFormProps {
   onSend: (text: string) => void;
 }
 
-/** 자유 입력 줄 — Enter(폼 제출)·[보내기] 로 앞뒤 공백을 뺀 답을 보낸다 */
+/** 자유 입력 줄 — Enter(폼 제출)·원형 보내기 아이콘으로 앞뒤 공백을 뺀 답을 보낸다 (spec 010 FR-6) */
 function AnswerForm({ isAutoFocus, isSending, onSend }: IAnswerFormProps) {
   const [answer, setAnswer] = useState('');
   const answerRef = useRef<HTMLInputElement>(null);
@@ -89,8 +89,15 @@ function AnswerForm({ isAutoFocus, isSending, onSend }: IAnswerFormProps) {
         onChange={(event) => setAnswer(event.target.value)}
         className="h-8"
       />
-      <Button type="submit" size="sm" disabled={!canSend}>
-        보내기
+      <Button
+        type="submit"
+        size="icon-sm"
+        aria-label="보내기"
+        title="보내기 (Enter)"
+        disabled={!canSend}
+        className="shrink-0 rounded-full bg-brand text-brand-foreground hover:bg-brand/90"
+      >
+        <ArrowUp />
       </Button>
     </form>
   );

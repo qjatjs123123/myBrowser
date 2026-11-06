@@ -101,4 +101,10 @@ describe('TabBar', () => {
     fireEvent.click(screen.getByRole('button', { name: '새 탭 탭 닫기' }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('탭을 찾을 수 없습니다'));
   });
+
+  it('탭들 왼쪽 자리(leading)를 그린다 (spec 010)', () => {
+    renderTabBar({ leading: <button type="button">신호등</button> });
+    const buttonList = screen.getAllByRole('button');
+    expect(buttonList[0]).toHaveAccessibleName('신호등');
+  });
 });
