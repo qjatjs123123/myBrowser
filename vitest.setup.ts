@@ -9,6 +9,9 @@ function createSubscribeMock(): ReturnType<typeof vi.fn> {
   return vi.fn(() => vi.fn());
 }
 
+/** skills.* 기본 응답 — ok({ skillList: [] }) (spec 013) */
+const EMPTY_SKILL_LIST_RESULT = { ok: true, data: { skillList: [] } } as const;
+
 Object.defineProperty(window, 'api', {
   configurable: true,
   value: {
@@ -44,6 +47,12 @@ Object.defineProperty(window, 'api', {
     },
     window: { minimize: vi.fn(), toggleMaximize: vi.fn(), close: vi.fn() },
     runs: { list: vi.fn(), get: vi.fn() },
+    skills: {
+      list: vi.fn(() => Promise.resolve(EMPTY_SKILL_LIST_RESULT)),
+      create: vi.fn(() => Promise.resolve(EMPTY_SKILL_LIST_RESULT)),
+      update: vi.fn(() => Promise.resolve(EMPTY_SKILL_LIST_RESULT)),
+      delete: vi.fn(() => Promise.resolve(EMPTY_SKILL_LIST_RESULT)),
+    },
   },
 });
 

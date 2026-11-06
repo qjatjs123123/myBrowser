@@ -44,6 +44,13 @@ export const IPC = {
     list: 'runs:list',
     get: 'runs:get',
   },
+  /** 에이전트 스킬(사용자 지침) 관리 (spec 013) */
+  skills: {
+    list: 'skills:list',
+    create: 'skills:create',
+    update: 'skills:update',
+    delete: 'skills:delete',
+  },
 } as const;
 
 type TValues<T> = T extends string ? T : { [K in keyof T]: TValues<T[K]> }[keyof T];

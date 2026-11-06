@@ -57,6 +57,12 @@ const api: IApi = {
     list: () => ipcRenderer.invoke(IPC.runs.list),
     get: (req) => ipcRenderer.invoke(IPC.runs.get, req),
   },
+  skills: {
+    list: () => ipcRenderer.invoke(IPC.skills.list),
+    create: (req) => ipcRenderer.invoke(IPC.skills.create, req),
+    update: (req) => ipcRenderer.invoke(IPC.skills.update, req),
+    delete: (req) => ipcRenderer.invoke(IPC.skills.delete, req),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);
