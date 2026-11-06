@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 
 import sql001 from './migrations/001_runs_steps.sql?raw';
+import sql002 from './migrations/002_skills.sql?raw';
 
 interface IMigration {
   version: number;
@@ -8,7 +9,10 @@ interface IMigration {
 }
 
 /** 버전 오름차순 — 새 마이그레이션은 맨 끝에 추가한다 */
-export const MIGRATION_LIST: readonly IMigration[] = [{ version: 1, sql: sql001 }];
+export const MIGRATION_LIST: readonly IMigration[] = [
+  { version: 1, sql: sql001 },
+  { version: 2, sql: sql002 },
+];
 
 function readUserVersion(db: DatabaseSync): number {
   const row = db.prepare('PRAGMA user_version').get();
