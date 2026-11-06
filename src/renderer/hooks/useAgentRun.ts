@@ -98,21 +98,13 @@ export function useAgentRun() {
 
 /** agent:start 호출 — IPC 자체가 실패해도 throw 하지 않고 실패 봉투로 바꾼다 */
 async function requestStart(task: string): Promise<TIpcResult<TStartAgentResponse>> {
-  try {
-    return await getApi().agent.start({ task });
-  } catch {
-    return fail('INTERNAL', START_FAILED_MESSAGE);
-  }
+  return callSafely(() => getApi().agent.start({ task }), START_FAILED_MESSAGE);
 }
 
 /** agent:stop 호출 — run 이 없으면 부르지 않고 NOT_FOUND 봉투 */
 async function requestStop(runId: string | null): Promise<TIpcResult<null>> {
   if (!runId) return fail('NOT_FOUND', NO_RUN_MESSAGE);
-  try {
-    return await getApi().agent.stop({ runId });
-  } catch {
-    return fail('INTERNAL', STOP_FAILED_MESSAGE);
-  }
+  return callSafely(() => getApi().agent.stop({ runId }), STOP_FAILED_MESSAGE);
 }
 
 /** agent:approve 호출 — 대기 중인 승인 요청이 없으면 부르지 않고 NOT_FOUND 봉투 */
@@ -122,11 +114,7 @@ async function requestApprove(
   decision: TDecision,
 ): Promise<TIpcResult<null>> {
   if (!runId || !requestId) return fail('NOT_FOUND', NO_REQUEST_MESSAGE);
-  try {
-    return await getApi().agent.approve({ runId, requestId, decision });
-  } catch {
-    return fail('INTERNAL', APPROVE_FAILED_MESSAGE);
-  }
+  return callSafely(() => getApi().agent.approve({ runId, requestId, decision }), APPROVE_FAILED_MESSAGE);
 }
 
 /** agent:answer 호출 — 대기 중인 질문이 없으면 부르지 않고 NOT_FOUND 봉투 */
@@ -136,10 +124,15 @@ async function requestAnswer(
   answer: string,
 ): Promise<TIpcResult<null>> {
   if (!runId || !requestId) return fail('NOT_FOUND', NO_REQUEST_MESSAGE);
+  return callSafely(() => getApi().agent.answer({ runId, requestId, answer }), ANSWER_FAILED_MESSAGE);
+}
+
+/** IPC 호출 자체가 throw 해도(preload 미노출·채널 오류) 실패 봉투로 바꾼다 — 훅은 throw 하지 않는다 */
+async function callSafely<T>(call: () => Promise<TIpcResult<T>>, failMessage: string): Promise<TIpcResult<T>> {
   try {
-    return await getApi().agent.answer({ runId, requestId, answer });
+    return await call();
   } catch {
-    return fail('INTERNAL', ANSWER_FAILED_MESSAGE);
+    return fail('INTERNAL', failMessage);
   }
 }
 

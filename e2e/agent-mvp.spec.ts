@@ -2,32 +2,10 @@
  * [spec 003] 에이전트 MVP — 사이드바에서 할 일을 실행하면 가짜 모델 시나리오대로 활성 탭에서 도구가 돌고,
  * 확정 버튼 앞에서는 가드가 클릭 전에 멈추며, 비밀번호 입력은 차단된다. 외부 사이트·실제 API 없음.
  */
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 import { expect, findTabPage, test } from './fixtures';
-
-/** 주소창으로 활성 탭을 픽스처 페이지로 옮기고 탭 제목이 바뀔 때까지 기다린다 */
-async function openInActiveTab(win: Page, url: string, title: string): Promise<void> {
-  const addressBar = win.getByRole('combobox', { name: '주소창' });
-  // 앱 시작 직후 포커스·값 동기화와 겹쳐 글자가 섞이는 경합을 피한다 (browser-chrome.spec 과 같은 순서 + 값 확인)
-  await addressBar.click();
-  await addressBar.fill(url);
-  await expect(addressBar).toHaveValue(url);
-  await addressBar.press('Enter');
-  await expect(win.getByRole('tab', { name: title })).toBeVisible();
-}
-
-/** 사이드바 영역 — 크롬의 버튼(예: 로딩 중 "중지")과 섞이지 않게 이 안에서만 찾는다 */
-function getSidebar(win: Page): Locator {
-  return win.getByRole('complementary', { name: '에이전트 사이드바' });
-}
-
-/** 할 일을 입력하고 실행한다 */
-async function runTask(win: Page, task: string): Promise<void> {
-  const sidebar = getSidebar(win);
-  await sidebar.getByRole('textbox', { name: '할 일' }).fill(task);
-  await sidebar.getByRole('button', { name: '작업 실행' }).click();
-}
+import { getSidebar, openInActiveTab, runTask } from './helpers';
 
 test.describe('검색·읽기', () => {
   test.use({ fakeScenario: 'search-read' });
@@ -50,7 +28,11 @@ test.describe('검색·읽기', () => {
 test.describe('확정 직전 정지', () => {
   test.use({ fakeScenario: 'reservation-stop' });
 
-  test('예약 확정 버튼은 클릭하지 않고 승인 창에서 멈춘다 (spec 004 — 대기로 바뀜)', async ({ app, win, fixtureUrl }) => {
+  test('예약 확정 버튼은 클릭하지 않고 승인 창에서 멈춘다 (spec 004 — 대기로 바뀜)', async ({
+    app,
+    win,
+    fixtureUrl,
+  }) => {
     await openInActiveTab(win, fixtureUrl('reservation.html'), '예약 페이지');
     await runTask(win, '오늘 7시 2명 예약해줘');
 

@@ -2,7 +2,8 @@ import type { Page } from 'playwright-core';
 
 import type { IGuardTarget, IPoint, IResolveTargetRequest } from '@shared/tools';
 
-const DEFAULT_TIMEOUT_MS = 10_000;
+import { DEFAULT_TIMEOUT_MS } from './browserConstants';
+import { findRefLocator } from './refLocator';
 
 export interface IResolveTargetOptions {
   timeoutMs?: number;
@@ -56,9 +57,9 @@ export async function resolvePointTarget(page: Page, point: IPoint, scale = 1): 
 }
 
 async function resolveRefTarget(page: Page, ref: string, timeoutMs: number): Promise<IGuardTarget | null> {
-  const locator = page.locator(`aria-ref=${ref}`);
-  if ((await locator.count()) === 0) return null;
-  return locator.first().evaluate(readGuardTarget, NO_FOCUS, { timeout: timeoutMs });
+  const locator = await findRefLocator(page, ref);
+  if (!locator) return null;
+  return locator.evaluate(readGuardTarget, NO_FOCUS, { timeout: timeoutMs });
 }
 
 interface IPointDocument {

@@ -12,8 +12,10 @@ import type {
   TWaitForInput,
 } from '@shared/tools';
 
+import { DEFAULT_TIMEOUT_MS } from './browserConstants';
+import { findRefLocator } from './refLocator';
+
 /** 행동 함수 기본 타임아웃 — driver 의 새 탭 대기도 같은 값을 쓴다 */
-export const DEFAULT_TIMEOUT_MS = 10_000;
 const READ_TEXT_MAX_LENGTH = 4000;
 const HALF_SCROLL_RATIO = 0.5;
 
@@ -35,9 +37,9 @@ export function toActionFailure(error: unknown): { ok: false; reason: string } {
 
 /** [ref → locator] 마지막 snapshot 의 ref 로 요소를 찾는다 — 없으면 snapshot 을 다시 찍으라는 사유로 실패 */
 export async function resolveRefLocator(page: Page, ref: string): Promise<Locator> {
-  const locator = page.locator(`aria-ref=${ref}`);
-  if ((await locator.count()) === 0) throw new ActionError(`ref ${ref} 를 찾을 수 없습니다. snapshot 을 다시 찍어라`);
-  return locator.first();
+  const locator = await findRefLocator(page, ref);
+  if (!locator) throw new ActionError(`ref ${ref} 를 찾을 수 없습니다. snapshot 을 다시 찍어라`);
+  return locator;
 }
 
 /** [read_text] ref 요소(없으면 본문) innerText — 4k 자 제한 */

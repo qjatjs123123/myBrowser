@@ -3,9 +3,9 @@ import type { Page } from 'playwright-core';
 import type { TActionResult } from '@shared/tools';
 
 import { toActionFailure } from './actions';
+import { DEFAULT_TIMEOUT_MS } from './browserConstants';
 
 const DEFAULT_MAX_LENGTH = 12_000;
-const DEFAULT_TIMEOUT_MS = 10_000;
 const TRUNCATED_MARK = '\n[... 잘림, scroll 로 더 보기]';
 
 export interface ITakeSnapshotOptions {

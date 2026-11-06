@@ -6,6 +6,7 @@ import { join } from 'node:path';
 
 import { app, ipcMain, Menu, safeStorage, session } from 'electron';
 
+import { DEVICE_NAME_MAX_LENGTH } from '@shared/account/gateway';
 import { FakeScenarioSchema, type TFakeScenario } from '@shared/agent/fakeScenario';
 import { AgentEventSchema } from '@shared/ipc/agent';
 import { AccountStatusSchema } from '@shared/ipc/account';
@@ -44,7 +45,6 @@ const DATABASE_FILE_NAME = 'mybrowser.db';
 const FAKE_SCENARIO_DIR = 'e2e/fixtures/model';
 const DEFAULT_FAKE_SCENARIO = 'default';
 const CREDENTIAL_FILE_NAME = 'credentials.bin';
-const DEVICE_NAME_MAX = 64;
 const DEFAULT_DEVICE_NAME = 'myBrowser';
 
 /** 게이트웨이 기본 주소 — electron.vite.config.ts 의 define 이 빌드 시 넣는다 (spec 005 FR-3) */
@@ -139,7 +139,7 @@ function createAccountRuntime(tabManager: TabManager, emitToSidebar: ReturnType<
     emit: (status) => emitToSidebar(IPC.account.changed, AccountStatusSchema, status),
     now: Date.now,
     sleep: sleepWithSignal,
-    deviceName: hostname().slice(0, DEVICE_NAME_MAX) || DEFAULT_DEVICE_NAME,
+    deviceName: hostname().slice(0, DEVICE_NAME_MAX_LENGTH) || DEFAULT_DEVICE_NAME,
     log,
   });
 }

@@ -1,5 +1,7 @@
 import type { Page } from 'playwright-core';
 
+import { findRefLocator } from './refLocator';
+
 /** 오버레이 호스트 표시 — target 해석·snapshot 이 이 속성의 요소를 건너뛴다 (SR-7) */
 export const OVERLAY_ATTRIBUTE = 'data-mybrowser-overlay';
 const HIGHLIGHT_POINT_SIZE = 40;
@@ -66,9 +68,9 @@ export async function getRefCenter(page: Page, ref: string): Promise<ICssPoint |
 
 async function getRefRect(page: Page, ref: string): Promise<ICssRect | null> {
   try {
-    const locator = page.locator(`aria-ref=${ref}`);
-    if ((await locator.count()) === 0) return null;
-    return await locator.first().boundingBox({ timeout: REF_RECT_TIMEOUT_MS });
+    const locator = await findRefLocator(page, ref);
+    if (!locator) return null;
+    return await locator.boundingBox({ timeout: REF_RECT_TIMEOUT_MS });
   } catch {
     return null;
   }
