@@ -13,7 +13,8 @@ import { expect, pressKeyInTab, test } from './fixtures';
 import { getSidebar, openInActiveTab } from './helpers';
 
 const MOD_MODIFIER = process.platform === 'darwin' ? 'meta' : 'control';
-const SCREENSHOT_DIR = process.env['HARNESS_RUN_DIR'] ?? 'test-results';
+// make e2e 는 HARNESS_RUN_DIR="" 를 넘긴다 — 빈 문자열도 기본값으로 (?? 는 빈 문자열을 통과시켜 루트에 파일이 생겼다)
+const SCREENSHOT_DIR = process.env['HARNESS_RUN_DIR'] || 'test-results';
 
 function getResizer(win: Page) {
   return win.getByRole('separator', { name: '사이드바 폭 조절' });

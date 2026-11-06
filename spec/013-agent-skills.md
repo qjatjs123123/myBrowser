@@ -1,6 +1,6 @@
 # Spec: 에이전트 설정 — 스킬(사용자 지침)
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-06
 > **묶음**: 기반, main-skills, renderer-settings, 조립
 > **관련 spec**: 003, 009, 012
@@ -162,7 +162,7 @@ export function buildSkillSection(skillList: Pick<TSkill, 'name' | 'body'>[]): s
 > 모든 Task 완료 후 **`desktop/refactor` 적용 모드**가 의무 실행된다 (vibe-build 에서는 6단계).
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: 스킬 IPC 계약·preload·mock**
+- [x] **Task 1: 스킬 IPC 계약·preload·mock**
   - **묶음**: 기반
   - **작업**: `src/shared/ipc/skills.ts`(위 계약 그대로), `channels.ts` 에 `skills: { list, create, update, delete }`, `api.ts` `IApi.skills`, `result.ts` 코드에 `CONFLICT`·`LIMIT`(없으면), `src/preload/index.ts` 래퍼, `vitest.setup.ts` mock(`skills.*` 기본 `ok({ skillList: [] })`). `e2e/app-shell.spec.ts` — 테스트 이름과 `apiKeyList` 끝에 `skills` 추가 (preload 노출과 같은 커밋). `.claude/rules/electron/ipc.md` 「봉투」 code 목록에 `CONFLICT`·`LIMIT` 추가.
   - **파일**: 위
@@ -172,7 +172,7 @@ export function buildSkillSection(skillList: Pick<TSkill, 'name' | 'body'>[]): s
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 스킬 IPC 계약과 preload (spec 013 Task 1)`
 
-- [ ] **Task 2: shadcn switch·alert-dialog + 폼 패키지**
+- [x] **Task 2: shadcn switch·alert-dialog + 폼 패키지**
   - **묶음**: 기반
   - **작업**: `src/renderer/components/ui/switch.tsx`, `alert-dialog.tsx` (shadcn new-york 소스, `radix-ui` 통합 패키지 import — CLI 가 안 되면 같은 소스를 직접 둔다), `pnpm add react-hook-form @hookform/resolvers`.
   - **파일**: 위, `package.json`, `pnpm-lock.yaml`
@@ -182,7 +182,7 @@ export function buildSkillSection(skillList: Pick<TSkill, 'name' | 'body'>[]): s
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `chore: switch·alert-dialog 부품과 react-hook-form 추가 (spec 013 Task 2)`
 
-- [ ] **Task 3: 스킬 저장소 (마이그레이션 + repo)**
+- [x] **Task 3: 스킬 저장소 (마이그레이션 + repo)**
   - **묶음**: main-skills
   - **작업**: `002_skills.sql`, `db.ts` MIGRATION_LIST, `repos/skills.ts` `createSkillRepo(db: DatabaseSync, deps: { now: () => Date; createId: () => string }): ISkillStore` (createdAt·updatedAt 은 `now().toISOString()`, 정렬은 `ORDER BY created_at ASC, rowid ASC`) — 이름 중복(name_key) → CONFLICT, 30개 → LIMIT, 켜진 본문 합 > 12000 → LIMIT(create·update·켜기), 없는 id → NOT_FOUND. 성공은 최신 `list()`.
   - **파일**: 위
@@ -192,7 +192,7 @@ export function buildSkillSection(skillList: Pick<TSkill, 'name' | 'body'>[]): s
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 스킬 저장소와 마이그레이션 002 (spec 013 Task 3)`
 
-- [ ] **Task 4: 스킬 IPC 핸들러**
+- [x] **Task 4: 스킬 IPC 핸들러**
   - **묶음**: main-skills
   - **작업**: `src/main/ipc/handlers/skills.ts` `createSkillsHandlers(store: ISkillStore)` — 패턴 `handlers/runs.ts`. 등록(`src/main/index.ts`)은 조립 Task 에서.
   - **파일**: 위
@@ -202,7 +202,7 @@ export function buildSkillSection(skillList: Pick<TSkill, 'name' | 'body'>[]): s
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 스킬 IPC 핸들러 (spec 013 Task 4)`
 
-- [ ] **Task 5: 시스템 프롬프트에 스킬 블록 + 가짜 모델 자리표시자**
+- [x] **Task 5: 시스템 프롬프트에 스킬 블록 + 가짜 모델 자리표시자**
   - **묶음**: main-skills
   - **작업**: `prompts/skills.ts`, `loop.ts` `skillSection`, `service.ts` deps `skills` + `runLoopFor`, `fake/fakeFetch.ts` `{{skillNames}}`. `service.ts` 를 만드는 기존 테스트·조립 코드의 deps 에 `skills` 를 채운다(테스트는 `{ listEnabled: () => [] }`; `src/main/index.ts` 의 `createAgentRuntime` 은 조립 Task 에서 실제 repo 로 — 이 Task 에서는 `index.ts` 를 건드리지 않도록 `skills` 를 **선택(deps.skills?)** 으로 두고 없으면 빈 목록).
   - **파일**: 위
@@ -212,7 +212,7 @@ export function buildSkillSection(skillList: Pick<TSkill, 'name' | 'body'>[]): s
   - **통과 기준**: 테스트 + 검증 통과, 가드·도구 목록 파일 변경 없음(SR-1)
   - **커밋**: `feat: 켜진 스킬을 시스템 프롬프트 두 번째 블록으로 (spec 013 Task 5)`
 
-- [ ] **Task 6: useSkills 훅**
+- [x] **Task 6: useSkills 훅**
   - **묶음**: renderer-settings
   - **작업**: `src/renderer/hooks/useSkills.ts` — `{ skillList, status: 'loading'|'ready'|'error', reload, create, update, remove }`. 마운트 때 `list`, 변경 성공 시 응답 목록으로 교체, 실패는 `TIpcResult` 를 반환(throw 안 함). `callSafely` 재사용. 패턴 `hooks/useRunHistory.ts`.
   - **파일**: 위
@@ -222,7 +222,7 @@ export function buildSkillSection(skillList: Pick<TSkill, 'name' | 'body'>[]): s
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: useSkills 훅 (spec 013 Task 6)`
 
-- [ ] **Task 7: 설정 보기·스킬 목록·편집 폼**
+- [x] **Task 7: 설정 보기·스킬 목록·편집 폼**
   - **묶음**: renderer-settings
   - **작업**: `sidebar/Settings/index.tsx`(region `설정`, [대화로 돌아가기], 섹션 `스킬`), `SkillList.tsx`, `SkillRow.tsx`(Switch·편집·삭제 AlertDialog 기본 포커스 [취소]), `SkillEditor.tsx`(react-hook-form + `zodResolver(SkillEditorFormSchema)`, 글자 수, 민감 정보 안내, 저장 실패 toast, 제출이 막히면 `onInvalid` 로 toast 1개). `sidebar/Settings/skillEditorValidation.ts` 에 폼 스키마 — IPC 스키마를 재사용하지 않는다(zod-usage §4). 상한은 `@shared/ipc/skills` 의 `SKILL_*_MAX` 를 import, 메시지는 '이름을 입력해 주세요'·'이름은 40자까지 쓸 수 있습니다'·'설명은 200자까지 쓸 수 있습니다'·'내용을 입력해 주세요'·'내용은 4000자까지 쓸 수 있습니다'. FR-2~6.
   - **파일**: 위
@@ -232,7 +232,7 @@ export function buildSkillSection(skillList: Pick<TSkill, 'name' | 'body'>[]): s
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 설정 보기와 스킬 목록·편집 폼 (spec 013 Task 7)`
 
-- [ ] **Task 8: 헤더 [설정] + 패널 보기 전환**
+- [x] **Task 8: 헤더 [설정] + 패널 보기 전환**
   - **묶음**: renderer-settings
   - **작업**: `SidebarHeader` 에 [설정](Settings 아이콘, aria-pressed, [실행 기록] 왼쪽) — props `isSettingsOpen`, `onToggleSettings`. `AgentPanel` 의 `isHistoryOpen` 을 `view: 'conversation'|'history'|'settings'` 로 바꿔 배타 전환(FR-1).
   - **파일**: `sidebar/SidebarHeader/index.tsx`, `sidebar/AgentPanel/index.tsx` + 각 `__tests__`
@@ -242,7 +242,7 @@ export function buildSkillSection(skillList: Pick<TSkill, 'name' | 'body'>[]): s
   - **통과 기준**: 테스트 + 검증 통과, 기존 RunHistory 테스트 통과
   - **커밋**: `feat: 패널 헤더 설정 버튼과 보기 전환 (spec 013 Task 8)`
 
-- [ ] **Task 9: 조립 + e2e + 문서**
+- [x] **Task 9: 조립 + e2e + 문서**
   - **묶음**: 조립 (메인)
   - **작업**: `src/main/index.ts` — `createSkillRepo(runDatabase, { now: () => new Date(), createId: randomUUID })` 를 하나 만들어 `createSkillsHandlers` 등록과 `createAgentRuntime` deps `skills` 가 같은 인스턴스를 쓴다. e2e 와 문서: 위 목록 + `.claude/rules/agent/tools.md` 「모델 호출」 프롬프트 캐싱 줄, DESIGN.md §3 「모델·API」, `.claude/rules/electron/main.md` 「저장」 테이블 목록에 `skills`.
   - **파일**: `src/main/index.ts`, `e2e/agent-skills.spec.ts`, `e2e/fixtures/model/skill-echo.json`, 문서
@@ -258,3 +258,7 @@ export function buildSkillSection(skillList: Pick<TSkill, 'name' | 'body'>[]): s
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-06 | 1~2 (기반) | shared·preload 308 통과, app-shell e2e 2 통과 | 2532473, 5671232 | shadcn CLI 가 alias 를 잘못 풀어 소스를 수동 이동, 잘못 추가된 `cn` 패키지 제거 |
+| 2026-11-06 | 3~5 (main-skills) | vitest 1608 통과 | 16bb4fd, 67f64f3, 4ee8b70 | 가드·도구 변경 없음 (SR-1) |
+| 2026-11-06 | 6~8 (renderer-settings) | 커밋 완료 후 세션 종료로 마무리 확인 중단 → 합친 뒤 메인에서 make check 로 확인 | dbba620, bc9eb81, c320c93 | |
+| 2026-11-06 | 9 (조립) | make check 1655 통과, e2e 50 통과(새 2), 에러 0 | 2c076ea + 검증 반영 | 라이트·다크 설정 보기 스크린샷 확인 |
