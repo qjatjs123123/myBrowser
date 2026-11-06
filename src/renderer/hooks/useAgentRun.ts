@@ -12,6 +12,7 @@ import type { TAgentEvent, TStartAgentResponse } from '@shared/ipc/agent';
 import { fail, type TIpcResult } from '@shared/ipc/result';
 
 import { getApi } from '@/lib/api';
+import { callSafely } from '@/lib/callSafely';
 
 /** run 종료 결과 — 사이드바 RunResult 가 보여줄 FR-5 문구 */
 export interface IRunResult {
@@ -153,15 +154,6 @@ async function requestAnswer(
 ): Promise<TIpcResult<null>> {
   if (!runId || !requestId) return fail('NOT_FOUND', NO_REQUEST_MESSAGE);
   return callSafely(() => getApi().agent.answer({ runId, requestId, answer }), ANSWER_FAILED_MESSAGE);
-}
-
-/** IPC 호출 자체가 throw 해도(preload 미노출·채널 오류) 실패 봉투로 바꾼다 — 훅은 throw 하지 않는다 */
-async function callSafely<T>(call: () => Promise<TIpcResult<T>>, failMessage: string): Promise<TIpcResult<T>> {
-  try {
-    return await call();
-  } catch {
-    return fail('INTERNAL', failMessage);
-  }
 }
 
 /** run 상태 전이 — started 는 직전 run 을 기록으로 넘기고 새 run(running), reset 은 기록까지 비움, event 는 계약 순서대로 반영 */
