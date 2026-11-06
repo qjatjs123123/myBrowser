@@ -146,21 +146,25 @@ function createAccountRuntime(tabManager: TabManager, emitToSidebar: ReturnType<
 
 /** 모델 프로필(전략) — env 의 profileKind 로 1번 고른다. 키·토큰은 프로필의 createClient 안에서만 쓴다 (spec 007) */
 function createRuntimeProfile(account: IAccountService): IModelProfile {
-  if (env.profileKind === 'prod') {
+  const { profileKind, model } = env;
+  if (profileKind === 'prod') {
     return createModelProfile({
       kind: 'prod',
       gatewayUrl: env.gatewayUrl,
       getDeviceToken: () => account.getDeviceToken(),
-      model: env.model,
+      model,
     });
   }
-  if (env.profileKind === 'dev') {
-    // readEnv 가 dev 면 anthropicBaseUrl 을 보장한다 (없으면 시작 시점에 실패 — spec 007 FR-3)
-    const baseUrl = env.anthropicBaseUrl;
-    if (!baseUrl) throw new Error('dev 프로필에 ANTHROPIC_BASE_URL 이 없습니다');
-    return createModelProfile({ kind: 'dev', apiKey: env.anthropicApiKey, baseUrl, model: env.model });
+  if (profileKind === 'dev') {
+    return createModelProfile({ kind: 'dev', apiKey: env.anthropicApiKey, baseUrl: getDevBaseUrl(), model });
   }
-  return createModelProfile({ kind: 'fake', model: env.model, readScenario: readFakeScenario });
+  return createModelProfile({ kind: 'fake', model, readScenario: readFakeScenario });
+}
+
+/** readEnv 가 dev 면 anthropicBaseUrl 을 보장한다 (없으면 시작 시점에 실패 — spec 007 FR-3) */
+function getDevBaseUrl(): string {
+  if (!env.anthropicBaseUrl) throw new Error('dev 프로필에 ANTHROPIC_BASE_URL 이 없습니다');
+  return env.anthropicBaseUrl;
 }
 
 /** 에이전트 실행 서비스 조립 — 저장소·탭 포트·드라이버·모델 클라이언트·이벤트 발신 */

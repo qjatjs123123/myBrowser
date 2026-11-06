@@ -1,6 +1,6 @@
 # Spec: 모델 프로필 전략 (MYBROWSER_PROFILE=dev|prod)
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-06
 > **묶음**: 기반
 > **관련 spec**: 003, 004, 005, 006
@@ -85,7 +85,7 @@
 > ⚠️ **게이트 규칙**: 각 Task 는 명시된 **테스트와 검증이 모두 에러 0**이 될 때까지 수정 → 재실행을 반복하고, 전부 통과했을 때만 체크박스를 채우고 **Task 단위로 커밋**한 뒤 다음 Task 로 진행한다.
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: loop·tools 가 요청 옵션·픽셀 도구 포함 여부를 받는다**
+- [x] **Task 1: loop·tools 가 요청 옵션·픽셀 도구 포함 여부를 받는다**
   - **묶음**: 기반
   - **작업**: loop.ts `IModelRequestOptions`·`DEFAULT_MODEL_REQUEST`·`request?` 옵션, tools/index.ts `createToolList(ctx, { hasComputerToolset })`. 기본값이 지금과 같아 소비자 변경 없음.
   - **파일**: `src/main/agent/loop.ts`, `src/main/agent/tools/index.ts`
@@ -97,7 +97,7 @@
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 루프 요청 옵션·픽셀 도구 포함 여부 주입 (spec 007 Task 1)`
 
-- [ ] **Task 2: 모델 프로필 전략 3종 + 팩토리**
+- [x] **Task 2: 모델 프로필 전략 3종 + 팩토리**
   - **묶음**: 기반
   - **작업**: `src/main/agent/profiles/{types,devProfile,prodProfile,fakeProfile,index}.ts`. `toDirectClientOptions` 는 이 Task 에서 그대로 둔다 (index.ts 가 아직 쓴다 — 삭제는 Task 3).
   - **파일**: `src/main/agent/profiles/*`
@@ -108,7 +108,7 @@
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 모델 프로필 전략 dev·prod·fake 추가 (spec 007 Task 2)`
 
-- [ ] **Task 3: env 프로필 판정 + 서비스·계정·진입점 배선**
+- [x] **Task 3: env 프로필 판정 + 서비스·계정·진입점 배선**
   - **묶음**: 기반
   - **작업**: env.ts FR-1~4·8 (`TProfileKind`·`profileKind`), service.ts deps `profile`, accountService.ts `profileKind`, index.ts 조립·시작 로그(FR-9), modelClient.ts `toDirectClientOptions` 삭제. 앱 실행 env 를 쓰는 곳도 같이: `e2e/account.spec.ts` `toGatewayEnv` 에 `MYBROWSER_PROFILE: 'prod'`, `eval/agent.eval.ts` `REAL_APP_ENV` 에 `MYBROWSER_PROFILE: 'dev'`(주석 갱신). 타입이 바뀌므로 소비자·테스트를 이 Task 에서 함께 고친다.
   - **파일**: `src/main/env.ts`, `src/main/agent/service.ts`, `src/main/account/accountService.ts`, `src/main/index.ts`, `src/main/agent/modelClient.ts`, `src/main/agent/__tests__/modelClient.test.ts`, `e2e/account.spec.ts`, `eval/agent.eval.ts`
@@ -123,7 +123,7 @@
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: MYBROWSER_PROFILE 로 모델 프로필 선택 (spec 007 Task 3)`
 
-- [ ] **Task 4: 설정 안내·설계 문서 갱신**
+- [x] **Task 4: 설정 안내·설계 문서 갱신**
   - **묶음**: 기반
   - **작업**: `.env.example`(`MYBROWSER_PROFILE=dev`, `ANTHROPIC_BASE_URL`, `MYBROWSER_MODEL=bedrock.anthropic.claude-opus-5-5`), DESIGN.md §2 모델 호출 경로, rules 두 파일 한 줄씩
   - **파일**: `.env.example`, `docs/DESIGN.md`, `.claude/rules/agent/tools.md`, `.claude/rules/electron/main.md`
@@ -139,3 +139,8 @@
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-06 | 1 | loop·tools 단위 41 통과 | c9931d8 | |
+| 2026-11-06 | 2 | profiles 단위 18 통과 | 014ef60 | TProfileKind 는 profiles/types.ts 에 두고 env.ts 가 재노출 |
+| 2026-11-06 | 3 | src/main 854 · make e2e 28 통과 | d24deef | |
+| 2026-11-06 | 4 | 문서만 | e451f56 | |
+| 2026-11-06 | 검증 | make check 1339 · make e2e 28 · 콘솔 에러 0 | 검증 반영 커밋 | spec-reviewer 2회차 PASS, 리팩토링: index.ts createRuntimeProfile 분리 |
