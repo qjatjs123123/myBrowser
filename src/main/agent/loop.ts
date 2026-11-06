@@ -24,6 +24,19 @@ import type { TRunnableTool } from './tools';
 export type TLoopOutcome =
   { kind: 'done'; summary: string } | { kind: 'failed'; reason: string; apiStatus?: number } | { kind: 'aborted' };
 
+/** 모델 프로필마다 다른 요청 옵션 — 프록시가 받지 못하는 베타·fallbacks 를 뺄 수 있게 한다 (spec 007) */
+export interface IModelRequestOptions {
+  betaList: readonly string[];
+  /** true 면 `fallbacks: 'default'` 를 보낸다 */
+  hasFallbacks: boolean;
+}
+
+/** Claude API(게이트웨이)·가짜 모델 기본 요청 옵션 — rules/agent/tools.md 「모델 호출」 */
+export const DEFAULT_MODEL_REQUEST: IModelRequestOptions = {
+  betaList: ['server-side-fallback-2026-07-01', 'context-management-2025-06-27'],
+  hasFallbacks: true,
+};
+
 export interface IRunAgentLoopOptions {
   client: IModelClient;
   model: string;
@@ -31,12 +44,13 @@ export interface IRunAgentLoopOptions {
   systemPrompt: string;
   firstUserMessage: string;
   signal: AbortSignal;
+  /** 없으면 DEFAULT_MODEL_REQUEST */
+  request?: IModelRequestOptions;
   /** 턴마다 완성된 응답 — usage 합산 등 */
   onFinal?: (message: BetaMessage) => void;
 }
 
 const MAX_TOKENS = 64000;
-const BETA_LIST = ['server-side-fallback-2026-07-01', 'context-management-2025-06-27'] as const;
 const DEFAULT_SUMMARY = '작업을 마쳤습니다';
 const PARSE_ERROR_PATTERN = /Unable to parse tool parameter JSON/;
 
@@ -66,7 +80,15 @@ async function consumeRunner(options: IRunAgentLoopOptions): Promise<TLoopOutcom
  * thread: false — 매 턴 전체 히스토리를 보낸다 (append-only 히스토리, 가짜 모델의 ref 자리표시자가 요청 messages 를 읽는다).
  * runToolsEagerly 는 켜지 않는다 — stop_reason 확인 전에 도구가 실행되면 안 된다.
  */
-function createRunner({ client, model, tools, systemPrompt, firstUserMessage, signal }: IRunAgentLoopOptions) {
+function createRunner({
+  client,
+  model,
+  tools,
+  systemPrompt,
+  firstUserMessage,
+  signal,
+  request = DEFAULT_MODEL_REQUEST,
+}: IRunAgentLoopOptions) {
   return client.beta.messages.toolRunner(
     {
       model,
@@ -77,8 +99,8 @@ function createRunner({ client, model, tools, systemPrompt, firstUserMessage, si
       tools,
       messages: [{ role: 'user', content: firstUserMessage }],
       output_config: { effort: 'high' },
-      betas: [...BETA_LIST],
-      fallbacks: 'default',
+      betas: [...request.betaList],
+      ...(request.hasFallbacks ? { fallbacks: 'default' as const } : {}),
       context_management: { edits: [{ type: 'clear_tool_uses_20250919' }] },
     },
     { signal },

@@ -161,6 +161,39 @@ describe('runAgentLoop', () => {
   });
 });
 
+describe('runAgentLoop — 프로필 요청 옵션 (spec 007)', () => {
+  /** 가짜 fetch 앞에서 anthropic-beta 헤더를 기록한다 */
+  function createBetaRecordingClient() {
+    const fake = createFakeFetch({ turns: [{ content: [{ type: 'text', text: '끝' }] }] });
+    const betaHeaderList: string[] = [];
+    const fetch = async (input: string | URL | Request, init?: RequestInit) => {
+      betaHeaderList.push(new Headers(init?.headers).get('anthropic-beta') ?? '');
+      return fake.fetch(input, init);
+    };
+    return { client: new Anthropic({ apiKey: 'fake', fetch }), requestList: fake.requestList, betaHeaderList };
+  }
+
+  it('request 를 주지 않으면 fallbacks 와 두 베타를 보낸다', async () => {
+    const { client, requestList, betaHeaderList } = createBetaRecordingClient();
+    await runAgentLoop({ ...baseOptions(client), tools: [createEchoTool().tool] });
+    expect(requestList[0]).toMatchObject({ fallbacks: 'default' });
+    expect(betaHeaderList[0]).toContain('server-side-fallback-2026-07-01');
+    expect(betaHeaderList[0]).toContain('context-management-2025-06-27');
+  });
+
+  it('hasFallbacks false·베타 1개면 fallbacks 와 server-side-fallback 베타를 보내지 않는다', async () => {
+    const { client, requestList, betaHeaderList } = createBetaRecordingClient();
+    await runAgentLoop({
+      ...baseOptions(client),
+      tools: [createEchoTool().tool],
+      request: { betaList: ['context-management-2025-06-27'], hasFallbacks: false },
+    });
+    expect(requestList[0]).not.toHaveProperty('fallbacks');
+    expect(betaHeaderList[0]).not.toContain('server-side-fallback');
+    expect(betaHeaderList[0]).toContain('context-management-2025-06-27');
+  });
+});
+
 describe('runAgentLoop — API 오류 상태 전달 (spec 005 FR-6)', () => {
   it.each([401, 402, 429])('HTTP %i 오류면 failed 에 apiStatus 를 싣는다', async (status) => {
     const fetch = async () => Response.json({ type: 'error', error: { type: 'x', message: 'x' } }, { status });

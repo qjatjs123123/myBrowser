@@ -148,12 +148,20 @@ export function createExclusiveQueue(): TRunExclusive {
 }
 
 /**
- * run 하나에 쓸 도구 — betaZodTool 15개(eager_input_streaming) + 끝에 픽셀 computer toolset 1개.
+ * run 하나에 쓸 도구 — betaZodTool 15개(eager_input_streaming) + (hasComputerToolset 이면) 끝에 픽셀 computer toolset 1개.
  * 모두 같은 ctx(같은 큐·승인 수·step 기록)로 하나씩 실행된다.
  */
-export function createToolList(ctx: IToolRunContext): TRunnableTool[] {
+export function createToolList(
+  ctx: IToolRunContext,
+  { hasComputerToolset = true }: ICreateToolListOptions = {},
+): TRunnableTool[] {
   const toolList = (AGENT_TOOL_LIST as readonly TAnyAgentTool[]).map((tool) => toRunnableTool(tool, ctx));
-  return [...toolList, new BrowserComputerToolset(ctx)];
+  return hasComputerToolset ? [...toolList, new BrowserComputerToolset(ctx)] : toolList;
+}
+
+/** 프로필별 도구 구성 — dev(사내 프록시)는 computer toolset 을 받지 못해 뺀다 (spec 007 FR-5) */
+export interface ICreateToolListOptions {
+  hasComputerToolset?: boolean;
 }
 
 function toRunnableTool(tool: TAnyAgentTool, ctx: IToolRunContext): TRunnableTool {
