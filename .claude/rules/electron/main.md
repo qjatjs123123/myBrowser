@@ -29,7 +29,7 @@ paths:
 
 ## 브라우저 제어 (browser/)
 - `cdp.ts`: `playwright-core` 의 `chromium.connectOverCDP(`http://127.0.0.1:${port}`)` 1회 연결, 탭 id ↔ `Page` 매핑. 연결 끊김은 재연결 1회 후 에러.
-- `snapshot.ts`: `page.locator('body').ariaSnapshot()` + ref 부여(`e1`, `e2` …) → 텍스트. **최대 길이 제한**(기본 12k 자, 넘으면 `[... 잘림, scroll 로 더 보기]`).
+- `snapshot.ts`: `page.ariaSnapshot({ mode: 'ai' })`(ref 를 주면 그 요소 하위만) → `snapshotCompact.ts` 압축·열린 dialog 맨 앞 → 텍스트. ref 는 Playwright 가 매기는 `e1`·`f2e5`(재이동·iframe). **최대 길이 제한**(기본 12k 자, 넘으면 `[... 잘림 — snapshot 에 ref 를 주면 그 부분만, read_text 로 글만 본다]`) (spec 015).
 - `actions.ts`: click/type/select/scroll/press/wait_for/navigate/back — 각 함수는 `(page, input) => Promise<IActionResult>`. ref 해석은 `locator(`aria-ref=${ref}`)`. 타임아웃 기본 10s, 실패는 throw 가 아니라 `{ ok: false, reason }`.
 - `overlay.ts`: 탭에 커서·하이라이트 DOM 을 주입(`page.addInitScript` + `evaluate`). 페이지 스크립트와 충돌하지 않게 shadow DOM + `data-mybrowser-overlay`.
 

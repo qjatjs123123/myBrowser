@@ -21,4 +21,10 @@ describe('snapshotTool', () => {
     await expect(snapshotTool.execute(driver, {})).resolves.toEqual(FAKE_RESULT);
     expect(driver.snapshot).toHaveBeenCalledOnce();
   });
+
+  it('ref 를 주면 그 ref 를 driver.snapshot 에 넘긴다 (spec 015 FR-4)', async () => {
+    const driver = createFakeDriver();
+    await snapshotTool.execute(driver, { ref: 'e3' });
+    expect(driver.snapshot).toHaveBeenCalledWith({ ref: 'e3' });
+  });
 });

@@ -5,6 +5,7 @@ import type { TPressKeyInput } from './pressKey';
 import type { TReadTextInput } from './readText';
 import type { TScrollInput } from './scroll';
 import type { TSelectOptionInput } from './selectOption';
+import type { TSnapshotInput } from './snapshot';
 import type { TSwitchTabInput } from './switchTab';
 import type { TTypeTextInput } from './typeText';
 import type { TWaitForInput } from './waitFor';
@@ -69,7 +70,7 @@ export interface IResolveTargetRequest {
  * electron·playwright 비의존 (타입만).
  */
 export interface IBrowserDriver {
-  snapshot(): Promise<TActionResult>;
+  snapshot(input: TSnapshotInput): Promise<TActionResult>;
   readText(input: TReadTextInput): Promise<TActionResult>;
   navigate(input: TNavigateInput): Promise<TActionResult>;
   goBack(): Promise<TActionResult>;

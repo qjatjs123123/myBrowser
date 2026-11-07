@@ -160,3 +160,25 @@ describe('navigate·goBack', () => {
     await fresh.close();
   });
 });
+
+describe('프레임 접두사 ref (spec 015 FR-1)', () => {
+  const F_REF = /^f\d+e\d+$/;
+
+  it('페이지를 다시 열어 f-ref 가 매겨져도 그 ref 로 링크를 누른다', async () => {
+    await page.goto(getFixtureUrl('browser-frame.html'));
+    const text = await page.ariaSnapshot({ mode: 'ai' });
+    const linkRef = findRef(text, 'link', '다음 페이지');
+    expect(linkRef).toMatch(F_REF);
+    const result = await click(page, { ref: linkRef });
+    expect(result).toEqual({ ok: true, text: `클릭함 — 이동: ${getFixtureUrl('browser-second.html')}` });
+  });
+
+  it('iframe(srcdoc) 안 버튼을 f-ref 로 누른다', async () => {
+    await page.goto(getFixtureUrl('browser-frame.html'));
+    const buttonRef = findRef(await page.ariaSnapshot({ mode: 'ai' }), 'button', '다음');
+    expect(buttonRef).toMatch(F_REF);
+    await expect(click(page, { ref: buttonRef })).resolves.toEqual({ ok: true, text: '클릭함' });
+    const frame = page.frames().find((item) => item !== page.mainFrame());
+    expect(await frame?.evaluate('window.__clickLog')).toEqual(['next']);
+  });
+});

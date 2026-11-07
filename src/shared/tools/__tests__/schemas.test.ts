@@ -25,7 +25,7 @@ import {
 } from '../index';
 
 const CASE_LIST: { name: string; schema: ZodType; valid: unknown; invalid: unknown }[] = [
-  { name: 'snapshot', schema: SnapshotInputSchema, valid: {}, invalid: { full: true } },
+  { name: 'snapshot', schema: SnapshotInputSchema, valid: { ref: 'e3' }, invalid: { full: true } },
   { name: 'read_text', schema: ReadTextInputSchema, valid: { ref: 'e3' }, invalid: { ref: 'x1' } },
   { name: 'navigate', schema: NavigateInputSchema, valid: { url: 'https://example.com' }, invalid: { url: 'nope' } },
   { name: 'go_back', schema: GoBackInputSchema, valid: {}, invalid: { steps: 2 } },
@@ -91,8 +91,11 @@ describe('도구 입력 스키마', () => {
     expect(SelectOptionInputSchema.safeParse({ ref: 'e1', valueList }).success).toBe(false);
   });
 
-  it('RefSchema 는 e+숫자만 받는다', () => {
+  it('RefSchema 는 e·f-ref 만 받는다', () => {
     expect(RefSchema.safeParse('e0').success).toBe(true);
+    expect(RefSchema.safeParse('f2e5').success).toBe(true);
+    expect(RefSchema.safeParse('f2').success).toBe(false);
+    expect(RefSchema.safeParse('x1').success).toBe(false);
     expect(RefSchema.safeParse('e').success).toBe(false);
     expect(RefSchema.safeParse('E1').success).toBe(false);
     expect(RefSchema.safeParse('e1 ').success).toBe(false);

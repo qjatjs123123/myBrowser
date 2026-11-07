@@ -57,7 +57,7 @@ const CONFIRM_TARGET_PATTERN_LIST = [...CONFIRM_PATTERN_LIST, ...DESTRUCTIVE_PAT
 
 /** 도구 호출 하나를 판정한다 — 상태를 바꾸지 않는 도구는 allow. 승인 요청이 될 판정은 상한(SR-4)을 넘으면 block */
 export function checkGuard(guardInput: IGuardInput): TGuardVerdict {
-  const verdict = judge(guardInput);
+  const verdict = judgeWithTopPage(guardInput);
   if (verdict.kind !== 'require_approval') return verdict;
   return (guardInput.approvalCount ?? 0) >= MAX_APPROVAL_COUNT ? block(GUARD_MESSAGE.tooManyApprovals) : verdict;
 }
@@ -68,6 +68,14 @@ export function isSameDisplay(a: TApprovalDisplay, b: TApprovalDisplay): boolean
 }
 
 type TApprovalDisplay = Extract<TGuardVerdict, { kind: 'require_approval' }>['display'];
+
+/** 하위 프레임 대상이면 프레임 URL 판정이 allow 일 때만 최상위 탭 URL 로 다시 판정한다 — 판정이 약해지는 경로는 없다 (spec 015 SR-3) */
+function judgeWithTopPage(guardInput: IGuardInput): TGuardVerdict {
+  const verdict = judge(guardInput);
+  const { topPageUrl, pageUrl } = guardInput;
+  if (verdict.kind !== 'allow' || !topPageUrl || topPageUrl === pageUrl) return verdict;
+  return judge({ ...guardInput, pageUrl: topPageUrl });
+}
 
 function judge(guardInput: IGuardInput): TGuardVerdict {
   if (guardInput.tool === 'request_approval') return toModelApproval();

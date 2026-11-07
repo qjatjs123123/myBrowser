@@ -143,3 +143,18 @@ describe('resolvePointTarget', () => {
     await expect(resolvePointTarget(page, { x: -1, y: 40 })).resolves.toBeNull();
   });
 });
+
+describe('resolveTarget 프레임 접두사 ref (spec 015 FR-1)', () => {
+  it('iframe 안 버튼의 f-ref 면 이름과 프레임 문서 URL(about:srcdoc)을 읽는다', async () => {
+    const framePage = await browser.newPage();
+    await framePage.goto(getFixtureUrl('browser-frame.html'));
+    const ref = findRef(await framePage.ariaSnapshot({ mode: 'ai' }), 'button', '예약 확정');
+    expect(ref).toMatch(/^f\d+e\d+$/);
+    expect(await resolveTarget(framePage, { ref })).toMatchObject({
+      role: 'button',
+      name: '예약 확정',
+      pageUrl: 'about:srcdoc',
+    });
+    await framePage.close();
+  });
+});

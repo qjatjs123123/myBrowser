@@ -106,6 +106,21 @@ describe('runAgentLoop', () => {
     });
   });
 
+  it('오래된 도구 결과를 3만 토큰부터 최근 3개만 남기고 정리하되 사용자 답·승인은 남긴다 (spec 015 FR-7)', async () => {
+    const { requestList } = await runWith({ turns: [{ content: [{ type: 'text', text: '끝' }] }] });
+    expect(requestList[0]?.context_management).toEqual({
+      edits: [
+        {
+          type: 'clear_tool_uses_20250919',
+          trigger: { type: 'input_tokens', value: 30_000 },
+          keep: { type: 'tool_uses', value: 3 },
+          clear_at_least: { type: 'input_tokens', value: 10_000 },
+          exclude_tools: ['ask_user', 'request_approval'],
+        },
+      ],
+    });
+  });
+
   it('skillSection 이 없으면 system 은 cache_control 이 붙은 고정 블록 1개다', async () => {
     const { requestList } = await runWith({ turns: [{ content: [{ type: 'text', text: '끝' }] }] });
     expect(requestList[0]?.system).toEqual([{ type: 'text', text: '시스템', cache_control: { type: 'ephemeral' } }]);

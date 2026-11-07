@@ -34,6 +34,11 @@ describe('resolveRefPlaceholders', () => {
     expect(resolveRefPlaceholders({ ref: '$ref(link:두 번째 페이지)' }, MESSAGE_LIST)).toEqual({ ref: 'e7' });
   });
 
+  it('재이동·iframe 의 프레임 접두사 ref(f2e5)도 찾는다', () => {
+    const messageList = createSnapshotPair('t', '- generic [ref=f2e1]:\n  - button "다음" [ref=f3e2]');
+    expect(resolveRefPlaceholders({ ref: '$ref(button:다음)' }, messageList)).toEqual({ ref: 'f3e2' });
+  });
+
   it('못 찾으면 e0 으로 바꾼다', () => {
     expect(resolveRefPlaceholders({ ref: '$ref(button:없는 버튼)' }, MESSAGE_LIST)).toEqual({ ref: 'e0' });
   });

@@ -28,9 +28,9 @@ function replacePlaceholder(value: string, snapshotText: string): string {
   return findRef(snapshotText, role.trim(), name) ?? FALLBACK_REF;
 }
 
-/** `- {role} "{name}" … [ref=eN]` 줄의 eN */
+/** `- {role} "{name}" … [ref=eN]` 줄의 eN (프레임 접두사 f{n}eN 포함) */
 function findRef(snapshotText: string, role: string, name: string): string | null {
-  const pattern = new RegExp(`-\\s+${escapeRegExp(role)}\\s+"${escapeRegExp(name)}"[^\\n]*?\\[ref=(e\\d+)\\]`);
+  const pattern = new RegExp(`-\\s+${escapeRegExp(role)}\\s+"${escapeRegExp(name)}"[^\\n]*?\\[ref=((?:f\\d+)?e\\d+)\\]`);
   return pattern.exec(snapshotText)?.[1] ?? null;
 }
 

@@ -53,6 +53,17 @@ export interface IRunAgentLoopOptions {
 }
 
 const MAX_TOKENS = 64000;
+/**
+ * 오래된 도구 결과 정리 — 기본 트리거(10만 토큰)는 snapshot 이 쌓이는 브라우저 run 에 너무 늦다 (spec 015 FR-7, run 783efc20 입력 2.8M).
+ * 최근 3개만 남기고, 한 번에 1만 토큰 이상 지울 수 있을 때만 지운다(캐시 무효화를 줄인다). 사용자 답·승인 결과는 지우지 않는다.
+ */
+const CLEAR_TOOL_USES_EDIT = {
+  type: 'clear_tool_uses_20250919' as const,
+  trigger: { type: 'input_tokens' as const, value: 30_000 },
+  keep: { type: 'tool_uses' as const, value: 3 },
+  clear_at_least: { type: 'input_tokens' as const, value: 10_000 },
+  exclude_tools: ['ask_user', 'request_approval'],
+};
 const DEFAULT_SUMMARY = '작업을 마쳤습니다';
 const PARSE_ERROR_PATTERN = /Unable to parse tool parameter JSON/;
 
@@ -104,7 +115,7 @@ function createRunner({
       output_config: { effort: 'high' },
       betas: [...request.betaList],
       ...(request.hasFallbacks ? { fallbacks: 'default' as const } : {}),
-      context_management: { edits: [{ type: 'clear_tool_uses_20250919' }] },
+      context_management: { edits: [CLEAR_TOOL_USES_EDIT] },
     },
     { signal },
   );

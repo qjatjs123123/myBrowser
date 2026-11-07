@@ -1,6 +1,6 @@
 # Spec: 에이전트 정확도 — 잘린 스냅샷·막힌 ref·반복 루프
 
-> **상태**: 🚧 진행중
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-07
 > **묶음**: 기반 (단일 묶음 — 직접 방식)
 > **관련 spec**: 003, 004, 007
@@ -97,7 +97,7 @@ export function toRepeatNotice(count: number): string; // `\n[반복 ${count}회
 
 > ⚠️ 게이트 규칙·vibe-build 우선 규칙은 템플릿과 같다 (`.claude/templates/spec-template.md`).
 
-- [ ] **Task 1: f-ref 받기**
+- [x] **Task 1: f-ref 받기**
   - **묶음**: 기반
   - **작업**: `RefSchema` 정규식, `refPlaceholder` 정규식 `((?:f\d+)?e\d+)`, `src/main/browser/__tests__/helpers.ts` ref 찾기 정규식, SR-3 가드 강화(`IGuardInput.topPageUrl`, `checkGuard` 재판정, `tools/index.ts` `judge()`).
   - **파일**: `src/shared/tools/ref.ts`, `src/main/agent/fake/refPlaceholder.ts`, `src/main/browser/__tests__/helpers.ts`, `src/shared/guard/types.ts`, `src/main/agent/guard.ts`, `src/main/agent/tools/index.ts`, `e2e/fixtures/pages/browser-frame.html`(신규 — 메인에 [다음 페이지] 링크, `<iframe srcdoc>` 안에 [예약 확정]·[다음] 버튼과 `window.__clickLog`; actions·overlay·target 테스트가 쓴다), 테스트 `src/main/agent/__tests__/guard.test.ts`, `src/main/agent/tools/__tests__/index.test.ts`, `src/main/agent/fake/__tests__/refPlaceholder.test.ts`, `src/shared/tools/__tests__/schemas.test.ts`, `src/main/browser/__tests__/{actions,overlay}.test.ts`
@@ -114,7 +114,7 @@ export function toRepeatNotice(count: number): string; // `\n[반복 ${count}회
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `fix: 재이동·iframe 의 f-ref 를 도구가 받는다 (spec 015 Task 1)`
 
-- [ ] **Task 2: 스냅샷 압축·대화상자 우선·부분 보기**
+- [x] **Task 2: 스냅샷 압축·대화상자 우선·부분 보기**
   - **묶음**: 기반
   - **작업**: `compactSnapshot`(FR-2·3), `takeSnapshot(page, { ref })` — ref 면 `findRefLocator` → `locator.ariaSnapshot({ mode: 'ai' })`, 없는 ref 면 기존 not-found 사유. 잘림 문구(FR-4). `SnapshotInputSchema`·`IBrowserDriver.snapshot(input)`·driver·도구 설명 갱신 (호출부·가짜 드라이버 같은 Task 에서). `scroll` 도구 설명에서 snapshot 잘림 언급을 빼고 "화면 밖 내용을 불러오거나(무한 스크롤) 화면을 옮길 때만" 으로 (`tools/__tests__/scroll.test.ts` 는 그대로 통과).
   - **파일**: `src/main/browser/{snapshotCompact,snapshot,driver}.ts`, `src/shared/tools/{snapshot,driver}.ts`, `src/main/agent/tools/{snapshot,scroll}.ts`, `src/main/browser/__tests__/driver.test.ts`, `src/main/agent/tools/__tests__/snapshot.test.ts`, `src/shared/tools/__tests__/schemas.test.ts`(CASE_LIST snapshot valid 를 `{ ref: 'e3' }` 로, invalid `{ full: true }` 유지), `e2e/fixtures/pages/date-layer.html`(Task 5 e2e 와 공용)
@@ -124,7 +124,7 @@ export function toRepeatNotice(count: number): string; // `\n[반복 ${count}회
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 스냅샷 압축·대화상자 먼저·ref 부분 보기 (spec 015 Task 2)`
 
-- [ ] **Task 3: 반복 감지 안내**
+- [x] **Task 3: 반복 감지 안내**
   - **묶음**: 기반
   - **작업**: `repeatTracker.ts`, `IToolRunContext.repeatTracker`, `executeStep` 에서 안내 붙이기, service `createToolContext` 에 `createRepeatTracker()`.
   - **파일**: `src/main/agent/repeatTracker.ts`, `src/main/agent/tools/index.ts`, `src/main/agent/service.ts`, ctx 를 만드는 테스트(`tools/__tests__/index.test.ts`, `computer/__tests__/toolset.test.ts`)
@@ -134,7 +134,7 @@ export function toRepeatNotice(count: number): string; // `\n[반복 ${count}회
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 같은 행동·화면 반복을 모델에 알린다 (spec 015 Task 3)`
 
-- [ ] **Task 4: 프롬프트·컨텍스트 정리**
+- [x] **Task 4: 프롬프트·컨텍스트 정리**
   - **묶음**: 기반
   - **작업**: `buildSystemPrompt({ hasComputerToolset })`(FR-6), service 연결, loop `context_management`(FR-7).
   - **파일**: `src/main/agent/prompts/system.ts`, `src/main/agent/service.ts`, `src/main/agent/loop.ts`
@@ -144,7 +144,7 @@ export function toRepeatNotice(count: number): string; // `\n[반복 ${count}회
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 프로필별 프롬프트와 오래된 도구 결과 정리 (spec 015 Task 4)`
 
-- [ ] **Task 5: 날짜 레이어 회귀 e2e + 문서**
+- [x] **Task 5: 날짜 레이어 회귀 e2e + 문서**
   - **묶음**: 기반
   - **작업**: `date-layer.html` — 링크 수백 개 긴 본문(압축 전 12k 초과) + [날짜 선택] → 맨 뒤 `role="dialog"` 레이어(달력 링크 1~30, `출발 시각` select, [적용] — 적용해야 `출발일` 입력칸에 `2026-11-17 10시`). `date-layer.json`: snapshot → click `$ref(button:날짜 선택)` → snapshot → click `$ref(link:17)` → select_option `$ref(combobox:출발 시각)` ["10시"] → click `$ref(button:적용)` → snapshot → text.
   - **파일**: `e2e/fixtures/model/date-layer.json`, `e2e/agent-accuracy.spec.ts` (`date-layer.html` 은 Task 2 에서 만든다)
@@ -154,7 +154,7 @@ export function toRepeatNotice(count: number): string; // `\n[반복 ${count}회
   - **통과 기준**: 새 e2e + 기존 e2e 전부 통과
   - **커밋**: `test: 날짜 레이어 회귀 e2e (spec 015 Task 5)` — e2e 파일만
 
-- [ ] **Task 6: 문서 반영**
+- [x] **Task 6: 문서 반영**
   - **묶음**: 기반
   - **작업**: `.claude/rules/agent/tools.md` 「컨텍스트·비용」(압축·dialog 우선·트리거 값·반복 안내), `.claude/rules/electron/main.md` snapshot 줄, `docs/DESIGN.md` §3 snapshot·컨텍스트 줄, `.claude/rules/agent/guard.md` 「가드가 보는 것」에 `topPageUrl` + "하위 프레임 대상이면 프레임 URL 판정이 allow 일 때 최상위 탭 URL 로 다시 판정한다 (spec 015 SR-3, 강화만)".
   - **테스트**: 문서 전용 — 코드 변경 없음 (`make check` 통과 유지).
@@ -169,3 +169,9 @@ export function toRepeatNotice(count: number): string; // `\n[반복 ${count}회
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-07 | 1 | schemas·refPlaceholder·guard·tools index·actions·target·overlay 통과 | (검증 반영 커밋) | 재이동 f-ref 재현됨(2번 goto 뒤 f2e…), iframe srcdoc pageUrl = about:srcdoc |
+| 2026-11-07 | 2 | snapshotCompact·snapshot·driver·tools snapshot 통과 | (검증 반영 커밋) | date-layer 압축 전 트리 >12k·dialog 위치 >10k 확인, 부분 snapshot 뒤 바깥 ref not-found |
+| 2026-11-07 | 3 | repeatTracker·tools index 통과 | (검증 반영 커밋) | |
+| 2026-11-07 | 4 | system(스냅샷 2개)·loop 통과 | (검증 반영 커밋) | |
+| 2026-11-07 | 5 | e2e agent-accuracy 1 + 전체 51 통과, 콘솔 에러 0 | (검증 반영 커밋) | 직접 방식 — Task 커밋 대신 검증 반영 커밋 1개 |
+| 2026-11-07 | 6 | make check 1715 통과 | (검증 반영 커밋) | rules guard·tools·main, DESIGN §3 |
