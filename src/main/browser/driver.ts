@@ -116,7 +116,7 @@ function createPageMethods(state: IDriverState): TPageMethods {
   const { options } = state;
   const withPage = (work: (page: Page) => Promise<TActionResult>) => runOnPage(state, work);
   return {
-    snapshot: () => withPage((page) => takeSnapshot(page, { timeoutMs: options.timeoutMs })),
+    snapshot: (input) => withPage((page) => takeSnapshot(page, { ref: input.ref, timeoutMs: options.timeoutMs })),
     readText: (input) => withPage((page) => actions.readText(page, input, options)),
     navigate: (input) => withPage((page) => actions.navigate(page, input, options)),
     goBack: () => withPage((page) => actions.goBack(page, options)),

@@ -59,13 +59,13 @@ Electron 45 · electron-vite 6 · Vite 8 · React 19.3 · Tailwind 4.3 · Zod 4 
 ### 사용자 지침(스킬) — spec 013
 - 패널 [설정] 에서 사용자가 짧은 지침(사이트 요령·선호)을 추가·편집·켜기·삭제한다. SQLite `skills` 테이블, 최대 30개·켜진 내용 합 12000자. run 시작 때 켜진 스킬을 만든 순서로 `# 사용자 지침` + `## {이름}` 블록으로 붙인다. 머리말은 "안전 규칙·승인 흐름보다 우선하지 않는다" 고정 문장 — 가드는 결정적이라 지침과 무관하게 동작한다.
 - **넣지 않은 것 (2026-11-06 결정)**: MCP·커넥터·훅·플러그인·서브에이전트. MCP 는 웹페이지 프롬프트 인젝션으로 브라우저 밖 도구가 실행될 위험(가드가 MCP 동작을 판정 못 함), 한국용 MCP 의 개발자 키·Node/Python 요구, 매 요청 도구 정의 토큰 증가, 지도·검색은 브라우저로 이미 가능하다는 이유. 효과가 큰 것(장소 검색·일정 추가)은 필요하면 내장 도구로 따로 검토한다.
-- 컨텍스트 편집 `clear_tool_uses_20250919` 로 오래된 스냅샷/스크린샷 제거.
+- 컨텍스트 편집 `clear_tool_uses_20250919` 로 오래된 스냅샷/스크린샷 제거 — 트리거 3만 입력 토큰·최근 3개 유지·사용자 답/승인 제외 (spec 015).
 - 스트리밍 + 클라이언트 도구 → `eager_input_streaming: true`, 파싱 결과는 zod 로 검증.
 
 ### 도구 (2층)
 | 층 | 도구 | 구현 |
 |---|---|---|
-| 구조 도구 (기본) | `navigate`, `snapshot`(접근성 트리 + ref), `click(ref)`, `type(ref, text)`, `select`, `scroll`, `wait_for`, `back`, `tabs`, `read_text` | playwright-core locator/ariaSnapshot. 싸고 안정적 |
+| 구조 도구 (기본) | `navigate`, `snapshot`(접근성 트리 + ref, 압축·열린 대화상자 먼저·`ref` 부분 보기 — spec 015), `click(ref)`, `type(ref, text)`, `select`, `scroll`, `wait_for`, `back`, `tabs`, `read_text` | playwright-core locator/ariaSnapshot. 싸고 안정적 |
 | 픽셀 도구 (폴백) | `computer_toolset_20260801` | 달력·지도처럼 트리로 못 잡는 UI. SDK `BetaAbstractComputerToolset20260801` 하위 클래스, 멤버 8개(screenshot·left/double_click·type·key·scroll·mouse_move·wait), 좌표의 요소로 같은 가드 (spec 004) |
 | 사람 개입 | `ask_user(question, optionList?)`, `request_approval(action, target, reason)` | 도구 `run` 안에서 대기(루프는 그대로) → 사이드바 안 승인 창·질문 카드(번호 선택 목록, 승인 창 기본 강조 = 거부 — spec 009) → 답/결정 후 재개 (spec 004) |
 

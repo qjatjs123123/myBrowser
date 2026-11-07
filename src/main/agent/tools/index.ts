@@ -23,6 +23,7 @@ import {
 import { BrowserComputerToolset } from '../computer/toolset';
 import { checkGuard, isSameDisplay } from '../guard';
 import type { IModelClient } from '../modelClient';
+import { noteRepeat, type IRepeatTracker } from '../repeatTracker';
 import { summarizeStep } from '../summary';
 import type { TWaitAnswer } from '../waits';
 import { askUserTool } from './askUser';
@@ -78,6 +79,8 @@ export interface IToolRunContext {
   overlay(cmd: TOverlayCommand): Promise<void>;
   /** run 하나의 직렬 큐 */
   runExclusive: TRunExclusive;
+  /** 같은 화면·같은 행동 반복 횟수 — 구조 도구 결과에 안내를 붙인다 (spec 015 FR-5) */
+  repeatTracker: IRepeatTracker;
 }
 
 /** runGuardedAction 의 가드 호출 — null 이면 가드 없음 (SR-6 뷰포트 검사는 호출부) */
@@ -105,6 +108,8 @@ export interface IGuardedActionSpec<T> {
   /** 승인 대기 중 강조할 대상 */
   overlayTarget: { ref: string } | { point: IPoint } | null;
   act: () => Promise<TActOutcome<T>>;
+  /** 성공한 결과를 모델에 돌려주기 전에 덧붙일 것 — step 기록(text)은 바꾸지 않는다 */
+  annotate?: (value: T, summary: string) => T;
 }
 
 /** 정지 뒤 남은 tool_use 에 돌려주는 결과 (모델 요청은 이미 abort 됐다) */
@@ -187,6 +192,7 @@ async function runStructureTool(tool: IAgentTool<unknown>, ctx: IToolRunContext,
       const result = await tool.execute(ctx.driver, input);
       return result.ok ? { ok: true, value: result.text, text: result.text } : result;
     },
+    annotate: (value, summary) => value + noteRepeat(ctx.repeatTracker, { tool: tool.name, summary, resultText: value }),
   });
 }
 
@@ -208,14 +214,18 @@ async function runPipeline<T>(ctx: IToolRunContext, spec: IGuardedActionSpec<T>)
     const gate = await passGate(ctx, { spec, guard: spec.guard, n, target });
     if (gate.kind === 'skip') return gate.result;
   }
-  return executeStep(ctx, spec, n);
+  return executeStep(ctx, spec, { n, summary });
 }
 
-async function executeStep<T>(ctx: IToolRunContext, spec: IGuardedActionSpec<T>, n: number): Promise<T> {
+async function executeStep<T>(
+  ctx: IToolRunContext,
+  spec: IGuardedActionSpec<T>,
+  { n, summary }: { n: number; summary: string },
+): Promise<T> {
   const result = await spec.act().catch((): TActOutcome<T> => ({ ok: false, reason: UNEXPECTED_ERROR_RESULT }));
   if (!result.ok) return failStep(ctx, n, 'error', result.reason);
   ctx.endStep(n, 'ok', result.text);
-  return result.value;
+  return spec.annotate ? spec.annotate(result.value, summary) : result.value;
 }
 
 /** 가드 문 통과 결과 — pass 면 실행, skip 이면 실행 없이 result 를 모델에 */
@@ -318,13 +328,15 @@ async function judge(
   target: IGuardTarget | null,
   approvalCount: number,
 ): Promise<TGuardVerdict> {
-  const pageUrl = target?.pageUrl ?? (await getPageUrl(ctx.driver));
+  const topPageUrl = await getPageUrl(ctx.driver);
+  const pageUrl = target?.pageUrl ?? topPageUrl;
   const { tool, source, input, point } = guard;
   return checkGuard({
     tool,
     input,
     target,
     pageUrl,
+    topPageUrl,
     allowedHostList: ctx.allowedHostList,
     source,
     approvalCount,
@@ -332,7 +344,7 @@ async function judge(
   });
 }
 
-async function safeResolve(spec: IGuardedActionSpec<unknown>): Promise<IGuardTarget | null> {
+async function safeResolve(spec: Pick<IGuardedActionSpec<unknown>, 'resolveTarget'>): Promise<IGuardTarget | null> {
   try {
     return await spec.resolveTarget();
   } catch {

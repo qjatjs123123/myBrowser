@@ -14,7 +14,7 @@ export function getFixtureUrl(name: string): string {
 /** snapshot 텍스트에서 `- {role} "{name}" … [ref=eN]` 줄의 ref 를 찾는다 */
 export function findRef(snapshotText: string, role: string, name: string): string {
   const line = snapshotText.split('\n').find((item) => item.includes(`- ${role} "${name}"`));
-  const ref = line?.match(/\[ref=(e\d+)\]/)?.[1];
+  const ref = line?.match(/\[ref=((?:f\d+)?e\d+)\]/)?.[1];
   if (!ref) throw new Error(`snapshot 에 ${role} "${name}" 이 없습니다:\n${snapshotText}`);
   return ref;
 }

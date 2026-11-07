@@ -21,7 +21,7 @@ paths:
 ## 도구 설계 (tools/)
 - **도구 1개 = 파일 1개 = 행동 1개.** 이름은 snake_case 동사(`navigate`, `snapshot`, `click`, `type_text`, `select_option`, `scroll`, `wait_for`, `go_back`, `list_tabs`, `read_text`, `ask_user`, `request_approval`).
 - 입력 스키마는 `src/shared/tools/{도구}.ts` 의 zod(`.strict()`, 형식까지 제한). 설명(`description`)은 **모델이 읽는 문장** — 언제 쓰고 언제 쓰지 말지, ref 가 어디서 오는지 한 문단. 예시 입력 1개 포함.
-- 반환은 텍스트 1블록이 기본. `snapshot` 은 ref 가 붙은 접근성 트리 텍스트(길이 제한, `browser/snapshot.ts`), `screenshot` 류만 이미지 블록.
+- 반환은 텍스트 1블록이 기본. `snapshot` 은 ref 가 붙은 접근성 트리 텍스트(압축·대화상자 우선·길이 제한, `browser/snapshot.ts`), `screenshot` 류만 이미지 블록.
 - 모든 도구는 `(ctx: IToolContext, input) => Promise<IToolResult>`. `ctx` 에 현재 탭 handle·browser·emit·run id. 도구 안에서 다른 도구를 부르지 않는다.
 - **상태를 바꾸는 도구(click·type_text·select_option·navigate·press)는 실행 전 `guard.check(action)` 를 반드시 거친다** — 루프의 훅이 공통으로 호출하므로 도구 안에서 가드를 생략해도 되지만, 가드를 우회하는 범용 도구(`evaluate`, `run_script`)는 **만들지 않는다**.
 - 실패는 throw 가 아니라 `{ ok: false, reason }` → 루프가 `is_error: true` tool_result 로 변환. 타임아웃 기본 10s.
@@ -34,7 +34,7 @@ paths:
 - 대기 중 타임아웃은 없다 (사용자가 돌아올 때까지). `agent:stop` 이면 `stopped`, 앱 종료면 `shutdown()` → `failed`("앱이 종료됐습니다") — 어느 쪽도 대기 중인 도구를 실행하지 않는다.
 
 ## 프롬프트 (prompts/)
-- `system.ts` 가 섹션별 상수를 합쳐 문자열 1개를 만든다: 역할 → 도구 사용 순서(항상 snapshot 먼저, 픽셀 도구는 폴백) → 안전 규칙(승인 필요 행동, 비밀번호·카드 입력 금지, 추측 금지·ask_user) → 한국 예약 사이트 참고 → 출력 형식(완료 시 한 줄 요약).
+- `system.ts` 의 `buildSystemPrompt({ hasComputerToolset })` 가 섹션을 합쳐 프로필별 고정 문자열 1개를 만든다 (spec 015): 역할 → 도구 사용 순서(항상 snapshot 먼저, 픽셀 도구는 폴백) → 안전 규칙(승인 필요 행동, 비밀번호·카드 입력 금지, 추측 금지·ask_user) → 한국 예약 사이트 참고 → 출력 형식(완료 시 한 줄 요약).
 - **결정적으로 검사할 수 있는 규칙은 프롬프트가 아니라 `guard.ts` 에도 둔다** (이중). 프롬프트만 믿지 않는다.
 - 프롬프트 변경은 `prompts/__tests__/system.test.ts` 의 스냅샷 테스트를 갱신해야 한다 — 의도치 않은 변경 방지.
 
@@ -42,7 +42,11 @@ paths:
 `queued → running ⇄ waiting_user → done | failed | stopped` (대기 중에도 stop·fail 가능. `stopped_before_confirm` 은 spec 003 기록 호환용 enum 으로만 남고 새 전이가 없다 — spec 004). 전이는 `transition(run, event)` 함수 1곳에서만, 불법 전이는 throw. 모든 전이는 `steps` 테이블과 `agent:event` 에 기록.
 
 ## 컨텍스트·비용
-- `snapshot` 은 12k 자 제한, 스크린샷은 뷰포트 1280×800 이하로 축소, 같은 상태에서 연속 스크린샷 금지(도구 설명에 명시).
+- `snapshot` 은 압축(`/url: "#…"` 줄 삭제·빈 generic/cell 접기, `browser/snapshotCompact.ts`) 후 열린 dialog 를 `[열린 대화상자]` 로 맨 앞에 싣고 12k 자 제한. 잘리면 `snapshot({ ref })` 부분 보기(그 밖 이전 ref 는 무효) — scroll 은 트리를 더 보여 주지 않는다. ref 는 `e12`·`f2e5`(재이동·iframe) 둘 다 (spec 015).
+- 스크린샷은 뷰포트 1280×800 이하로 축소, 같은 상태에서 연속 스크린샷 금지(도구 설명에 명시).
+- 반복 안내: 같은 화면(ref 를 지운 snapshot) 또는 같은 화면에서의 같은 행동이 3회째부터 도구 결과 끝에 `[반복 N회째]` 한 줄 (`agent/repeatTracker.ts`, step 기록엔 없음, 실행은 막지 않음).
+- `clear_tool_uses_20250919` 는 `trigger` 3만 입력 토큰·`keep` 3·`clear_at_least` 1만·`exclude_tools: ['ask_user', 'request_approval']` 를 명시한다 (기본 10만 트리거는 snapshot run 에 늦다, spec 015).
+- 시스템 프롬프트는 `buildSystemPrompt({ hasComputerToolset })` — 픽셀 도구가 없는 프로필엔 픽셀 문장을 넣지 않는다.
 - run 당 최대 도구 호출 수(기본 60)·최대 토큰(usage 합산) 상한을 settings 에 두고 넘으면 `failed(budget)`.
 
 ## 테스트

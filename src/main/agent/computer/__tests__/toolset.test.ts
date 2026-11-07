@@ -11,6 +11,7 @@ import type { IBrowserDriver, IGuardTarget } from '@shared/tools';
 import { createFakeFetch, type TFakeRequestBody } from '../../fake/fakeFetch';
 import { GUARD_MESSAGE } from '../../guard';
 import { runAgentLoop } from '../../loop';
+import { createRepeatTracker } from '../../repeatTracker';
 import {
   createExclusiveQueue,
   createToolList,
@@ -94,6 +95,7 @@ function createHarness(decision: TDecision = 'denied'): IHarness {
     }),
     overlay: vi.fn(async () => undefined),
     runExclusive: createExclusiveQueue(),
+    repeatTracker: createRepeatTracker(),
   };
   return { driver, ctx, stepList, waitList, actCountAtWait };
 }

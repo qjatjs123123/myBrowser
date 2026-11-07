@@ -11,7 +11,7 @@ paths:
 **원칙: 모델의 판단과 무관하게, 하네스가 되돌리기 어려운 행동을 막는다.** 프롬프트는 1차, 가드는 2차이며 가드가 최종이다.
 
 ## 가드가 보는 것
-상태를 바꾸는 모든 도구 호출(`click`, `type_text`, `select_option`, `navigate`, `open_tab`, `press_key`)과 픽셀 멤버(`computer.left_click|double_click|type|key`)에 대해 공통 파이프라인 `runGuardedAction`(`agent/tools/index.ts`)이 실행 **전에** `checkGuard({ tool, source, input, target, pageUrl, approvalCount, point })` 를 부른다. `target` 은 ref·좌표·포커스 요소의 role·name·text·href·form action·formSubmitText 와 현재 URL (`browser/target.ts`). `request_approval` 도 승인 상한 검사를 위해 가드를 거친다.
+상태를 바꾸는 모든 도구 호출(`click`, `type_text`, `select_option`, `navigate`, `open_tab`, `press_key`)과 픽셀 멤버(`computer.left_click|double_click|type|key`)에 대해 공통 파이프라인 `runGuardedAction`(`agent/tools/index.ts`)이 실행 **전에** `checkGuard({ tool, source, input, target, pageUrl, topPageUrl, approvalCount, point })` 를 부른다. `target` 은 ref·좌표·포커스 요소의 role·name·text·href·form action·formSubmitText 와 그 요소 문서의 URL (`browser/target.ts`). `topPageUrl` 은 최상위 탭 URL — 하위 프레임 대상(f-ref)이면 프레임 URL 판정이 allow 일 때 최상위 탭 URL 로 다시 판정한다 (spec 015 SR-3, 강화만). `request_approval` 도 승인 상한 검사를 위해 가드를 거친다.
 
 ## 판정 결과
 ```ts

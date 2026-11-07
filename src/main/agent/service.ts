@@ -28,7 +28,8 @@ import { runAgentLoop, type TLoopOutcome } from './loop';
 import { MissingApiKeyError, MissingCredentialError, type IModelClient } from './modelClient';
 import type { IModelProfile } from './profiles';
 import { buildSkillSection } from './prompts/skills';
-import { buildFirstUserMessage, SYSTEM_PROMPT } from './prompts/system';
+import { buildFirstUserMessage, buildSystemPrompt } from './prompts/system';
+import { createRepeatTracker } from './repeatTracker';
 import { isFinalStatus, transition, type TRunEvent } from './runs';
 import { createExclusiveQueue, createToolList, type IToolRunContext, type TUserRequest } from './tools';
 import {
@@ -251,7 +252,7 @@ async function runLoopFor(
     model: deps.profile.model,
     request: deps.profile.request,
     tools: createToolList(createToolContext(deps, session), { hasComputerToolset: deps.profile.hasComputerToolset }),
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt: buildSystemPrompt({ hasComputerToolset: deps.profile.hasComputerToolset }),
     skillSection: buildSkillSection(readEnabledSkillList(deps)),
     firstUserMessage: buildFirstUserMessage({ today: deps.now(), pageUrl: page.url, pageTitle: page.title, task }),
     signal: session.controller.signal,
@@ -290,6 +291,7 @@ function createToolContext(deps: IAgentServiceDeps, session: IRunSession): ITool
     waitForUser: (request) => waitForUser(deps, session, request),
     overlay: (cmd) => showOverlay(deps, session, cmd),
     runExclusive: createExclusiveQueue(),
+    repeatTracker: createRepeatTracker(),
   };
 }
 

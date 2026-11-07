@@ -12,6 +12,7 @@ import {
 
 import { BrowserComputerToolset } from '../../computer/toolset';
 import { checkGuard } from '../../guard';
+import { createRepeatTracker } from '../../repeatTracker';
 import type { TWaitAnswer } from '../../waits';
 import {
   createExclusiveQueue,
@@ -103,6 +104,7 @@ function createContext(): IToolRunContext {
     ),
     overlay: vi.fn(async () => undefined),
     runExclusive: createExclusiveQueue(),
+    repeatTracker: createRepeatTracker(),
   };
 }
 
@@ -267,6 +269,73 @@ describe('runGuardedAction', () => {
     await first;
     await second;
     expect(pixelAct).toHaveBeenCalledOnce();
+    expect(ctx.driver.click).not.toHaveBeenCalled();
+  });
+});
+
+describe('반복 안내 (spec 015 FR-5)', () => {
+  it('같은 화면에서 같은 click 을 세 번째 하면 결과 끝에 안내를 붙이고 step 기록에는 남기지 않는다', async () => {
+    const ctx = createContext();
+    const click = findRunnable(ctx, 'click');
+    await findRunnable(ctx, 'snapshot').run({});
+    await click.run({ ref: 'e1' });
+    expect(await click.run({ ref: 'e2' })).toBe('완료');
+    const third = await click.run({ ref: 'e3' });
+    expect(third).toMatch(/^완료\n\[반복 3회째\]/);
+    expect(ctx.endStep).toHaveBeenLastCalledWith(4, 'ok', '완료');
+  });
+
+  it('실패한 결과에는 안내를 붙이지 않는다', async () => {
+    const ctx = createContext();
+    vi.mocked(ctx.driver.click).mockResolvedValue({ ok: false, reason: '시간 초과' });
+    const click = findRunnable(ctx, 'click');
+    for (let i = 0; i < 2; i += 1) await Promise.resolve(click.run({ ref: 'e1' })).catch(() => undefined);
+    await expect(click.run({ ref: 'e1' })).rejects.toThrow(/^시간 초과$/);
+  });
+});
+
+describe('하위 프레임 f-ref 의 승인 (spec 015 SR-1·SR-3)', () => {
+  /** 대상 해석이 iframe 안 버튼을 돌려주는 ctx — 승인 대기는 거부로 답한다 */
+  function createFrameContext(name: string, topUrl: string) {
+    const ctx = createContext();
+    vi.mocked(ctx.driver.resolveTarget).mockResolvedValue({
+      role: 'button',
+      name,
+      text: '',
+      value: '',
+      href: '',
+      formAction: '',
+      formSubmitText: '',
+      inputType: '',
+      autocomplete: '',
+      fieldName: '',
+      label: '',
+      pageUrl: 'about:srcdoc',
+    });
+    vi.mocked(ctx.driver.getPageInfo).mockResolvedValue({ url: topUrl, title: '결제' });
+    let release: (answer: TWaitAnswer) => void = () => undefined;
+    ctx.waitForUser = vi.fn(() => new Promise<TWaitAnswer>((resolve) => (release = resolve)));
+    return { ctx, deny: () => release({ type: 'decision', decision: 'denied' }) };
+  }
+
+  it('iframe 안 “예약 확정” 을 f-ref 로 누르면 승인 대기에서 멈추고 거부하면 클릭하지 않는다', async () => {
+    const { ctx, deny } = createFrameContext('예약 확정', 'https://shop.example.com/store');
+    const pending = findRunnable(ctx, 'click').run({ ref: 'f1e3' });
+    await vi.waitFor(() => expect(ctx.waitForUser).toHaveBeenCalled());
+    expect(ctx.endStep).toHaveBeenCalledWith(1, 'waiting', expect.any(String));
+    expect(ctx.driver.click).not.toHaveBeenCalled();
+    deny();
+    await pending;
+    expect(ctx.driver.click).not.toHaveBeenCalled();
+  });
+
+  it('최상위 탭이 /checkout 이면 iframe 안 평범한 [다음] 도 승인 전에는 클릭하지 않는다', async () => {
+    const { ctx, deny } = createFrameContext('다음', 'https://shop.example.com/checkout');
+    const pending = findRunnable(ctx, 'click').run({ ref: 'f1e4' });
+    await vi.waitFor(() => expect(ctx.waitForUser).toHaveBeenCalled());
+    expect(ctx.driver.click).not.toHaveBeenCalled();
+    deny();
+    await pending;
     expect(ctx.driver.click).not.toHaveBeenCalled();
   });
 });

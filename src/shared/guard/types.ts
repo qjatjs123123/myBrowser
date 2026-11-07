@@ -19,6 +19,11 @@ export interface IGuardInput {
   /** ref(또는 포커스) 대상 — 찾지 못하면 null (fail-closed) */
   target: IGuardTarget | null;
   pageUrl: string;
+  /**
+   * 최상위 탭 URL — 대상이 하위 프레임 요소면 pageUrl(프레임 문서 URL)과 다르다.
+   * 다르면 pageUrl 판정이 allow 일 때 이 URL 로 한 번 더 판정한다 (spec 015 SR-3, 강화만)
+   */
+  topPageUrl?: string;
   /** 사설 host 차단의 예외 — 테스트 모드에서만 ['127.0.0.1'] */
   allowedHostList: string[];
   /** 호출 출처 — 기본 'structure'. 'pixel' 이면 입력 스키마 parse 없이 픽셀→가드 매핑 input 모양만 본다 (spec 004) */

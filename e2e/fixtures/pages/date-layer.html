@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>날짜 레이어</title>
+  </head>
+  <!--
+    spec 015 — 긴 본문 뒤에 붙는 날짜 레이어(role=dialog). 압축 전 트리는 12k 자를 넘어 레이어가 잘리던 구조(코레일 run 783efc20).
+    달력에서 날짜·시각을 고르고 [적용] 을 눌러야 출발일 칸에 반영된다.
+  -->
+  <body>
+    <h1>승차권 예매</h1>
+    <label>출발일 <input id="departure" aria-label="출발일" readonly value="" /></label>
+    <button id="open" type="button">날짜 선택</button>
+    <div id="guide"></div>
+    <script>
+      const guide = document.getElementById('guide');
+      for (let i = 1; i <= 250; i += 1) {
+        const box = document.createElement('div');
+        const inner = document.createElement('div');
+        const link = document.createElement('a');
+        link.href = '#none';
+        link.textContent = `역 안내 ${i} — 이용 시간과 승강장 정보`;
+        inner.appendChild(link);
+        box.appendChild(inner);
+        guide.appendChild(box);
+      }
+
+      let pickedDay = '';
+      document.getElementById('open').addEventListener('click', () => {
+        const layer = document.createElement('div');
+        layer.setAttribute('role', 'dialog');
+        layer.setAttribute('aria-modal', 'true');
+        layer.setAttribute('aria-label', '날짜 선택');
+        const days = Array.from({ length: 30 }, (_, i) => `<td><a href="#none" data-day="${i + 1}">${i + 1}</a></td>`);
+        layer.innerHTML = `
+          <h2>날짜 선택</h2>
+          <button type="button" id="close">레이어닫기</button>
+          <table><tr>${days.join('')}</tr></table>
+          <label>출발 시각 <select id="hour" aria-label="출발 시각"><option>09시</option><option>10시</option><option>11시</option></select></label>
+          <p id="picked">선택 안 함</p>
+          <button type="button" id="apply">적용</button>`;
+        document.body.appendChild(layer);
+        layer.querySelectorAll('[data-day]').forEach((link) =>
+          link.addEventListener('click', (event) => {
+            event.preventDefault();
+            pickedDay = link.dataset.day.padStart(2, '0');
+            layer.querySelector('#picked').textContent = `11월 ${link.dataset.day}일`;
+          }),
+        );
+        layer.querySelector('#close').addEventListener('click', () => layer.remove());
+        layer.querySelector('#apply').addEventListener('click', () => {
+          if (!pickedDay) return;
+          const hour = layer.querySelector('#hour').value;
+          document.getElementById('departure').value = `2026-11-${pickedDay} ${hour}`;
+          layer.remove();
+        });
+      });
+    </script>
+  </body>
+</html>

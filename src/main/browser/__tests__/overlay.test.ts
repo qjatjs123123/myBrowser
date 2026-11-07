@@ -136,3 +136,20 @@ describe('getRefCenter', () => {
     await expect(getRefCenter(page, ref)).resolves.toEqual({ x: 80, y: 40 });
   });
 });
+
+describe('showHighlight 프레임 접두사 ref (spec 015 FR-1)', () => {
+  it('iframe 안 버튼의 f-ref 면 메인 페이지 좌표로 그 버튼을 강조한다', async () => {
+    await page.goto(getFixtureUrl('browser-frame.html'));
+    const ref = findRef(await page.ariaSnapshot({ mode: 'ai' }), 'button', '다음');
+    expect(ref).toMatch(/^f\d+e\d+$/);
+    await showHighlight(page, { ref });
+    // iframe left 100 + 버튼 left 160 − 여백 4, top 200 + 20 − 4, 120×40 + 8
+    expect(await readPart('highlight')).toEqual({
+      display: 'block',
+      left: '256px',
+      top: '216px',
+      width: '128px',
+      height: '48px',
+    });
+  });
+});
