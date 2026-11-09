@@ -45,7 +45,15 @@ Object.defineProperty(window, 'api', {
       signOut: vi.fn(),
       onChanged: createSubscribeMock(),
     },
-    window: { minimize: vi.fn(), toggleMaximize: vi.fn(), close: vi.fn(), onStateChanged: createSubscribeMock() },
+    window: {
+      minimize: vi.fn(),
+      toggleMaximize: vi.fn(),
+      close: vi.fn(),
+      pointerStart: vi.fn(),
+      pointerMove: vi.fn(),
+      pointerEnd: vi.fn(),
+      onStateChanged: createSubscribeMock(),
+    },
     runs: { list: vi.fn(), get: vi.fn() },
     skills: {
       list: vi.fn(() => Promise.resolve(EMPTY_SKILL_LIST_RESULT)),

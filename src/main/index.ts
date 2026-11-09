@@ -28,7 +28,9 @@ import {
   hasRoundedCorners,
   watchWindowState,
   WINDOW_CORNER_RADIUS,
+  WINDOW_MIN_SIZE,
 } from './app/window';
+import { createWindowPointerSession } from './app/windowPointer';
 import { createCdpConnection } from './browser/cdp';
 import { createBrowserDriver } from './browser/driver';
 import { resolveCdpEndpoint } from './browser/endpoint';
@@ -111,7 +113,7 @@ function startBrowser(): void {
     ...createTabsHandlers(tabManager),
     ...createAgentHandlers(agentService),
     ...createAccountHandlers(accountService),
-    ...createWindowHandlers(createWindowControls(window)),
+    ...createWindowHandlers(createWindowControls(window), createWindowPointerSession(window, WINDOW_MIN_SIZE)),
     ...createRunsHandlers(createRunHistoryRepo(runDatabase)),
     ...createSkillsHandlers(skillRepo),
   });

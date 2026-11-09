@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { TTabState } from '@shared/ipc/tabs';
@@ -106,5 +106,40 @@ describe('TabBar', () => {
     renderTabBar({ leading: <button type="button">신호등</button> });
     const buttonList = screen.getAllByRole('button');
     expect(buttonList[0]).toHaveAccessibleName('신호등');
+  });
+
+  describe('Linux 창 끌기 windowDrag (spec 016)', () => {
+    function renderWithDrag() {
+      const windowDrag = { onPointerDown: vi.fn(), onDoubleClick: vi.fn() };
+      renderTabBar({ windowDrag });
+      return windowDrag;
+    }
+
+    it('빈 곳을 누르거나 더블클릭하면 windowDrag 를 부른다', () => {
+      const windowDrag = renderWithDrag();
+      const topBar = screen.getByTestId('window-top-bar');
+      fireEvent.pointerDown(topBar);
+      fireEvent.doubleClick(topBar);
+      expect(windowDrag.onPointerDown).toHaveBeenCalledOnce();
+      expect(windowDrag.onDoubleClick).toHaveBeenCalledOnce();
+    });
+
+    it('탭·버튼에서 누르거나 더블클릭하면 windowDrag 를 부르지 않는다', () => {
+      const windowDrag = renderWithDrag();
+      for (const target of [screen.getByRole('tab', { name: 'A 사이트' }), screen.getByRole('button', { name: '새 탭 열기' })]) {
+        fireEvent.pointerDown(target);
+        fireEvent.doubleClick(target);
+      }
+      expect(windowDrag.onPointerDown).not.toHaveBeenCalled();
+      expect(windowDrag.onDoubleClick).not.toHaveBeenCalled();
+    });
+
+    it('windowDrag 가 있으면 CSS 드래그 영역을 주지 않고, 없으면 준다', () => {
+      renderWithDrag();
+      expect(screen.getByTestId('window-top-bar')).not.toHaveClass('[-webkit-app-region:drag]');
+      cleanup();
+      renderTabBar();
+      expect(screen.getByTestId('window-top-bar')).toHaveClass('[-webkit-app-region:drag]');
+    });
   });
 });

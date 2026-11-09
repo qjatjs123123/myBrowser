@@ -4,7 +4,9 @@ import { BrowserWindow, type BrowserWindowConstructorOptions } from 'electron';
 
 import type { TWindowState } from '@shared/ipc/window';
 
-const WINDOW_SIZE = { width: 1280, height: 800, minWidth: 900, minHeight: 600 };
+/** 창 최소 크기 — 창 옵션과 Linux 가장자리 크기 조절(spec 016)이 같이 쓴다 */
+export const WINDOW_MIN_SIZE = { width: 900, height: 600 };
+const WINDOW_SIZE = { width: 1280, height: 800, minWidth: WINDOW_MIN_SIZE.width, minHeight: WINDOW_MIN_SIZE.height };
 /** macOS 네이티브 신호등을 탭 줄(36px) 가운데에 맞춘다 (spec 010) */
 const TRAFFIC_LIGHT_POSITION = { x: 14, y: 12 };
 /** Linux 둥근 창의 모서리 반지름 — renderer 토큰 `--window-radius`(globals.css)와 같은 값 (spec 014) */

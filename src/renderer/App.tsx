@@ -1,15 +1,21 @@
 import { type CSSProperties, useState } from 'react';
 
+import type { TIpcResult } from '@shared/ipc/result';
+
 import { AgentToggleButton } from '@/chrome/AgentToggleButton';
 import { BrowserChrome } from '@/chrome/BrowserChrome';
 import { SidebarResizer } from '@/chrome/SidebarResizer';
+import { WindowResizeEdges } from '@/chrome/WindowResizeEdges';
 import { type TAgentRun, useAgentRun } from '@/hooks/useAgentRun';
 import { useShortcut } from '@/hooks/useShortcut';
 import { SIDEBAR_WIDTH, useSidebarOpen } from '@/hooks/useSidebarOpen';
+import { useWindowControls } from '@/hooks/useWindowControls';
+import { useWindowPointer } from '@/hooks/useWindowPointer';
 import { useWindowState } from '@/hooks/useWindowState';
 import { AccountCard } from '@/sidebar/AccountCard';
 import { AgentPanel } from '@/sidebar/AgentPanel';
 import { AppInfoFooter } from '@/sidebar/AppInfoFooter';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { isLinuxPlatform } from '@/utils/platform';
 
@@ -29,6 +35,16 @@ export default function App() {
   const run = useAgentRun();
   const { isOpen, setIsOpen, width, setWidth } = useSidebarOpen();
   const { isMaximized } = useWindowState();
+  const windowPointer = useWindowPointer({ onError: toast.error });
+  const windowControls = useWindowControls();
+  // Linux 는 창 이동·최대화 토글·크기 조절을 앱이 처리한다 — WSLg 가 CSS 드래그 영역을 처리하지 않는다 (spec 016)
+  const hasResizeEdges = IS_ROUNDED_FRAME && !isMaximized;
+  const windowDrag = IS_ROUNDED_FRAME
+    ? {
+        onPointerDown: windowPointer.handlePointerDown.bind(null, 'move'),
+        onDoubleClick: () => void notifyFailure(windowControls.toggleMaximize()),
+      }
+    : undefined;
   const [dismissedRequestId, setDismissedRequestId] = useState<string | null>(null);
   const pendingRequestId = getPendingRequestId(run);
   const isPanelVisible = isOpen || (pendingRequestId !== null && pendingRequestId !== dismissedRequestId);
@@ -49,7 +65,10 @@ export default function App() {
       aria-label="브라우징 영역"
       data-window-frame={getWindowFrame(isMaximized)}
     >
+      {hasResizeEdges && <WindowResizeEdges onPointerDown={windowPointer.handlePointerDown} />}
       <BrowserChrome
+        windowDrag={windowDrag}
+        hasEdgeInset={hasResizeEdges}
         toolbarEnd={
           <AgentToggleButton isPressed={isPanelVisible} needsAttention={needsAttention} onToggle={togglePanel} />
         }
@@ -94,4 +113,10 @@ function toSidebarStyle(width: number): CSSProperties & { '--sidebar-width': str
 function getWindowFrame(isMaximized: boolean): 'rounded' | 'square' | undefined {
   if (!IS_ROUNDED_FRAME) return undefined;
   return isMaximized ? 'square' : 'rounded';
+}
+
+/** IPC 결과가 실패면 main 의 메시지를 toast 로 보여준다 */
+async function notifyFailure(task: Promise<TIpcResult<unknown>>): Promise<void> {
+  const result = await task;
+  if (!result.ok) toast.error(result.error.message);
 }
