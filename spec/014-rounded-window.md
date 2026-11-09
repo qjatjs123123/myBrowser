@@ -1,6 +1,6 @@
 # Spec: 창 바깥 모서리 둥글게
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-06
 > **묶음**: 기반 (단일 묶음 — 직접 방식)
 > **관련 spec**: 010, 011, 012
@@ -28,6 +28,7 @@
 - **요구사항 변경으로 바뀌는 기존 테스트**: `e2e/sidebar-layout.spec.ts` 다크 테스트가 `body` 배경색을 본다 — Linux 둥근 창에서는 body 가 투명해야 하므로 앱 루트(`main` "브라우징 영역") 배경색을 보도록 바꾼다 (같은 토큰 `oklch(0.21 0.006 285.9)`, 약화 아님). `src/main/app/__tests__/window.test.ts` 의 linux 창 옵션 기대값에 `transparent: true` 추가.
 - 테두리는 레이아웃을 밀지 않게 `<main>` 의 `after:` 덧그림(absolute inset-0, pointer-events-none)으로 그린다 → `e2e/window-frame.spec.ts` 38행 `topBox.y === 0`·44행 `width === viewportWidth` 는 그대로 유지된다. 탭 View(네이티브)가 덮는 가장자리에는 테두리가 보이지 않는다(허용).
 - **위험**: Electron 문서상 투명 창은 일부 플랫폼에서 크기 조절이 제한될 수 있다. app-check 에서 Linux(WSLg) 창 가장자리 크기 조절·드래그 이동·최대화 버튼을 확인하고, 안 되면 중단하고 사용자에게 보고한다(둥근 모서리 vs 크기 조절 결정).
+  → **결과 (2026-11-09)**: WSLg 에서는 드래그 이동이 spec 014 이전(spec 010 의 CSS 드래그 영역)부터 동작하지 않았다. 사용자 결정으로 014 는 그대로 합치고, 드래그 이동·더블클릭 최대화·가장자리 크기 조절은 spec 016 에서 직접 구현한다.
 
 ### 범위 제외
 Windows 10 이하 둥근 모서리, 창 그림자 직접 그리기, 반지름 설정 UI.
@@ -82,7 +83,7 @@ export type TWindowState = z.infer<typeof WindowStateSchema>;
 
 > ⚠️ 게이트 규칙·vibe-build 우선 규칙은 템플릿과 같다 (`.claude/templates/spec-template.md`).
 
-- [ ] **Task 1: 창 상태 IPC 계약·preload·mock**
+- [x] **Task 1: 창 상태 IPC 계약·preload·mock**
   - **묶음**: 기반
   - **작업**: `src/shared/ipc/window.ts`, `channels.ts` `window.stateChanged`, `api.ts`, `preload`, `vitest.setup.ts` mock(`window.onStateChanged` 해제 함수 반환).
   - **테스트**: `src/shared/ipc/__tests__/window.test.ts` — strict(여분 키 거부)·boolean 아님 거부.
@@ -91,7 +92,7 @@ export type TWindowState = z.infer<typeof WindowStateSchema>;
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 창 상태 이벤트 계약 (spec 014 Task 1)`
 
-- [ ] **Task 2: main — linux 투명 창·창 상태 감시·탭 View 반지름**
+- [x] **Task 2: main — linux 투명 창·창 상태 감시·탭 View 반지름**
   - **묶음**: 기반
   - **작업**: 위 「main」 전부 (index.ts 조립 포함).
   - **테스트**: `src/main/app/__tests__/window.test.ts`(linux 옵션 `transparent`·`backgroundColor`, win32·darwin 그대로, `hasRoundedCorners`, `watchWindowState` 4이벤트 → true/false), `src/main/tabs/__tests__/tabManager.test.ts`(`setCornerRadius` 가 기존·새 View 에 적용), `watchWindowState` 에 '최대화 상태에서 leave-full-screen 이면 true'.
@@ -100,7 +101,7 @@ export type TWindowState = z.infer<typeof WindowStateSchema>;
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: linux 투명 창과 창 상태 감시·탭 반지름 (spec 014 Task 2)`
 
-- [ ] **Task 3: renderer — 둥근 루트 + e2e**
+- [x] **Task 3: renderer — 둥근 루트 + e2e**
   - **묶음**: 기반
   - **작업**: 위 「renderer」 전부, e2e 2곳, `docs/DESIGN.md` §2 프레임 줄에 "Linux 는 `transparent: true` + renderer 둥근 루트·탭 View 반지름, 최대화 시 직각 (spec 014)" 추가.
   - **테스트**: `hooks/__tests__/useWindowState.test.ts`(구독·갱신·해제), `utils/__tests__/platform.test.ts`(`isLinuxPlatform`), `__tests__/App.rounded.test.tsx`(`vi.mock('@/utils/platform')` 로 `isLinuxPlatform` 을 true 로 고정 → `data-window-frame="rounded"`, 상태 이벤트 isMaximized → `square`; 기존 `App.test.tsx` 는 mock 없이 속성이 없는 경우를 확인). e2e `e2e/window-frame.spec.ts` — linux 에서 루트 `border-radius` 10px·body 배경 투명 → `app.evaluate` 로 메인 창 `emit('maximize')` → 0px → `emit('unmaximize')` → 10px (linux 가 아니면 skip 사유 명시). `e2e/sidebar-layout.spec.ts` 다크 확인 대상을 `main` 으로.
@@ -115,3 +116,5 @@ export type TWindowState = z.infer<typeof WindowStateSchema>;
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-06 | 1~3 | make check · make e2e 51 | 91f21e8 | 직접 방식 — WSLg 실창 확인 대기로 멈춤 |
+| 2026-11-09 | 검증 | dev(015) 합친 뒤 make check 1742 · make e2e 52 · 에러 0 | 검증 반영 커밋 | 창 드래그·크기 조절은 spec 016 으로 넘김 (사용자 결정) |
