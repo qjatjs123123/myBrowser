@@ -29,6 +29,7 @@ function createFakeView(): IFakeTabView {
     onOpenWindow: (cb) => (openListener = cb),
     setBounds: vi.fn(),
     setVisible: vi.fn(),
+    setBorderRadius: vi.fn(),
     focus: vi.fn(),
     destroy: vi.fn(),
     getCdpTargetId: vi.fn(async () => `target-of-${view.state.url}`),
@@ -233,5 +234,28 @@ describe('TabManager CDP targetId', () => {
     const { manager } = setup();
     manager.createTab('https://a.com/');
     await expect(manager.getCdpTargetId('tab-99')).resolves.toBeNull();
+  });
+});
+
+describe('TabManager 모서리 반지름 (spec 014)', () => {
+  it('setCornerRadius 는 기존 탭 View 전부에 적용된다', () => {
+    const { manager, viewList } = setup();
+    manager.createTab('https://a.com/');
+    manager.createTab('https://b.com/');
+    manager.setCornerRadius(10);
+    for (const view of viewList) expect(view.setBorderRadius).toHaveBeenLastCalledWith(10);
+  });
+
+  it('이후 만드는 탭에도 같은 반지름을 준다', () => {
+    const { manager, viewList } = setup();
+    manager.setCornerRadius(10);
+    manager.createTab('https://a.com/');
+    expect(viewList[0]?.setBorderRadius).toHaveBeenLastCalledWith(10);
+  });
+
+  it('기본 반지름은 0 이다 (Linux 가 아니면 직각)', () => {
+    const { manager, viewList } = setup();
+    manager.createTab('https://a.com/');
+    expect(viewList[0]?.setBorderRadius).toHaveBeenLastCalledWith(0);
   });
 });

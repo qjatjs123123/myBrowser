@@ -97,6 +97,11 @@ describe('App', () => {
     expect(await screen.findByText('myBrowser v0.1.0 · 테스트')).toBeInTheDocument();
   });
 
+  it('Linux 가 아니면 루트에 창 모양 속성이 없다 — OS 가 모서리를 그린다 (spec 014)', async () => {
+    await renderApp();
+    expect(screen.getByRole('main', { name: '브라우징 영역' })).not.toHaveAttribute('data-window-frame');
+  });
+
   it('사이드바에 할 일 입력창·작업 실행 버튼·빈 상태 안내를 보여준다', async () => {
     vi.mocked(window.api.app.getInfo).mockResolvedValue({
       ok: true,

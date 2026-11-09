@@ -3,7 +3,7 @@
  * 빈 곳은 창 드래그 영역, 탭·버튼은 클릭 영역이다. 신호등은 preload→IPC→main 창까지 실제 경로로 간다.
  * xvfb 에는 창 관리자가 없어 실제 최대화 상태는 바뀌지 않으므로 main 창 인스턴스에 대역을 심어 호출만 확인한다.
  */
-import type { Locator } from '@playwright/test';
+import type { ElectronApplication, Locator, Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
 import { getSidebar } from './helpers';
@@ -84,4 +84,39 @@ test('탭 콘텐츠 영역은 주소창 줄 아래에서 시작한다', async ({
   const contentBox = await win.getByRole('region', { name: '탭 콘텐츠' }).boundingBox();
   if (!addressBox || !contentBox) throw new Error('주소창·탭 콘텐츠가 보이지 않습니다');
   expect(contentBox.y).toBeGreaterThanOrEqual(addressBox.y + addressBox.height);
+});
+
+/** 앱 루트·body 의 모서리·배경 계산값 */
+async function readFrameStyle(win: Page): Promise<{ radius: string; bodyBackground: string }> {
+  return win.getByRole('main', { name: '브라우징 영역' }).evaluate((element) => {
+    type TStyle = { borderTopLeftRadius: string; backgroundColor: string };
+    const g = globalThis as unknown as { getComputedStyle: (node: unknown) => TStyle; document: { body: unknown } };
+    return {
+      radius: g.getComputedStyle(element).borderTopLeftRadius,
+      bodyBackground: g.getComputedStyle(g.document.body).backgroundColor,
+    };
+  });
+}
+
+/** 메인 창에 최대화 계열 이벤트를 보낸다 — xvfb 에는 창 관리자가 없어 실제 최대화 대신 이벤트로 확인한다 */
+async function emitWindowEvent(app: ElectronApplication, eventName: 'maximize' | 'unmaximize'): Promise<void> {
+  await app.evaluate(({ BrowserWindow }, name) => {
+    const [mainWindow] = BrowserWindow.getAllWindows();
+    mainWindow?.emit(name);
+  }, eventName);
+}
+
+test('Linux 는 창 모서리가 둥글고 최대화하면 직각, 풀면 다시 둥글다 (spec 014)', async ({ app, win }) => {
+  test.skip(process.platform !== 'linux', 'macOS·Windows 는 OS 가 모서리를 그린다');
+  const root = win.getByRole('main', { name: '브라우징 영역' });
+  await expect(root).toHaveAttribute('data-window-frame', 'rounded');
+  expect(await readFrameStyle(win)).toEqual({ radius: '10px', bodyBackground: 'rgba(0, 0, 0, 0)' });
+
+  await emitWindowEvent(app, 'maximize');
+  await expect(root).toHaveAttribute('data-window-frame', 'square');
+  expect((await readFrameStyle(win)).radius).toBe('0px');
+
+  await emitWindowEvent(app, 'unmaximize');
+  await expect(root).toHaveAttribute('data-window-frame', 'rounded');
+  expect((await readFrameStyle(win)).radius).toBe('10px');
 });

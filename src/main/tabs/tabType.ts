@@ -33,6 +33,8 @@ export interface ITabView {
   onOpenWindow(cb: (url: string) => void): void;
   setBounds(rect: ITabRect): void;
   setVisible(isVisible: boolean): void;
+  /** 모서리 반지름(px) — Linux 둥근 창의 모서리에 맞춘다 (spec 014). View 의 네 모서리가 같이 깎인다 */
+  setBorderRadius(radius: number): void;
   focus(): void;
   destroy(): void;
   /** 이 탭의 CDP targetId — playwright 의 Page 를 찾는 열쇠 (spec 003 「탭 ↔ Page 매핑」). 탭당 캐시 */

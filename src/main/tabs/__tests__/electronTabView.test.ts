@@ -155,3 +155,11 @@ describe('createElectronTabView CDP targetId', () => {
     expect(cdp.sendCommand).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('createElectronTabView 모서리 반지름 (spec 014)', () => {
+  it('setBorderRadius 는 WebContentsView 의 setBorderRadius 로 넘긴다', () => {
+    const tabView = createElectronTabView({ onInput: vi.fn() });
+    tabView.setBorderRadius(10);
+    expect((tabView.nativeView as { setBorderRadius: Mock }).setBorderRadius).toHaveBeenCalledWith(10);
+  });
+});

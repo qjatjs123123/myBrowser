@@ -93,6 +93,7 @@ function toTabView(view: WebContentsView, listeners: ITabListeners): ITabView {
     onOpenWindow: (cb) => listeners.openList.push(cb),
     setBounds: (rect) => view.setBounds(rect),
     setVisible: (isVisible) => view.setVisible(isVisible),
+    setBorderRadius: (radius) => view.setBorderRadius(radius),
     focus: () => webContents.focus(),
     destroy: () => {
       if (!webContents.isDestroyed()) webContents.close();

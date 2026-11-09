@@ -6,9 +6,18 @@ import { SidebarResizer } from '@/chrome/SidebarResizer';
 import { type TAgentRun, useAgentRun } from '@/hooks/useAgentRun';
 import { useShortcut } from '@/hooks/useShortcut';
 import { SIDEBAR_WIDTH, useSidebarOpen } from '@/hooks/useSidebarOpen';
+import { useWindowState } from '@/hooks/useWindowState';
 import { AccountCard } from '@/sidebar/AccountCard';
 import { AgentPanel } from '@/sidebar/AgentPanel';
 import { AppInfoFooter } from '@/sidebar/AppInfoFooter';
+import { cn } from '@/lib/utils';
+import { isLinuxPlatform } from '@/utils/platform';
+
+/** Linux 는 앱이 창 모서리를 둥글게 그린다 — 최대화·전체 화면이면 직각 (spec 014) */
+const IS_ROUNDED_FRAME = isLinuxPlatform(navigator.userAgent);
+/** 둥근 창 루트 — 반지름·잘라내기 + 레이아웃을 밀지 않는 1px 테두리 덧그림 */
+const ROUNDED_FRAME_CLASS =
+  'data-[window-frame=rounded]:overflow-hidden data-[window-frame=rounded]:rounded-[var(--window-radius)] data-[window-frame=rounded]:after:pointer-events-none data-[window-frame=rounded]:after:absolute data-[window-frame=rounded]:after:inset-0 data-[window-frame=rounded]:after:z-50 data-[window-frame=rounded]:after:rounded-[inherit] data-[window-frame=rounded]:after:border data-[window-frame=rounded]:after:border-border';
 
 /**
  * 앱 레이아웃 — 탭 줄·툴바는 창 전체 폭, 그 아래 [탭 콘텐츠 | 에이전트 사이드바] (spec 011).
@@ -19,6 +28,7 @@ import { AppInfoFooter } from '@/sidebar/AppInfoFooter';
 export default function App() {
   const run = useAgentRun();
   const { isOpen, setIsOpen, width, setWidth } = useSidebarOpen();
+  const { isMaximized } = useWindowState();
   const [dismissedRequestId, setDismissedRequestId] = useState<string | null>(null);
   const pendingRequestId = getPendingRequestId(run);
   const isPanelVisible = isOpen || (pendingRequestId !== null && pendingRequestId !== dismissedRequestId);
@@ -34,7 +44,11 @@ export default function App() {
   });
 
   return (
-    <main className="flex h-full min-w-0 flex-col" aria-label="브라우징 영역">
+    <main
+      className={cn('relative flex h-full min-w-0 flex-col bg-background', ROUNDED_FRAME_CLASS)}
+      aria-label="브라우징 영역"
+      data-window-frame={getWindowFrame(isMaximized)}
+    >
       <BrowserChrome
         toolbarEnd={
           <AgentToggleButton isPressed={isPanelVisible} needsAttention={needsAttention} onToggle={togglePanel} />
@@ -74,4 +88,10 @@ function getPendingRequestId({ pendingApproval, pendingQuestion }: TAgentRun): s
 /** 사이드바 폭 토큰 덮어쓰기 — inline style 의 유일한 예외 (react-convention, spec 012) */
 function toSidebarStyle(width: number): CSSProperties & { '--sidebar-width': string } {
   return { '--sidebar-width': `${width}px` };
+}
+
+/** 루트의 창 모양 — Linux 가 아니면 속성 없음(OS 가 모서리를 그린다) */
+function getWindowFrame(isMaximized: boolean): 'rounded' | 'square' | undefined {
+  if (!IS_ROUNDED_FRAME) return undefined;
+  return isMaximized ? 'square' : 'rounded';
 }

@@ -10,6 +10,7 @@ function createMockWebContentsView(): Record<string, unknown> {
   return {
     setBounds: vi.fn(),
     setVisible: vi.fn(),
+    setBorderRadius: vi.fn(),
     webContents: {
       on: vi.fn(),
       setWindowOpenHandler: vi.fn(),
