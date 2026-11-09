@@ -87,7 +87,7 @@ describe('createBrowserDriver 대상 탭', () => {
     const { tabs, cdp, addTab } = setup();
     const startTabId = addTab(getFixtureUrl('browser-form.html'));
     const driver = createBrowserDriver({ tabs, cdp, startTabId });
-    const result = await driver.snapshot();
+    const result = await driver.snapshot({});
     expect(result.ok && result.text).toContain('제목: 브라우저 폼 픽스처');
     expect(cdp.getPage).toHaveBeenCalledWith('target-tab-1');
   });
@@ -96,7 +96,7 @@ describe('createBrowserDriver 대상 탭', () => {
     const { tabs, cdp, addTab, pageOf } = setup();
     const startTabId = addTab(getFixtureUrl('browser-form.html'));
     const driver = createBrowserDriver({ tabs, cdp, startTabId });
-    const snapshot = await driver.snapshot();
+    const snapshot = await driver.snapshot({});
     const ref = findRef(snapshot.ok ? snapshot.text : '', 'button', '예약 확정');
     await expect(driver.resolveTarget({ ref })).resolves.toMatchObject({ name: '예약 확정' });
     await expect(driver.click({ ref })).resolves.toEqual({ ok: true, text: '클릭함' });
@@ -116,7 +116,7 @@ describe('createBrowserDriver 대상 탭', () => {
   it('대상 탭이 없어지면 행동은 실패하고 resolveTarget 은 null 이다', async () => {
     const { tabs, cdp } = setup();
     const driver = createBrowserDriver({ tabs, cdp, startTabId: 'tab-9' });
-    await expect(driver.snapshot()).resolves.toEqual({
+    await expect(driver.snapshot({})).resolves.toEqual({
       ok: false,
       reason: '대상 탭을 찾을 수 없습니다. list_tabs 로 탭을 확인하라',
     });
@@ -192,7 +192,7 @@ async function setupPointer(viewport = { width: 800, height: 600 }) {
 }
 
 const getSnapshotRef = async (driver: ReturnType<typeof createBrowserDriver>) => {
-  const snapshot = await driver.snapshot();
+  const snapshot = await driver.snapshot({});
   return findRef(snapshot.ok ? snapshot.text : '', 'button', '예약 확정');
 };
 

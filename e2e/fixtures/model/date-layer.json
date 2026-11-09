@@ -1,0 +1,12 @@
+{
+  "turns": [
+    { "content": [{ "type": "tool_use", "name": "snapshot", "input": {} }] },
+    { "content": [{ "type": "tool_use", "name": "click", "input": { "ref": "$ref(button:날짜 선택)" } }] },
+    { "content": [{ "type": "tool_use", "name": "snapshot", "input": {} }] },
+    { "content": [{ "type": "tool_use", "name": "click", "input": { "ref": "$ref(link:17)" } }] },
+    { "content": [{ "type": "tool_use", "name": "select_option", "input": { "ref": "$ref(combobox:출발 시각)", "valueList": ["10시"] } }] },
+    { "content": [{ "type": "tool_use", "name": "click", "input": { "ref": "$ref(button:적용)" } }] },
+    { "content": [{ "type": "tool_use", "name": "snapshot", "input": {} }] },
+    { "content": [{ "type": "text", "text": "출발일을 2026-11-17 10시로 골랐습니다" }] }
+  ]
+}

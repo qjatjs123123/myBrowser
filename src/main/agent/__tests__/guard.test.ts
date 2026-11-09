@@ -418,3 +418,42 @@ describe('isSameDisplay', () => {
     expect(isSameDisplay({ action: '클릭', target: 'a' }, { action: 'Enter 키', target: 'a' })).toBe(false);
   });
 });
+
+describe('checkGuard — 하위 프레임 대상의 최상위 탭 URL (spec 015 SR-3)', () => {
+  const FRAME_URL = 'about:srcdoc';
+  const CHECKOUT_URL = 'https://shop.example.com/checkout';
+  const nextButton = () => createTarget({ name: '다음', pageUrl: FRAME_URL });
+
+  it('프레임 URL 은 평범해도 최상위 탭이 결제 페이지면 require_approval 을 낸다', () => {
+    const verdict = check({
+      tool: 'click',
+      input: { ref: 'f1e3' },
+      target: nextButton(),
+      pageUrl: FRAME_URL,
+      topPageUrl: CHECKOUT_URL,
+    });
+    expect(verdict).toMatchObject({ kind: 'require_approval', display: { action: '클릭', target: '다음' } });
+  });
+
+  it('topPageUrl 이 없으면 프레임 URL 로만 판정한다', () => {
+    const verdict = check({ tool: 'click', input: { ref: 'f1e3' }, target: nextButton(), pageUrl: FRAME_URL });
+    expect(verdict).toEqual({ kind: 'allow' });
+  });
+
+  it('topPageUrl 이 pageUrl 과 같으면 기존 판정 그대로다', () => {
+    const verdict = check({ tool: 'click', input: { ref: 'e3' }, target: createTarget({ name: '다음' }), topPageUrl: PAGE_URL });
+    expect(verdict).toEqual({ kind: 'allow' });
+  });
+
+  it('프레임 쪽 판정이 block 이면 최상위 탭 URL 과 무관하게 block 을 유지한다', () => {
+    const target = createTarget({ role: 'textbox', inputType: 'password', pageUrl: FRAME_URL });
+    const verdict = check({
+      tool: 'type_text',
+      input: { ref: 'f1e4', text: 'secret' },
+      target,
+      pageUrl: FRAME_URL,
+      topPageUrl: 'https://shop.example.com/store',
+    });
+    expect(verdict.kind).toBe('block');
+  });
+});
