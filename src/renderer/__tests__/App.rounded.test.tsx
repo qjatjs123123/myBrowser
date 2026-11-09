@@ -58,4 +58,24 @@ describe('App — Linux 둥근 창 (spec 014)', () => {
     const root = await renderApp();
     expect(root).toHaveClass('bg-background');
   });
+
+  it('최대화가 아니면 가장자리 손잡이 8개와 탭 콘텐츠 여백이 있다 (spec 016)', async () => {
+    await renderApp();
+    expect(screen.getAllByTestId('window-resize-edge')).toHaveLength(8);
+    expect(screen.getByTestId('tab-content-row')).toHaveClass('pl-1', 'pb-1');
+  });
+
+  it('최대화되면 손잡이와 여백이 없어지고, 풀리면 다시 생긴다 (spec 016)', async () => {
+    await renderApp();
+    emitWindowState({ isMaximized: true });
+    expect(screen.queryAllByTestId('window-resize-edge')).toHaveLength(0);
+    expect(screen.getByTestId('tab-content-row')).not.toHaveClass('pl-1');
+    emitWindowState({ isMaximized: false });
+    expect(screen.getAllByTestId('window-resize-edge')).toHaveLength(8);
+  });
+
+  it('탭 줄은 CSS 드래그 영역 대신 앱이 끌기를 처리한다 (spec 016)', async () => {
+    await renderApp();
+    expect(screen.getByTestId('window-top-bar')).not.toHaveClass('[-webkit-app-region:drag]');
+  });
 });

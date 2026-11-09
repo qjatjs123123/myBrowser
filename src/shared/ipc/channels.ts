@@ -38,6 +38,10 @@ export const IPC = {
     minimize: 'window:minimize',
     toggleMaximize: 'window:toggleMaximize',
     close: 'window:close',
+    /** Linux 창 이동·크기 조절 — renderer 포인터를 main 이 창 bounds 로 옮긴다 (spec 016) */
+    pointerStart: 'window:pointerStart',
+    pointerMove: 'window:pointerMove',
+    pointerEnd: 'window:pointerEnd',
     /** main→renderer — 최대화·전체 화면 상태 (spec 014) */
     stateChanged: 'window:stateChanged',
   },

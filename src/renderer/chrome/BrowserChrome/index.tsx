@@ -6,12 +6,13 @@ import type { TTabRequest } from '@shared/ipc/tabs';
 import { AddressBar } from '@/chrome/AddressBar';
 import { NavButtons } from '@/chrome/NavButtons';
 import { NewTabPage } from '@/chrome/NewTabPage';
-import { TabBar } from '@/chrome/TabBar';
+import { type ITabBarWindowDrag, TabBar } from '@/chrome/TabBar';
 import { WindowControls } from '@/chrome/WindowControls';
 import { useContentBounds } from '@/hooks/useContentBounds';
 import { useShortcut } from '@/hooks/useShortcut';
 import { useTabs } from '@/hooks/useTabs';
 import { toast } from '@/lib/toast';
+import { cn } from '@/lib/utils';
 import { isMacPlatform } from '@/utils/platform';
 
 const NO_ACTIVE_TAB_MESSAGE = '탭을 찾을 수 없습니다';
@@ -22,13 +23,17 @@ interface IBrowserChromeProps {
   toolbarEnd?: ReactNode;
   /** 탭 콘텐츠 오른쪽 패널 — 에이전트 사이드바 (탭 줄·툴바는 그 위로 창 전체 폭) */
   sidePanel?: ReactNode;
+  /** Linux — 탭 줄 빈 곳 끌기·더블클릭을 앱이 처리한다 (spec 016) */
+  windowDrag?: ITabBarWindowDrag;
+  /** Linux 이고 최대화가 아님 — 탭 View 를 창 가장자리에서 4px 안쪽에 둬 크기 조절 손잡이가 마우스를 받게 한다 (spec 016 FR-5) */
+  hasEdgeInset?: boolean;
 }
 
 /**
  * 브라우저 크롬 조립 — 탭 줄 + 툴바(탐색 버튼·주소창·끝 slot) + [탭 콘텐츠 영역 | 옆 패널].
  * 콘텐츠 영역의 사각형을 main 에 알리고(탭 View 가 그 자리에 그려진다), 활성 탭이 새 탭이면 그 안에 시작 화면을 그린다.
  */
-export function BrowserChrome({ toolbarEnd, sidePanel }: IBrowserChromeProps) {
+export function BrowserChrome({ toolbarEnd, sidePanel, windowDrag, hasEdgeInset = false }: IBrowserChromeProps) {
   const tabs = useTabs();
   const contentRef = useRef<HTMLDivElement>(null);
   const [addressFocusSignal, setAddressFocusSignal] = useState(0);
@@ -61,6 +66,7 @@ export function BrowserChrome({ toolbarEnd, sidePanel }: IBrowserChromeProps) {
           onClose={(tabId) => tabs.close({ tabId })}
           onCreate={() => tabs.create({})}
           leading={<WindowControls isMac={IS_MAC} />}
+          windowDrag={windowDrag}
         />
         <div className="flex min-h-10 items-start gap-1 border-b border-border bg-background px-2 py-1">
           <NavButtons
@@ -85,7 +91,11 @@ export function BrowserChrome({ toolbarEnd, sidePanel }: IBrowserChromeProps) {
           {toolbarEnd && <div className="flex h-8 shrink-0 items-center">{toolbarEnd}</div>}
         </div>
       </header>
-      <div className="flex min-h-0 flex-1">
+      {/* 사이드바가 닫혀 있으면 오른쪽 가장자리도 탭 View 가 닿으므로 오른쪽 여백까지 */}
+      <div
+        data-testid="tab-content-row"
+        className={cn('flex min-h-0 flex-1', hasEdgeInset && 'pb-1 pl-1 has-[>aside[hidden]]:pr-1')}
+      >
         <div ref={contentRef} role="region" aria-label="탭 콘텐츠" className="min-h-0 min-w-0 flex-1">
           {activeTab?.isNewTab && (
             <NewTabPage key={activeTab.id} focusSignal={newTabFocusSignal} onNavigate={navigate} />

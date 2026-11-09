@@ -34,7 +34,7 @@ description: 화면(크롬형 상단바·탭·주소창, 에이전트 사이드�
 │                                              │ ╰ Enter 실행   (↑)╯ │
 └──────────────────────────────────────────────┴──────────────────┘
 ```
-- **프레임 없는 창 (mac Chrome형, spec 010)**: OS 제목 표시줄 없음. 맨 윗줄(36px, `bg-muted`) = 신호등 + 탭 + [+], 창 전체 폭. 빈 곳은 `[-webkit-app-region:drag]`, 탭·버튼은 `no-drag`(빠지면 클릭이 먹히지 않는다).
+- **프레임 없는 창 (mac Chrome형, spec 010)**: OS 제목 표시줄 없음. 맨 윗줄(36px, `bg-muted`) = 신호등 + 탭 + [+], 창 전체 폭. 빈 곳은 `[-webkit-app-region:drag]`, 탭·버튼은 `no-drag`(빠지면 클릭이 먹히지 않는다). **Linux 는 CSS 드래그 영역 대신** 탭 줄 빈 곳 pointerdown·dblclick 을 앱이 처리하고(`TabBar` 의 `windowDrag`, 탭·버튼에서 시작한 누름은 제외), 최대화가 아니면 창 가장자리에 크기 조절 손잡이 8개(변 4px·모서리 10px, `WindowResizeEdges`)와 탭 콘텐츠 줄 4px 여백을 둔다 (spec 016).
 - **에이전트 패널 열기·닫기 (Edge형, spec 011)**: 탭 줄·툴바는 창 전체 폭, 툴바 오른쪽 끝 [✻ 에이전트] 알약 버튼(`aria-pressed` = 패널 보임). 그 아래 [탭 콘텐츠 | 패널]. 패널 헤더(44px, 드래그 아님)의 ✕ 로 닫는다. 닫아도 언마운트하지 않고 `hidden` — run·대화·입력 유지. **승인·질문이 오면 닫혀 있어도 자동으로 보이고**(렌더 중 계산 — 거부 포커스 유지), 사용자가 다시 닫으면 버튼에 `--warning` 점·`aria-description="확인 필요"`. 열림 상태는 `localStorage` `mybrowser:layout`.
 - **폭 조절·단축키 (spec 012)**: 패널 왼쪽 가장자리 손잡이(`role=separator`, 300~640px, ←/→ 16px)로 폭을 바꾸고 `mybrowser:layout.sidebarWidth` 에 기억. Ctrl+Shift+A(mac Cmd+Shift+A)로 [에이전트] 와 같은 토글.
 - **실행 기록 (spec 012)**: 패널 헤더 [실행 기록](History) → 대화 자리에 최근 50개 목록 → 줄을 누르면 말풍선·에이전트 턴으로 읽기 전용 보기. 실행·승인 버튼 없음, 도구 입력값 원문 없음.

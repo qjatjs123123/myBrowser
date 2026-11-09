@@ -26,7 +26,7 @@ import type {
   TTabRequest,
   TTabsChangedEvent,
 } from './tabs';
-import type { TWindowState } from './window';
+import type { TWindowPointerMoveRequest, TWindowPointerStartRequest, TWindowState } from './window';
 
 /** 이벤트 구독 해제 함수 — renderer 훅이 cleanup 에서 부른다 */
 export type TUnsubscribe = () => void;
@@ -76,6 +76,12 @@ export interface IApi {
     minimize: () => Promise<TIpcResult<null>>;
     toggleMaximize: () => Promise<TIpcResult<null>>;
     close: () => Promise<TIpcResult<null>>;
+    /** Linux 창 끌기 시작 — 이동 또는 변·모서리 크기 조절 (spec 016) */
+    pointerStart: (req: TWindowPointerStartRequest) => Promise<TIpcResult<null>>;
+    /** 끄는 중 커서 위치 — 진행 중인 조작이 없으면 무시 */
+    pointerMove: (req: TWindowPointerMoveRequest) => Promise<TIpcResult<null>>;
+    /** 끌기 끝 — 진행 중인 조작이 없으면 무시 */
+    pointerEnd: () => Promise<TIpcResult<null>>;
     /** 최대화·전체 화면 상태 (spec 014) — 렌더러가 늦게 붙어도 main 이 첫 로드 때 1회 보낸다 */
     onStateChanged: (cb: (state: TWindowState) => void) => TUnsubscribe;
   };

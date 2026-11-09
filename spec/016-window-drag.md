@@ -1,6 +1,6 @@
 # Spec: 브라우저식 창 이동·더블클릭 최대화·가장자리 크기 조절 (Linux)
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-09
 > **묶음**: 기반 (단일 묶음 — 직접 방식)
 > **관련 spec**: 010, 014
@@ -88,6 +88,7 @@ export type TWindowPointerMoveRequest = z.infer<typeof WindowPointerMoveRequestS
 - `start({kind: 변·모서리})`: 최대화 상태면 무시한다(조작 없음). 아니면 `getBounds()` 를 시작 bounds 로 둔다.
 - `move(point)`: move 면 `computeMovedBounds`, 변·모서리면 `computeResizedBounds` → `setBounds`.
 - `computeRestoredBounds(max, normal, cursor)`: `ratio = (cursor.x - max.x) / max.width`, `x = round(cursor.x - ratio * normal.width)`, `y = cursor.y - (cursor.y - max.y)` = `max.y`, 크기 = normal 크기.
+- **늦은 복원 재적용 (WSLg 실측)**: 창 관리자는 `unmaximize` 이벤트 ~80ms 뒤 창을 예전 위치로 되돌린다. 최대화에서 끌어 내린 이동은 `window.once('unmaximize')` 뒤 `RESTORE_SETTLE_MS`(200ms)에 마지막으로 적용한 bounds 와 다르면 1회 `setBounds` 한다 (매 move 이벤트마다 되돌리면 setBounds↔move 핑퐁). 세션은 `{ schedule }` 로 타이머를 주입받고, `TPointerWindow` 에 `once` 를 더한다.
 - `computeResizedBounds`: dx·dy 를 변에 따라 width/height 에 더하거나 빼고, `w`·`n` 이면 x·y 도 옮긴다. 최소 크기로 자를 때 `w`·`n` 은 오른쪽·아래 변을 고정한다(`x = origin.x + origin.width - width`).
 
 ### 도구 계약
@@ -106,7 +107,7 @@ export type TWindowPointerMoveRequest = z.infer<typeof WindowPointerMoveRequestS
 > ⚠️ **게이트 규칙**: 각 Task 는 명시된 **테스트와 검증이 모두 에러 0**이 될 때까지 수정 → 재실행을 반복하고, 전부 통과했을 때만 체크박스를 채우고 **Task 단위로 커밋**한 뒤 다음 Task 로 진행한다.
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: 창 포인터 IPC 계약 + main 세션**
+- [x] **Task 1: 창 포인터 IPC 계약 + main 세션**
   - **묶음**: 기반
   - **작업**: 스키마·채널·`IApi`·preload·`vitest.setup.ts` mock, `windowPointer.ts`(계산 함수 + 세션), `WINDOW_MIN_SIZE`, 핸들러 3채널, index.ts 조립
   - **파일**: `src/shared/ipc/{window,channels,api}.ts`, `src/preload/index.ts`, `vitest.setup.ts`, `src/main/app/{window,windowPointer}.ts`, `src/main/ipc/handlers/window.ts`, `src/main/index.ts`
@@ -119,7 +120,7 @@ export type TWindowPointerMoveRequest = z.infer<typeof WindowPointerMoveRequestS
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 창 포인터 이동·크기 조절 IPC 와 main 세션 (spec 016 Task 1)`
 
-- [ ] **Task 2: renderer — 탭 줄 끌기·더블클릭, 가장자리 손잡이, 탭 View 여백**
+- [x] **Task 2: renderer — 탭 줄 끌기·더블클릭, 가장자리 손잡이, 탭 View 여백**
   - **묶음**: 기반
   - **작업**: FR-1~6 renderer 쪽 — `useWindowPointer`, TabBar `windowDrag`, `WindowResizeEdges`, BrowserChrome `windowFrame`, App 조립
   - **파일**: `src/renderer/hooks/useWindowPointer.ts`, `src/renderer/chrome/TabBar/index.tsx`, `src/renderer/chrome/WindowResizeEdges/index.tsx`, `src/renderer/chrome/BrowserChrome/index.tsx`, `src/renderer/App.tsx`, `src/renderer/__tests__/{App,App.rounded}.test.tsx`, `e2e/window-frame.spec.ts`
@@ -135,7 +136,7 @@ export type TWindowPointerMoveRequest = z.infer<typeof WindowPointerMoveRequestS
   - **통과 기준**: 테스트 + 검증 통과, 기존 browser-chrome·sidebar-layout e2e 그대로 통과
   - **커밋**: `feat: Linux 탭 줄 끌기·더블클릭 최대화·가장자리 크기 조절 (spec 016 Task 2)`
 
-- [ ] **Task 3: 설계·디자인 문서**
+- [x] **Task 3: 설계·디자인 문서**
   - **묶음**: 기반
   - **작업**: DESIGN.md §2 창 서술(Linux 는 앱이 이동·크기 조절), design SKILL §2 드래그 영역 문단, spec 010 범위 제외 옆 「→ spec 016 (Linux)」
   - **파일**: `docs/DESIGN.md`, `.claude/skills/desktop/design/SKILL.md`, `spec/010-mac-frame.md`
@@ -151,3 +152,7 @@ export type TWindowPointerMoveRequest = z.infer<typeof WindowPointerMoveRequestS
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-09 | 1 | shared window 스키마 · windowPointer 31(계산·세션·늦은 복원) · window 핸들러 | 검증 반영 커밋 | 직접 방식 |
+| 2026-11-09 | 2 | useWindowPointer 6 · WindowResizeEdges 2 · TabBar +3 · App +4 · window-frame e2e 11 | 검증 반영 커밋 | WSLg 실창 probe: setBounds·최대화·크기 조절 실제 적용 확인, unmaximize 늦은 복원 → 200ms 뒤 1회 재적용 |
+| 2026-11-09 | 3 | 문서만 | 검증 반영 커밋 | |
+| 2026-11-09 | 검증 | make check 1799 · make e2e 58 · 에러 0 | 검증 반영 커밋 | 실제 마우스 조작은 사용자 확인 (Playwright 합성 마우스는 창 이동 시 screenX 가 따라 움직여 판정 불가) |

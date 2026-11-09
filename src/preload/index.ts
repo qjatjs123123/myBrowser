@@ -52,6 +52,9 @@ const api: IApi = {
     minimize: () => ipcRenderer.invoke(IPC.window.minimize),
     toggleMaximize: () => ipcRenderer.invoke(IPC.window.toggleMaximize),
     close: () => ipcRenderer.invoke(IPC.window.close),
+    pointerStart: (req) => ipcRenderer.invoke(IPC.window.pointerStart, req),
+    pointerMove: (req) => ipcRenderer.invoke(IPC.window.pointerMove, req),
+    pointerEnd: () => ipcRenderer.invoke(IPC.window.pointerEnd),
     onStateChanged: (cb) => subscribe(IPC.window.stateChanged, cb),
   },
   runs: {

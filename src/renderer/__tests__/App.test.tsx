@@ -102,6 +102,13 @@ describe('App', () => {
     expect(screen.getByRole('main', { name: '브라우징 영역' })).not.toHaveAttribute('data-window-frame');
   });
 
+  it('Linux 가 아니면 가장자리 손잡이·탭 콘텐츠 여백이 없고 탭 줄은 CSS 드래그 영역이다 (spec 016)', async () => {
+    await renderApp();
+    expect(screen.queryAllByTestId('window-resize-edge')).toHaveLength(0);
+    expect(screen.getByTestId('tab-content-row')).not.toHaveClass('pl-1');
+    expect(screen.getByTestId('window-top-bar')).toHaveClass('[-webkit-app-region:drag]');
+  });
+
   it('사이드바에 할 일 입력창·작업 실행 버튼·빈 상태 안내를 보여준다', async () => {
     vi.mocked(window.api.app.getInfo).mockResolvedValue({
       ok: true,
