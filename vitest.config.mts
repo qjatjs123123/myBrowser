@@ -18,7 +18,13 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'node',
-          include: ['src/main/**/__tests__/**/*.test.ts', 'src/shared/**/__tests__/**/*.test.ts'],
+          include: [
+            'src/main/**/__tests__/**/*.test.ts',
+            'src/shared/**/__tests__/**/*.test.ts',
+            'scripts/**/__tests__/**/*.test.ts',
+            'eval/**/__tests__/**/*.test.ts',
+            'e2e/fixtures/__tests__/**/*.test.ts',
+          ],
           setupFiles: ['./vitest.setup.main.ts'],
         },
       },

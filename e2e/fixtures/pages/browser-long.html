@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>긴 본문</title>
+  </head>
+  <!-- src/main/browser 단위 테스트용 (spec 003 Task 3) — snapshot 12k 자 잘림·scroll -->
+  <body>
+    <h1>긴 본문</h1>
+    <main id="list"></main>
+    <script>
+      const list = document.getElementById('list');
+      for (let i = 1; i <= 600; i += 1) {
+        const p = document.createElement('p');
+        p.textContent = `문단 ${i} — 스크롤해서 더 읽어야 하는 아주 긴 본문입니다.`;
+        list.appendChild(p);
+      }
+    </script>
+  </body>
+</html>

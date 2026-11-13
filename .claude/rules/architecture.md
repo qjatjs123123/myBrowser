@@ -39,7 +39,7 @@ src/main/
 ├── tabs/               TabManager — WebContentsView 생성/전환/닫기/bounds, 탭 상태 이벤트
 ├── browser/            에이전트가 쓰는 브라우저 제어 — cdp.ts(playwright-core connectOverCDP), snapshot.ts(접근성 트리+ref), actions.ts(click/type/scroll …), overlay.ts(커서·하이라이트 주입)
 ├── agent/              loop.ts(toolRunner), tools/(도구 1개 = 파일 1개), guard.ts(결정적 안전 게이트), prompts/(시스템 프롬프트), fake/(가짜 모델 — e2e 용), runs.ts(상태 머신)
-├── store/              better-sqlite3 — db.ts, migrations/NNN.sql, repos/(runs, steps, settings)
+├── store/              node:sqlite — db.ts, migrations/{NNN}_{snake}.sql, repos/(runs, settings)
 └── ipc/                registry.ts(채널 ↔ 핸들러 등록표), handlers/{모듈}.ts(safeParse → 모듈 호출 → ok/fail)
 ```
 
@@ -53,13 +53,13 @@ src/main/
 src/renderer/
 ├── main.tsx            React 루트 + Providers + <Toaster/>
 ├── App.tsx             레이아웃 조립 (Chrome + Sidebar)
-├── chrome/             상단바 — TabBar/, AddressBar/, NavButtons/
-├── sidebar/            에이전트 패널 — AgentPanel/, TaskInput/, StepTimeline/, ApprovalModal/, AskUserModal/, StatusBadge/
+├── chrome/             상단바·탭 영역 — BrowserChrome/(조립), TabBar/, AddressBar/, NavButtons/, NewTabPage/(시작 화면), AgentToggleButton/, WindowControls/(신호등), WindowResizeEdges/(Linux 창 가장자리 손잡이), SidebarResizer/(폭 손잡이)
+├── sidebar/            에이전트 패널 — AgentPanel/(조립), SidebarHeader/, Conversation/(말풍선·에이전트 턴), Timeline/, RunResult/, ApprovalPanel/, QuestionCard/, ChoiceList/, AccountCard/, AppInfoFooter/, RunHistory/(지난 실행 기록), Settings/(설정 보기 — 스킬)
 ├── components/ui/      shadcn 부품 (CLI 생성, 규칙 예외)
 ├── components/shared/  두 영역 이상이 쓰는 복합 부품 (필요할 때만)
 ├── hooks/              IPC 구독·호출 훅 (useTabs, useAgentRun, useApproval …) — 컴포넌트는 IPC 를 직접 부르지 않는다
 ├── store/              zustand — UI 상태만 (사이드바 폭, 선택 탭 id). 서버 격인 main 상태는 복제하지 않고 이벤트로 받는다
-├── lib/                toast.ts, api.ts(window.api 타입 래퍼)
+├── lib/                toast.ts, api.ts(window.api 타입 래퍼), callSafely.ts(IPC 호출 throw → INTERNAL 봉투)
 ├── utils/              순수 함수 (errors.ts, formatStep.ts)
 └── styles/globals.css  토큰
 ```
@@ -87,7 +87,7 @@ e2e/{기능}.spec.ts                        실제 앱 흐름 고정
 | 대상 | 도구 | 위치 |
 |---|---|---|
 | main 모듈·도구·가드 | vitest (node env) | 대상 옆 `__tests__/{name}.test.ts` |
-| 도구의 브라우저 조작 | vitest + playwright-core (headless chromium) + `e2e/fixtures/pages/*.html` | `src/main/agent/tools/__tests__/` |
+| 브라우저 조작 | vitest + playwright-core (headless chromium) + `e2e/fixtures/pages/*.html` | `src/main/browser/__tests__/` (도구는 가짜 드라이버로 `src/main/agent/tools/__tests__/`) |
 | renderer 컴포넌트·훅 | vitest (jsdom) + Testing Library, `window.api` 는 `vitest.setup.ts` 의 mock | 대상 옆 `__tests__/` |
 | 전체 흐름 | Playwright `_electron` (가짜 모델 모드) | `e2e/*.spec.ts` |
 

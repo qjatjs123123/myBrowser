@@ -1,3 +1,5 @@
+# 설치판 빌드 설정 (spec 005 FR-1) — 설치판에는 out/**·package.json·production 의존성만 들어간다.
+# 소스(src/)·e2e/·spec/·.env 는 넣지 않는다 — pnpm check:asar 가 산출물로 확인한다 (SR-3)
 appId: dev.mybrowser.app
 productName: myBrowser
 directories:
@@ -5,10 +7,17 @@ directories:
 files:
   - out/**
   - package.json
+  - '!**/.env*'
 asar: true
+linux:
+  target:
+    - AppImage
+    - dir
+  executableName: mybrowser
+  category: Network
 win:
   target: nsis
+nsis:
+  oneClick: false
 mac:
   target: dmg
-linux:
-  target: AppImage

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>예약하기</title>
+    <style>
+      body { margin: 0; font-family: sans-serif; }
+      #controls { position: absolute; left: 40px; top: 20px; }
+      #calendar { position: absolute; left: 40px; top: 200px; border: 1px solid #888; }
+      #confirm { position: absolute; left: 40px; top: 430px; }
+    </style>
+  </head>
+  <body>
+    <div id="controls">
+      <h1>예약하기</h1>
+      <label>인원 <select name="people"><option value="">선택</option><option>2명</option><option>4명</option></select></label>
+      <div role="group" aria-label="시간">
+        <button type="button" class="time">18:00</button>
+        <button type="button" class="time">19:00</button>
+      </div>
+      <p id="picked">선택한 날짜: 없음</p>
+    </div>
+    <!-- 접근성 트리로 날짜 칸을 잡을 수 없는 달력 (픽셀 도구용). 7열 × 5행, 칸 40px -->
+    <canvas id="calendar" width="280" height="200" aria-label="날짜 선택 달력"></canvas>
+    <button type="button" id="confirm">예약 확정</button>
+    <script>
+      window.__clickLog = [];
+      window.__dateLog = [];
+      const canvas = document.getElementById('calendar');
+      const ctx = canvas.getContext('2d');
+      ctx.font = '14px sans-serif';
+      for (let day = 1; day <= 31; day += 1) {
+        const col = (day - 1) % 7;
+        const row = Math.floor((day - 1) / 7);
+        ctx.strokeRect(col * 40, row * 40, 40, 40);
+        ctx.fillText(String(day), col * 40 + 12, row * 40 + 25);
+      }
+      canvas.addEventListener('click', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const col = Math.floor((event.clientX - rect.left) / 40);
+        const row = Math.floor((event.clientY - rect.top) / 40);
+        const day = row * 7 + col + 1;
+        if (day < 1 || day > 31) return;
+        window.__dateLog.push(day);
+        document.getElementById('picked').textContent = `선택한 날짜: ${day}일`;
+      });
+      for (const button of document.querySelectorAll('.time')) {
+        button.addEventListener('click', () => button.setAttribute('aria-pressed', 'true'));
+      }
+      document.getElementById('confirm').addEventListener('click', () => window.__clickLog.push('confirm'));
+    </script>
+  </body>
+</html>

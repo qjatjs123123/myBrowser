@@ -1,0 +1,70 @@
+import { describe, expect, it } from 'vitest';
+
+import { RunStatusSchema, type TRunStatus } from '@shared/agent/run';
+
+import { isFinalStatus, transition, type TRunEvent } from '../runs';
+
+const LEGAL_LIST: [TRunStatus, TRunEvent, TRunStatus][] = [
+  ['queued', 'start', 'running'],
+  ['running', 'finish', 'done'],
+  ['running', 'fail', 'failed'],
+  ['running', 'stop', 'stopped'],
+  // spec 004: guardStop(→ stopped_before_confirm) 은 승인 대기로 대체 — 아래 wait·resume 행
+  ['running', 'wait', 'waiting_user'],
+  ['waiting_user', 'resume', 'running'],
+  ['waiting_user', 'stop', 'stopped'],
+  ['waiting_user', 'fail', 'failed'],
+];
+
+const EVENT_LIST: TRunEvent[] = ['start', 'finish', 'fail', 'stop', 'wait', 'resume'];
+
+const ILLEGAL_LIST = RunStatusSchema.options.flatMap((from) =>
+  EVENT_LIST.filter((event) => !LEGAL_LIST.some(([f, e]) => f === from && e === event)).map(
+    (event) => [from, event] as const,
+  ),
+);
+
+describe('transition', () => {
+  it.each(LEGAL_LIST)('%s 에서 %s 하면 %s 가 된다', (from, event, to) => {
+    expect(transition(from, event)).toBe(to);
+  });
+
+  it.each(ILLEGAL_LIST)('%s 에서 %s 하면 throw 한다', (from, event) => {
+    expect(() => transition(from, event)).toThrow(/허용되지 않은 run 전이/);
+  });
+
+  it.each([
+    ['done', 'wait'],
+    ['waiting_user', 'wait'],
+    ['running', 'resume'],
+    ['waiting_user', 'finish'],
+    ['stopped', 'resume'],
+  ] as const)('대표 불법 전이 %s --%s--> 는 throw 한다', (from, event) => {
+    expect(() => transition(from, event)).toThrow(/허용되지 않은 run 전이/);
+  });
+});
+
+describe('stopped_before_confirm (레거시)', () => {
+  it('어떤 상태·사건으로도 stopped_before_confirm 에 도달하지 않는다', () => {
+    const toList = RunStatusSchema.options.flatMap((from) =>
+      EVENT_LIST.flatMap((event) => {
+        try {
+          return [transition(from, event)];
+        } catch {
+          return [];
+        }
+      }),
+    );
+    expect(toList).not.toContain('stopped_before_confirm');
+  });
+});
+
+describe('isFinalStatus', () => {
+  it.each(['done', 'failed', 'stopped', 'stopped_before_confirm'] as const)('%s 는 종료 상태다', (status) => {
+    expect(isFinalStatus(status)).toBe(true);
+  });
+
+  it.each(['queued', 'running', 'waiting_user'] as const)('%s 는 종료 상태가 아니다', (status) => {
+    expect(isFinalStatus(status)).toBe(false);
+  });
+});

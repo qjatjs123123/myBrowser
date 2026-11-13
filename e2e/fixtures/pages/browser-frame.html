@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>프레임 결제</title>
+    <style>
+      body { margin: 0; font-family: sans-serif; }
+      iframe { position: absolute; left: 100px; top: 200px; width: 320px; height: 120px; border: 0; }
+    </style>
+  </head>
+  <!-- src/main/browser 단위 테스트용 (spec 015 Task 1) — iframe(srcdoc) 안 버튼의 f-ref 클릭·대상 해석·강조 -->
+  <body>
+    <h1>프레임 결제</h1>
+    <a href="browser-second.html">다음 페이지</a>
+    <iframe
+      title="결제 위젯"
+      srcdoc="<!doctype html><html lang=ko><head><meta charset=utf-8><style>body{margin:0}button{position:absolute;top:20px;width:120px;height:40px}</style></head><body><button id=confirm style=left:10px>예약 확정</button><button id=next style=left:160px>다음</button><script>window.__clickLog=[];document.addEventListener('click',function(e){if(e.target.id)window.__clickLog.push(e.target.id)});</script></body></html>"
+    ></iframe>
+  </body>
+</html>

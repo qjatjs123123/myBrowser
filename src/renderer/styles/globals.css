@@ -2,6 +2,8 @@
 
 /* 디자인 토큰 — 색은 여기서만 정한다 (.claude/skills/desktop/design §0). 다크 모드는 OS 설정을 따른다 */
 :root {
+  /* Linux 둥근 창 모서리 — main WINDOW_CORNER_RADIUS(app/window.ts)와 같은 값 (spec 014) */
+  --window-radius: 10px;
   --background: oklch(1 0 0);
   --foreground: oklch(0.21 0.006 285.9);
   --muted: oklch(0.967 0.001 286.4);
@@ -10,19 +12,50 @@
   --primary: oklch(0.488 0.217 264.4);
   --primary-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.577 0.245 27.3);
+  --warning: oklch(0.769 0.188 70.1);
+  --warning-foreground: oklch(0.279 0.077 45.6);
+  /* 사이드바 전송 버튼·에이전트 ✻ 아이콘 전용 강조 (spec 009) — 크롬에는 쓰지 않는다 */
+  --brand: oklch(0.646 0.143 39.4);
+  --brand-foreground: oklch(0.985 0 0);
+  /* 창 신호등 (spec 010) — mac 고유 색이라 라이트·다크 같은 값 */
+  --traffic-close: oklch(0.7 0.19 25.6);
+  --traffic-minimize: oklch(0.84 0.164 82.5);
+  --traffic-maximize: oklch(0.74 0.2 145.2);
+  --traffic-glyph: oklch(0.32 0.06 30);
+  --secondary: oklch(0.967 0.001 286.4);
+  --secondary-foreground: oklch(0.21 0.006 285.9);
+  --accent: oklch(0.967 0.001 286.4);
+  --accent-foreground: oklch(0.21 0.006 285.9);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.006 285.9);
+  --input: oklch(0.92 0.004 286.3);
+  --ring: oklch(0.705 0.015 286.1);
   --sidebar-width: 360px;
 }
 
 @media (prefers-color-scheme: dark) {
+  /* 대비 보정 (spec 012 FR-9) — --background 는 고정하고, 그 위에 놓이는 면(말풍선·배지·눌린 버튼·상단 줄)과 선을 밝혀 구분되게 */
   :root {
     --background: oklch(0.21 0.006 285.9);
     --foreground: oklch(0.985 0 0);
-    --muted: oklch(0.274 0.006 286);
+    --muted: oklch(0.32 0.006 286);
     --muted-foreground: oklch(0.705 0.015 286.1);
-    --border: oklch(1 0 0 / 10%);
+    --border: oklch(1 0 0 / 15%);
     --primary: oklch(0.623 0.214 259.8);
     --primary-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.2);
+    --warning: oklch(0.828 0.189 84.4);
+    --warning-foreground: oklch(0.279 0.077 45.6);
+    --brand: oklch(0.705 0.14 41.1);
+    --brand-foreground: oklch(0.21 0.006 285.9);
+    --secondary: oklch(0.32 0.006 286);
+    --secondary-foreground: oklch(0.985 0 0);
+    --accent: oklch(0.36 0.006 286);
+    --accent-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.21 0.006 285.9);
+    --popover-foreground: oklch(0.985 0 0);
+    --input: oklch(1 0 0 / 20%);
+    --ring: oklch(0.552 0.016 285.9);
   }
 }
 
@@ -35,6 +68,22 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-traffic-close: var(--traffic-close);
+  --color-traffic-minimize: var(--traffic-minimize);
+  --color-traffic-maximize: var(--traffic-maximize);
+  --color-traffic-glyph: var(--traffic-glyph);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --spacing-sidebar: var(--sidebar-width);
 }
 
@@ -46,5 +95,15 @@ body,
 
 body {
   @apply bg-background text-foreground antialiased;
-  font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans KR', sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    'Noto Sans KR',
+    sans-serif;
+}
+
+/* Linux 투명 창 — 모서리 밖이 비치도록 body 는 투명, 배경은 앱 루트(main)가 그린다 (spec 014) */
+body:has([data-window-frame]) {
+  background: transparent;
 }

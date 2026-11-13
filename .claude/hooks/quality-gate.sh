@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Stop — Claude가 작업을 끝내려 할 때 정적 검증 + 테스트 누락 검사 + (화면 변경 시) e2e 를 강제한다.
+# Stop — Claude가 작업을 끝내려 할 때 정적 검증 + 테스트 누락 검사를 강제한다.
+# e2e 는 여기서 돌리지 않는다 (3분 가까이 걸려 매 턴 대기가 길다) — vibe-build 7·8단계(app-check·harness)와 CI 가 맡는다.
 # 코드가 바뀌었는데 검증을 통과하지 못하면 종료를 막고(decision: block) 에러를 돌려줘 계속 고치게 한다.
 source "$(dirname "$0")/_lib.sh"
 cd "$ROOT" || exit 0
@@ -53,7 +54,7 @@ fail_with() { # $1=이름  $2=메시지
   errors+=$(printf '\n### %s 실패\n%s' "$1" "$2")
 }
 
-# 진행 중 run(vibe-build 등, DONE 없음, 최근 갱신)이 있으면 e2e 와 "새 화면의 e2e 누락" 검사는 최종 검증 루프로 미룬다.
+# 진행 중 run(vibe-build 등, DONE 없음, 최근 갱신)이 있으면 "새 화면의 e2e 누락" 검사는 최종 검증 루프로 미룬다.
 run=$(active_runs | head -1)
 
 # 세션 시작 이후 새로 생긴 파일 중 짝 테스트가 없는 것 (한 줄에 하나, 필요한 테스트 위치 포함)
@@ -84,19 +85,8 @@ missing=$(missing_tests)
 [ -n "$missing" ] && fail_with "테스트 누락" "새로 만든 파일에 짝 테스트가 없다. 아래 위치에 테스트를 작성하라 (빈 테스트·skip 금지):
 $missing"
 
-# 정적 검사가 통과한 경우에만 실제 앱 e2e (Playwright _electron)
-if [ "$fail" -eq 0 ] && [ -n "$run" ]; then
-  deferred_e2e="e2e·새 화면 e2e 누락 검사는 진행 중 작업($run)의 최종 검증 단계로 미룸"
-elif [ "$fail" -eq 0 ]; then
-  run_side e2e "pnpm -s test:e2e"
-fi
-
 if [ "$fail" -eq 0 ]; then
   rm -f "$COUNT_FILE" "$PAUSED_FP_FILE"
-  if [ -n "${deferred_e2e:-}" ]; then
-    emit systemMessage "품질 검사 통과 (정적·테스트). $deferred_e2e."
-    exit 0
-  fi
   echo "$fingerprint" > "$PASS_FILE"
   exit 0
 fi

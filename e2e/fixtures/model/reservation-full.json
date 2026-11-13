@@ -1,0 +1,12 @@
+{
+  "turns": [
+    { "content": [{ "type": "tool_use", "name": "snapshot", "input": {} }] },
+    { "content": [{ "type": "tool_use", "name": "select_option", "input": { "ref": "$ref(combobox:인원)", "valueList": ["2명"] } }] },
+    { "content": [{ "type": "tool_use", "name": "click", "input": { "ref": "$ref(button:19:00)" } }] },
+    { "content": [{ "type": "tool_use", "name": "screenshot", "input": {}, "toolset_name": "computer" }] },
+    { "content": [{ "type": "tool_use", "name": "left_click", "input": { "coordinate": [60, 300] }, "toolset_name": "computer" }] },
+    { "content": [{ "type": "tool_use", "name": "snapshot", "input": {} }] },
+    { "content": [{ "type": "tool_use", "name": "click", "input": { "ref": "$ref(button:예약 확정)" } }] },
+    { "content": [{ "type": "text", "text": "15일 19:00 2명 예약을 확정했습니다" }] }
+  ]
+}

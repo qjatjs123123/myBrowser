@@ -77,7 +77,7 @@ UI·에이전트 동작 Task 마다 `desktop/app-check` 를 따른다 — Playwr
 3. **검증 반영 커밋** (작업 브랜치) — 직접 방식은 이번 요청 전체, 워크트리 방식은 메인이 바꾼 파일만. 메시지 `{type}: {요약} (spec {NNN})`.
 4. **dev 에 merge** — `git switch dev` 와 merge 는 별도 Bash 호출: `git merge --no-ff feature/{NNN}-{slug} -m "{type}({scope}): {요약} (spec {NNN})"` → `git branch -d`. main 에는 merge 하지 않는다.
 
-> Stop 훅(품질 게이트)은 턴마다 lint·타입·테스트·테스트 누락을 검사하고, 진행 중 run 이 있는 동안 e2e 는 8단계로 미룬다. 8단계 통과 없이 `DONE` 을 만들면 안 된다.
+> Stop 훅(품질 게이트)은 턴마다 lint·타입·테스트·테스트 누락만 검사하고 e2e 는 돌리지 않는다 — e2e 는 7단계(app-check)·8단계(harness)에서 반드시 직접 돌린다. 8단계 통과 없이 `DONE` 을 만들면 안 된다.
 
 ## 10. 보고
 ```

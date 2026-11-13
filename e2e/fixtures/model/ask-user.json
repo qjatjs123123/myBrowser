@@ -1,0 +1,6 @@
+{
+  "turns": [
+    { "content": [{ "type": "tool_use", "name": "ask_user", "input": { "question": "몇 명으로 예약할까요?", "optionList": ["2명", "4명"] } }] },
+    { "content": [{ "type": "text", "text": "답을 받아 인원을 정했습니다" }] }
+  ]
+}

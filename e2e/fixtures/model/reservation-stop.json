@@ -1,0 +1,32 @@
+{
+  "turns": [
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:예약 확정)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "text",
+          "text": "예약 확정은 사용자 결정에 맡겼습니다"
+        }
+      ]
+    }
+  ]
+}

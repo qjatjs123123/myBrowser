@@ -1,0 +1,12 @@
+{
+  "turns": [
+    { "content": [{ "type": "tool_use", "name": "screenshot", "input": {}, "toolset_name": "computer" }] },
+    {
+      "content": [
+        { "type": "tool_use", "name": "left_click", "input": { "coordinate": [140, 60] }, "toolset_name": "computer" }
+      ]
+    },
+    { "content": [{ "type": "tool_use", "name": "type", "input": { "text": "강남역" }, "toolset_name": "computer" }] },
+    { "content": [{ "type": "text", "text": "입력칸 처리를 마쳤습니다" }] }
+  ]
+}

@@ -24,7 +24,7 @@ export const IPC = {
 ```ts
 type TIpcResult<T> = { ok: true; data: T } | { ok: false; error: { code: TIpcErrorCode; message: string; issues?: unknown } };
 ```
-- `code`: `INVALID_INPUT` | `NOT_FOUND` | `BUSY` | `AGENT_ERROR` | `INTERNAL`. `message` 는 **한국어 사용자용 문장** (renderer 가 그대로 toast).
+- `code`: `INVALID_INPUT` | `NOT_FOUND` | `CONFLICT` | `LIMIT` | `BUSY` | `AGENT_ERROR` | `INTERNAL`. `message` 는 **한국어 사용자용 문장** (renderer 가 그대로 toast).
 - 핸들러는 throw 하지 않는다 — 예외는 `fail('INTERNAL', …)` 로 감싸고 `[main.error]` 로 로그.
 
 ## 스키마
@@ -35,7 +35,7 @@ type TIpcResult<T> = { ok: true; data: T } | { ok: false; error: { code: TIpcErr
 ## 핸들러 (src/main/ipc/)
 - `registry.ts` 가 `registerAll({ tabs, agent, … })` 로 채널 ↔ 핸들러를 한 곳에서 등록한다 — 새 채널은 여기에 한 줄 추가 (공유 파일, `COMMON.md` §5).
 - `handlers/{모듈}.ts` 의 핸들러는 **검증 → 모듈 함수 호출 → 봉투** 3줄 구조. 로직은 모듈에.
-- 이벤트 발신은 `src/main/ipc/emit.ts` 의 `emitToSidebar(channel, payload)` 로만 (사이드바 webContents 를 찾아 보낸다).
+- 이벤트 발신은 `src/main/ipc/emit.ts` 의 `createSidebarEmitter(getWebContents)` 가 돌려주는 `emitToSidebar(channel, schema, payload)` 로만 — 보내기 전에 schema 로 parse 하고, 대상이 없거나 파괴됐으면 무시한다. (spec 002)
 
 ## 에이전트 이벤트 (`agent:event`)
 - 한 채널, discriminated union: `{ type: 'status', status }` | `{ type: 'step', step }` | `{ type: 'approval_required', request }` | `{ type: 'question', question }` | `{ type: 'done', summary }` | `{ type: 'failed', reason }`. renderer 는 `type` 으로 분기.

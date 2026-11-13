@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>브라우저 폼 픽스처</title>
+  </head>
+  <!-- src/main/browser 단위 테스트용 (spec 003 Task 3) — 링크·버튼·폼·select -->
+  <body>
+    <h1>예약 페이지</h1>
+    <a href="browser-second.html">두 번째 페이지</a>
+    <p id="status">대기</p>
+
+    <form id="pay-form" action="checkout.html" onsubmit="event.preventDefault(); document.getElementById('status').textContent = '제출됨: ' + document.getElementById('query').value">
+      <label for="query">검색어</label>
+      <input id="query" name="q" type="search" />
+      <label for="password">비밀번호</label>
+      <input id="password" name="pw" type="password" />
+      <label for="card">카드번호</label>
+      <input id="card" name="card" autocomplete="cc-number" />
+      <button type="submit">결제하기</button>
+    </form>
+
+    <button type="button" onclick="document.getElementById('status').textContent = '확정 눌림'">예약 확정</button>
+    <button type="button" aria-label="예약 조회하기" onclick="document.getElementById('status').textContent = '조회 눌림'">조회</button>
+
+    <label for="people">인원</label>
+    <select id="people" name="people" onchange="document.getElementById('status').textContent = '인원: ' + this.value">
+      <option value="1">1명</option>
+      <option value="2">2명</option>
+      <option value="3">3명</option>
+    </select>
+
+    <button type="button" onclick="setTimeout(() => { const p = document.createElement('p'); p.textContent = '늦게 나온 글'; document.body.appendChild(p); }, 200)">
+      늦게 보이기
+    </button>
+  </body>
+</html>
