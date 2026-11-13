@@ -234,7 +234,12 @@ function createLinuxFrame(window: BrowserWindow, onChange: (state: TWindowState)
   const maximizer = createBoundsMaximizer(window, {
     onChange,
     getWorkArea: (bounds) => screen.getDisplayMatching(bounds).workArea,
+    getDisplayId: (bounds) => screen.getDisplayMatching(bounds).id,
   });
+  // 모니터·작업 표시줄이 바뀌면 기억한 최대화 bounds 가 틀릴 수 있다 (spec 018)
+  screen.on('display-metrics-changed', maximizer.forgetAreas);
+  screen.on('display-added', maximizer.forgetAreas);
+  screen.on('display-removed', maximizer.forgetAreas);
   return { controls: { ...createWindowControls(window), toggleMaximize: maximizer.toggle }, frame: maximizer };
 }
 

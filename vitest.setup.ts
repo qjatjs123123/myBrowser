@@ -11,13 +11,17 @@ function createSubscribeMock(): ReturnType<typeof vi.fn> {
 
 /** skills.* 기본 응답 — ok({ skillList: [] }) (spec 013) */
 const EMPTY_SKILL_LIST_RESULT = { ok: true, data: { skillList: [] } } as const;
+/** tabs.list 기본 응답 — 탭 없음. 입력창 추천 훅(spec 019)이 탭을 구독해도 기존 테스트가 깨지지 않게 */
+const EMPTY_TAB_LIST_RESULT = { ok: true, data: { tabList: [], activeTabId: null } } as const;
+/** runs.list 기본 응답 — 기록 없음 (spec 019 추천 훅이 마운트 때 부른다) */
+const EMPTY_RUN_LIST_RESULT = { ok: true, data: { runList: [] } } as const;
 
 Object.defineProperty(window, 'api', {
   configurable: true,
   value: {
     app: { getInfo: vi.fn() },
     tabs: {
-      list: vi.fn(),
+      list: vi.fn(() => Promise.resolve(EMPTY_TAB_LIST_RESULT)),
       create: vi.fn(),
       close: vi.fn(),
       activate: vi.fn(),
@@ -54,7 +58,7 @@ Object.defineProperty(window, 'api', {
       pointerEnd: vi.fn(),
       onStateChanged: createSubscribeMock(),
     },
-    runs: { list: vi.fn(), get: vi.fn() },
+    runs: { list: vi.fn(() => Promise.resolve(EMPTY_RUN_LIST_RESULT)), get: vi.fn() },
     skills: {
       list: vi.fn(() => Promise.resolve(EMPTY_SKILL_LIST_RESULT)),
       create: vi.fn(() => Promise.resolve(EMPTY_SKILL_LIST_RESULT)),
