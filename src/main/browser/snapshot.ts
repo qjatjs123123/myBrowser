@@ -1,4 +1,4 @@
-import type { Page } from 'playwright-core';
+import type { Frame, Page } from 'playwright-core';
 
 import type { TActionResult } from '@shared/tools';
 
@@ -33,6 +33,34 @@ export async function takeSnapshot(
     return { ok: true, text: truncate(text, maxLength) };
   } catch (error) {
     return toActionFailure(error);
+  }
+}
+
+/** 비교용 화면 텍스트 최대 길이 */
+const SCREEN_TEXT_MAX_LENGTH = 60_000;
+/** 비교용으로 읽을 최대 프레임 수 (메인 포함) */
+const SCREEN_FRAME_MAX = 10;
+
+/**
+ * [화면 텍스트] 클릭 전후 비교용 — 보이는 글(innerText)이라 ref 표를 바꾸지 않는다 (spec 024 SR-1).
+ * ariaSnapshot 은 기본 모드여도 aria-ref 표를 초기화해 모델이 들고 있는 ref 가 무효가 되므로 쓰지 않는다.
+ * 메인 프레임 다음 하위 프레임(최대 10개)을 이어 붙인다. 메인 프레임을 못 읽으면 null, 하위 프레임 실패는 건너뛴다.
+ */
+export async function readScreenText(page: Page, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<string | null> {
+  const [mainFrame, ...childFrameList] = page.frames().slice(0, SCREEN_FRAME_MAX);
+  if (!mainFrame) return null;
+  const mainText = await readFrameText(mainFrame, timeoutMs);
+  if (mainText === null) return null;
+  const childTextList = await Promise.all(childFrameList.map((frame) => readFrameText(frame, timeoutMs)));
+  const text = [mainText, ...childTextList.filter((item): item is string => item !== null)].join('\n');
+  return text.slice(0, SCREEN_TEXT_MAX_LENGTH);
+}
+
+async function readFrameText(frame: Frame, timeoutMs: number): Promise<string | null> {
+  try {
+    return await frame.locator('body').innerText({ timeout: timeoutMs });
+  } catch {
+    return null;
   }
 }
 

@@ -24,3 +24,20 @@ test.describe('날짜 레이어', () => {
     await expect(tabPage.getByLabel('출발일')).toHaveValue('2026-11-17 10시');
   });
 });
+
+test.describe('같은 클릭 반복 (spec 024)', () => {
+  test.use({ fakeScenario: 'repeat-click' });
+
+  test('선택 상태가 트리에 안 보이는 예약 레이어에서 같은 클릭을 반복하면 5회째에 실패로 멈춘다', async ({
+    win,
+    fixtureUrl,
+  }) => {
+    await openInActiveTab(win, fixtureUrl('booking-toggle.html'), '예약 선택 토글');
+    await runTask(win, '2명 15일 예약 시간 골라줘');
+
+    const sidebar = getSidebar(win);
+    await expect(sidebar.getByRole('status', { name: '실행 상태' })).toHaveText('실패');
+    await expect(sidebar.getByRole('region', { name: '실행 결과' })).toContainText('같은 행동을 반복해 멈췄습니다');
+    await expect(sidebar.getByText('예약 시간을 골랐습니다')).toHaveCount(0);
+  });
+});

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>예약 선택 토글</title>
+  </head>
+  <!--
+    spec 024 — 선택 상태를 접근성 트리에 싣지 않는 예약 레이어(네이버 지도 예약 run 재현).
+    인원을 누르면 날짜·시간 선택이 초기화되고, 날짜를 누르면 시간 버튼이 나타난다. 안내문은 항상 보인다.
+    선택 표시는 CSS 클래스(.on)뿐 — aria-pressed/selected 없음.
+  -->
+  <body>
+    <h1>예약하기</h1>
+    <div id="people">
+      <button type="button" data-people="1">1명</button>
+      <button type="button" data-people="2">2명</button>
+    </div>
+    <p>인원을 먼저 선택해주세요.</p>
+    <div id="dates">
+      <button type="button" data-day="14">14</button>
+      <button type="button" data-day="15">15</button>
+    </div>
+    <div id="times"></div>
+    <p id="status"></p>
+    <a href="second.html">다른 페이지</a>
+    <button type="button" id="noop">아무 일 없음</button>
+    <iframe title="안내 프레임" srcdoc="<button type='button'>프레임 안 버튼</button>"></iframe>
+    <script>
+      const times = document.getElementById('times');
+      const status = document.getElementById('status');
+      const clearOn = (selector) => document.querySelectorAll(selector).forEach((el) => el.classList.remove('on'));
+      document.getElementById('people').addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        clearOn('#people button');
+        clearOn('#dates button');
+        button.classList.add('on');
+        times.replaceChildren();
+        status.textContent = '';
+      });
+      document.getElementById('dates').addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        clearOn('#dates button');
+        button.classList.add('on');
+        times.replaceChildren(
+          ...['오후 6:00', '오후 7:00'].map((label) => {
+            const time = document.createElement('button');
+            time.type = 'button';
+            time.textContent = label;
+            time.addEventListener('click', () => (status.textContent = `${label} 선택됨`));
+            return time;
+          }),
+        );
+      });
+    </script>
+  </body>
+</html>

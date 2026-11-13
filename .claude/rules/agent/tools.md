@@ -44,7 +44,8 @@ paths:
 ## 컨텍스트·비용
 - `snapshot` 은 압축(`/url: "#…"` 줄 삭제·빈 generic/cell 접기, `browser/snapshotCompact.ts`) 후 열린 dialog 를 `[열린 대화상자]` 로 맨 앞에 싣고 12k 자 제한. 잘리면 `snapshot({ ref })` 부분 보기(그 밖 이전 ref 는 무효) — scroll 은 트리를 더 보여 주지 않는다. ref 는 `e12`·`f2e5`(재이동·iframe) 둘 다 (spec 015).
 - 스크린샷은 뷰포트 1280×800 이하로 축소, 같은 상태에서 연속 스크린샷 금지(도구 설명에 명시).
-- 반복 안내: 같은 화면(ref 를 지운 snapshot) 또는 같은 화면에서의 같은 행동이 3회째부터 도구 결과 끝에 `[반복 N회째]` 한 줄 (`agent/repeatTracker.ts`, step 기록엔 없음, 실행은 막지 않음).
+- 반복 안내: 같은 화면(ref·`[active]`·`[cursor=pointer]` 를 지운 snapshot) 또는 같은 화면에서의 같은 행동이 3·4회째면 도구 결과 끝에 `[반복 N회째]` 한 줄, **5회째면 run 을 failed("같은 행동을 반복해 멈췄습니다")로 끝낸다** — 행동을 대신 실행하지는 않음 (`agent/repeatTracker.ts`, step 기록엔 없음, spec 024).
+- 클릭 화면 변화: 이동하지 않은 구조 click 결과에 클릭 전후 보이는 글(innerText, 메인+하위 프레임) 비교 요약(`화면 변화: 나타남/사라짐 …` 또는 `화면 변화 없음`)을 붙인다 — 모델에만, step 기록엔 없음. 비교 읽기에 `ariaSnapshot` 을 쓰지 않는다(기본 모드도 aria-ref 표를 초기화한다) (`browser/snapshotDiff.ts`, spec 024).
 - `clear_tool_uses_20250919` 는 `trigger` 3만 입력 토큰·`keep` 3·`clear_at_least` 1만·`exclude_tools: ['ask_user', 'request_approval']` 를 명시한다 (기본 10만 트리거는 snapshot run 에 늦다, spec 015).
 - 시스템 프롬프트는 `buildSystemPrompt({ hasComputerToolset })` — 픽셀 도구가 없는 프로필엔 픽셀 문장을 넣지 않는다.
 - run 당 최대 도구 호출 수(기본 60)·최대 토큰(usage 합산) 상한을 settings 에 두고 넘으면 `failed(budget)`.

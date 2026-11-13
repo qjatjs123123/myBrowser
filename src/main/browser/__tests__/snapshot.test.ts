@@ -2,7 +2,7 @@ import { chromium, type Browser, type Page } from 'playwright-core';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { showCursor, showHighlight } from '../overlay';
-import { takeSnapshot, TRUNCATED_MARK } from '../snapshot';
+import { readScreenText, takeSnapshot, TRUNCATED_MARK } from '../snapshot';
 import { OPEN_DIALOG_MARK } from '../snapshotCompact';
 
 import { findRef, getFixtureUrl } from './helpers';
@@ -127,5 +127,34 @@ describe('takeSnapshot — 날짜 레이어 (spec 015 FR-2~4)', () => {
       ok: false,
       reason: 'ref e999 를 찾을 수 없습니다. snapshot 을 다시 찍어라',
     });
+  });
+});
+
+describe('readScreenText (spec 024)', () => {
+  it('ref 표를 바꾸지 않는다 — 읽기 전후로 같은 ref 가 같은 요소로 풀린다', async () => {
+    await page.goto(getFixtureUrl('booking-toggle.html'));
+    const ref = findRef(getText(await takeSnapshot(page)), 'button', '2명');
+    await readScreenText(page);
+    await expect(page.locator(`aria-ref=${ref}`).innerText()).resolves.toBe('2명');
+  });
+
+  it('부분 snapshot 바깥의 옛 ref 는 읽은 뒤에도 여전히 찾지 못한다', async () => {
+    await page.goto(getFixtureUrl('date-layer.html'));
+    await page.getByRole('button', { name: '날짜 선택' }).click();
+    const full = getText(await takeSnapshot(page));
+    const outsideRef = findRef(full, 'button', '날짜 선택');
+    const dialogRef = full.match(/- dialog "날짜 선택" \[ref=((?:f\d+)?e\d+)\]/)?.[1] ?? '';
+    await takeSnapshot(page, { ref: dialogRef });
+    await readScreenText(page);
+    await expect(page.locator(`aria-ref=${outsideRef}`).count()).resolves.toBe(0);
+  });
+
+  it('보이는 글을 iframe 안까지 이어 붙인다', async () => {
+    await page.goto(getFixtureUrl('booking-toggle.html'));
+    await page.frameLocator('iframe').locator('button').waitFor();
+    const text = (await readScreenText(page)) ?? '';
+    expect(text).toContain('2명');
+    expect(text).toContain('인원을 먼저 선택해주세요.');
+    expect(text).toContain('프레임 안 버튼');
   });
 });

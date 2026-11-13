@@ -81,6 +81,8 @@ export interface IToolRunContext {
   runExclusive: TRunExclusive;
   /** 같은 화면·같은 행동 반복 횟수 — 구조 도구 결과에 안내를 붙인다 (spec 015 FR-5) */
   repeatTracker: IRepeatTracker;
+  /** 같은 화면·같은 행동 5회째 — run 을 failed 로 끝내고 이후 도구를 실행하지 않는다 (spec 024 FR-3) */
+  stopForRepeat(): void;
 }
 
 /** runGuardedAction 의 가드 호출 — null 이면 가드 없음 (SR-6 뷰포트 검사는 호출부) */
@@ -190,10 +192,18 @@ async function runStructureTool(tool: IAgentTool<unknown>, ctx: IToolRunContext,
     overlayTarget: toOverlayTarget(input),
     act: async () => {
       const result = await tool.execute(ctx.driver, input);
-      return result.ok ? { ok: true, value: result.text, text: result.text } : result;
+      // note(클릭 화면 변화)는 모델에만 — step 기록 text 엔 넣지 않는다 (spec 024 SR-3)
+      return result.ok ? { ok: true, value: result.text + (result.note ?? ''), text: result.text } : result;
     },
-    annotate: (value, summary) => value + noteRepeat(ctx.repeatTracker, { tool: tool.name, summary, resultText: value }),
+    annotate: (value, summary) => annotateRepeat(ctx, { tool: tool.name, summary, value }),
   });
+}
+
+/** 반복 안내를 붙이고, 5회째면 run 을 멈춘다 — 반복 key 는 note 를 뺀 화면으로 센다 */
+function annotateRepeat(ctx: IToolRunContext, { tool, summary, value }: { tool: string; summary: string; value: string }): string {
+  const { notice, shouldStop } = noteRepeat(ctx.repeatTracker, { tool, summary, resultText: value });
+  if (shouldStop) ctx.stopForRepeat();
+  return value + notice;
 }
 
 /**

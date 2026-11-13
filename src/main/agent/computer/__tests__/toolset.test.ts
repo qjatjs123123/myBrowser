@@ -96,6 +96,7 @@ function createHarness(decision: TDecision = 'denied'): IHarness {
     overlay: vi.fn(async () => undefined),
     runExclusive: createExclusiveQueue(),
     repeatTracker: createRepeatTracker(),
+    stopForRepeat: vi.fn(),
   };
   return { driver, ctx, stepList, waitList, actCountAtWait };
 }
