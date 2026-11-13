@@ -978,11 +978,28 @@ describe('AgentService — stop_reason ⑥⑦', () => {
 describe('AgentService — 호출 상한 ⑧', () => {
   it('도구 호출이 61회째가 되면 실행하지 않고 한도 이유로 failed 로 끝낸다', async () => {
     const t = setup({ scenario: { turns: Array.from({ length: 70 }, () => toolTurn('snapshot')) } });
+    // 매번 다른 화면 — 같은 화면 5회째 중단(spec 024)보다 호출 한도가 먼저 걸리게 한다
+    let readCount = 0;
+    vi.mocked(t.driver.snapshot).mockImplementation(async () => ok(`${SNAPSHOT_TEXT}\n- paragraph: ${String(++readCount)}`));
     await t.service.start('계속 읽어');
     await t.waitForEnd();
     expect(t.driver.snapshot).toHaveBeenCalledTimes(60);
     expect(t.eventList).toContainEqual({ type: 'failed', runId: 'run-1', reason: '도구 호출 한도(60회)를 넘었습니다' });
     expect(t.requestList).toHaveLength(61);
+  });
+});
+
+describe('AgentService — 같은 화면 반복 중단 (spec 024 FR-3)', () => {
+  it('같은 화면 snapshot 5회째면 이후 도구를 실행하지 않고 반복 이유로 failed 로 끝낸다', async () => {
+    const t = setup({ scenario: { turns: Array.from({ length: 10 }, () => toolTurn('snapshot')) } });
+    await t.service.start('계속 읽어');
+    await t.waitForEnd();
+    expect(t.driver.snapshot).toHaveBeenCalledTimes(5);
+    expect(t.eventList).toContainEqual({
+      type: 'failed',
+      runId: 'run-1',
+      reason: '같은 행동을 반복해 멈췄습니다 — 화면이 바뀌지 않습니다',
+    });
   });
 });
 

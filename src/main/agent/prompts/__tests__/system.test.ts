@@ -92,4 +92,9 @@ describe('buildFirstUserContent (spec 022)', () => {
   it('캡처가 없으면 텍스트 문자열 그대로다', () => {
     expect(buildFirstUserContent({ text: '할 일: 찾아줘', screenshotBase64: null })).toBe('할 일: 찾아줘');
   });
+
+  it.each([WITH_PIXEL, WITHOUT_PIXEL])('선택지를 다시 누르지 말고 화면 변화로 판단하라고 안내한다 (spec 024 FR-4)', (prompt) => {
+    expect(prompt).toContain('이미 누른 선택지(인원·날짜·시간)는 다시 누르지 않는다');
+    expect(prompt).toContain('「화면 변화」');
+  });
 });

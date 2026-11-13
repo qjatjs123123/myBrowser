@@ -1,0 +1,207 @@
+{
+  "turns": [
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:2명)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:15)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:2명)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:15)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:2명)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:15)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:2명)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:15)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:2명)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:15)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:2명)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:15)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "text",
+          "text": "예약 시간을 골랐습니다"
+        }
+      ]
+    }
+  ]
+}

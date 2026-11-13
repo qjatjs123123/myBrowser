@@ -10,8 +10,11 @@ import type { TSwitchTabInput } from './switchTab';
 import type { TTypeTextInput } from './typeText';
 import type { TWaitForInput } from './waitFor';
 
-/** 브라우저 행동 결과 — 실패는 throw 가 아니라 reason (루프가 is_error tool_result 로 바꾼다) */
-export type TActionResult = { ok: true; text: string } | { ok: false; reason: string };
+/**
+ * 브라우저 행동 결과 — 실패는 throw 가 아니라 reason (루프가 is_error tool_result 로 바꾼다).
+ * note 는 모델에만 덧붙이는 말(클릭 화면 변화 — spec 024) — step 기록에는 text 만 남긴다.
+ */
+export type TActionResult = { ok: true; text: string; note?: string } | { ok: false; reason: string };
 
 /**
  * 가드가 판정에 쓰는 대상 요소 정보 — 우리 코드가 정한 읽기 함수로만 채운다 (모델 입력을 실행하지 않음).

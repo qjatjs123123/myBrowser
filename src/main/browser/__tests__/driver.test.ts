@@ -6,6 +6,8 @@ import type { TTabsSnapshot } from '@shared/ipc/tabs';
 import { createBrowserDriver } from '../driver';
 import type { ICdpConnection, ITabsPort } from '../types';
 
+import { NO_SCREEN_CHANGE_NOTE } from '../snapshotDiff';
+
 import { findRef, getFixtureUrl } from './helpers';
 
 let browser: Browser;
@@ -102,7 +104,7 @@ describe('createBrowserDriver 대상 탭', () => {
     const snapshot = await driver.snapshot({});
     const ref = findRef(snapshot.ok ? snapshot.text : '', 'button', '예약 확정');
     await expect(driver.resolveTarget({ ref })).resolves.toMatchObject({ name: '예약 확정' });
-    await expect(driver.click({ ref })).resolves.toEqual({ ok: true, text: '클릭함' });
+    await expect(driver.click({ ref })).resolves.toMatchObject({ ok: true, text: '클릭함', note: expect.any(String) });
     expect(await (await pageOf(startTabId)).locator('#status').innerText()).toBe('확정 눌림');
   });
 
@@ -293,5 +295,48 @@ describe('createBrowserDriver 픽셀 메서드', () => {
     await expect(driver.resolvePointTarget({ x: 1, y: 1 })).resolves.toBeNull();
     await expect(driver.isInViewport({ x: 1, y: 1 })).resolves.toBe(false);
     await expect(driver.showOverlay({ kind: 'clear' })).resolves.toBeUndefined();
+  });
+});
+
+describe('createBrowserDriver click 화면 변화 (spec 024)', () => {
+  async function openBooking() {
+    const { tabs, cdp, addTab } = setup();
+    const startTabId = addTab(getFixtureUrl('booking-toggle.html'));
+    const driver = createBrowserDriver({ tabs, cdp, startTabId });
+    const clickByName = async (role: string, name: string) => {
+      const snapshot = await driver.snapshot({});
+      return driver.click({ ref: findRef(snapshot.ok ? snapshot.text : '', role, name) });
+    };
+    return { driver, clickByName };
+  }
+
+  it('날짜를 누르면 나타난 시간 버튼을 note 로 알리고 text 는 그대로다', async () => {
+    const { clickByName } = await openBooking();
+    await clickByName('button', '2명');
+    const result = await clickByName('button', '15');
+    expect(result).toMatchObject({ ok: true, text: '클릭함' });
+    expect(result.ok && result.note).toContain('화면 변화: 나타남');
+    expect(result.ok && result.note).toContain('오후 7:00');
+  });
+
+  it('인원을 다시 누르면 시간 버튼이 사라졌다고 알린다', async () => {
+    const { clickByName } = await openBooking();
+    await clickByName('button', '2명');
+    await clickByName('button', '15');
+    const result = await clickByName('button', '2명');
+    expect(result.ok && result.note).toMatch(/화면 변화: 사라짐 \d+줄 — 오후 6:00/);
+  });
+
+  it('화면이 안 바뀌면 다시 누르지 말라는 변화 없음 안내다', async () => {
+    const { clickByName } = await openBooking();
+    const result = await clickByName('button', '아무 일 없음');
+    expect(result.ok && result.note).toBe(NO_SCREEN_CHANGE_NOTE);
+  });
+
+  it('페이지가 이동하면 note 를 붙이지 않는다', async () => {
+    const { clickByName } = await openBooking();
+    const result = await clickByName('link', '다른 페이지');
+    expect(result).toMatchObject({ ok: true });
+    expect(result.ok && result.note).toBeUndefined();
   });
 });

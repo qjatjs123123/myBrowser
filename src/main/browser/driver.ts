@@ -18,7 +18,8 @@ import { DEFAULT_TIMEOUT_MS } from './browserConstants';
 import { clearHighlight, getRefCenter, showCursor, showHighlight } from './overlay';
 import * as pointer from './pointer';
 import { takeScreenshot } from './screenshot';
-import { takeSnapshot } from './snapshot';
+import { readScreenText, takeSnapshot } from './snapshot';
+import { diffScreen, formatScreenChange } from './snapshotDiff';
 import { resolvePointTarget, resolveTarget } from './target';
 import type { ICdpConnection, ITabsPort } from './types';
 
@@ -105,11 +106,19 @@ async function applyOverlay(page: Page, cmd: TOverlayCommand, scale: number): Pr
   return showHighlight(page, 'ref' in cmd ? { ref: cmd.ref } : pointer.toCssPoint(cmd.point, scale));
 }
 
-/** 구조 click — 요소 중심에 커서를 먼저 보이고 클릭한다 (커서 표시 실패는 무시) */
+/**
+ * 구조 click — 요소 중심에 커서를 먼저 보이고 클릭한다 (커서 표시 실패는 무시).
+ * 이동하지 않은 성공 클릭이면 전후 화면 비교를 note 로 붙인다 (spec 024 FR-1 — 비교 읽기는 ref 표를 바꾸지 않는다)
+ */
 async function clickWithCursor(page: Page, input: TClickInput, options: IActionOptions): Promise<TActionResult> {
   const center = await getRefCenter(page, input.ref);
   if (center !== null) await showCursor(page, center);
-  return actions.click(page, input, options);
+  const beforeUrl = page.url();
+  const beforeText = await readScreenText(page, options.timeoutMs);
+  const result = await actions.click(page, input, options);
+  if (!result.ok || beforeText === null || page.url() !== beforeUrl) return result;
+  const afterText = await readScreenText(page, options.timeoutMs);
+  return afterText === null ? result : { ...result, note: formatScreenChange(diffScreen(beforeText, afterText)) };
 }
 
 function createPageMethods(state: IDriverState): TPageMethods {

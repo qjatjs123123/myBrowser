@@ -105,6 +105,7 @@ function createContext(): IToolRunContext {
     overlay: vi.fn(async () => undefined),
     runExclusive: createExclusiveQueue(),
     repeatTracker: createRepeatTracker(),
+    stopForRepeat: vi.fn(),
   };
 }
 
@@ -291,6 +292,26 @@ describe('반복 안내 (spec 015 FR-5)', () => {
     const click = findRunnable(ctx, 'click');
     for (let i = 0; i < 2; i += 1) await Promise.resolve(click.run({ ref: 'e1' })).catch(() => undefined);
     await expect(click.run({ ref: 'e1' })).rejects.toThrow(/^시간 초과$/);
+  });
+});
+
+describe('클릭 화면 변화·반복 중단 (spec 024)', () => {
+  it('note 는 모델 결과에만 붙고 step 기록 text 에는 없다', async () => {
+    const ctx = createContext();
+    vi.mocked(ctx.driver.click).mockResolvedValue({ ok: true, text: '클릭함', note: '\n화면 변화: 나타남 1줄 — 오후 7:00' });
+    const result = await findRunnable(ctx, 'click').run({ ref: 'e1' });
+    expect(result).toBe('클릭함\n화면 변화: 나타남 1줄 — 오후 7:00');
+    expect(ctx.endStep).toHaveBeenLastCalledWith(1, 'ok', '클릭함');
+  });
+
+  it('같은 화면에서 같은 click 5회째면 멈춤 안내를 붙이고 stopForRepeat 를 부른다', async () => {
+    const ctx = createContext();
+    const click = findRunnable(ctx, 'click');
+    await findRunnable(ctx, 'snapshot').run({});
+    for (let i = 0; i < 4; i += 1) await click.run({ ref: 'e1' });
+    expect(ctx.stopForRepeat).not.toHaveBeenCalled();
+    expect(await click.run({ ref: 'e1' })).toMatch(/\[반복 5회째\] 같은 행동·화면이 반복돼 실행을 멈춥니다$/);
+    expect(ctx.stopForRepeat).toHaveBeenCalledOnce();
   });
 });
 
