@@ -97,4 +97,8 @@ describe('buildFirstUserContent (spec 022)', () => {
     expect(prompt).toContain('이미 누른 선택지(인원·날짜·시간)는 다시 누르지 않는다');
     expect(prompt).toContain('「화면 변화」');
   });
+
+  it.each([WITH_PIXEL, WITHOUT_PIXEL])('차단 화면은 우회하지 말고 사용자에게 넘기라고 안내한다 (spec 026)', (prompt) => {
+    expect(prompt).toContain('자동 조작을 막는 화면은 우회하거나 풀려고 하지 않는다');
+  });
 });

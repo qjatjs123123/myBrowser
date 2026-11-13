@@ -15,6 +15,7 @@ import { DEV_MODEL_REQUEST, type IModelProfile } from '../profiles';
 import { FIRST_SCREENSHOT_NOTE } from '../prompts/system';
 import { AGENT_MESSAGE, createAgentService, FIRST_SCREENSHOT_TIMEOUT_MS, type IAgentServiceDeps } from '../service';
 import { DENIED_RESULT, USER_DONE_RESULT } from '../tools';
+import { HANDOVER_OPTION } from '../tools/handover';
 
 const SNAPSHOT_TEXT = [
   'URL: https://shop.example.com/ / 제목: 가게',
@@ -989,17 +990,16 @@ describe('AgentService — 호출 상한 ⑧', () => {
   });
 });
 
-describe('AgentService — 같은 화면 반복 중단 (spec 024 FR-3)', () => {
-  it('같은 화면 snapshot 5회째면 이후 도구를 실행하지 않고 반복 이유로 failed 로 끝낸다', async () => {
+describe('AgentService — 같은 화면 반복이면 묻기 (spec 026 FR-2)', () => {
+  it('같은 화면 snapshot 5회째면 질문을 보내고, 멈추기를 고르면 이후 도구 없이 stopped 로 끝난다', async () => {
     const t = setup({ scenario: { turns: Array.from({ length: 10 }, () => toolTurn('snapshot')) } });
     await t.service.start('계속 읽어');
+    await waitForEventCount(t.eventList, 'question');
+    expect(t.driver.snapshot).toHaveBeenCalledTimes(5);
+    expect(t.service.answer('run-1', 'req-1', HANDOVER_OPTION.repeatStop)).toEqual({ ok: true });
     await t.waitForEnd();
     expect(t.driver.snapshot).toHaveBeenCalledTimes(5);
-    expect(t.eventList).toContainEqual({
-      type: 'failed',
-      runId: 'run-1',
-      reason: '같은 행동을 반복해 멈췄습니다 — 화면이 바뀌지 않습니다',
-    });
+    expect(t.eventList).toContainEqual(expect.objectContaining({ type: 'stopped', runId: 'run-1' }));
   });
 });
 

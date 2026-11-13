@@ -23,12 +23,13 @@ import {
 import { BrowserComputerToolset } from '../computer/toolset';
 import { checkGuard, isSameDisplay } from '../guard';
 import type { IModelClient } from '../modelClient';
-import { noteRepeat, type IRepeatTracker } from '../repeatTracker';
+import type { IRepeatTracker } from '../repeatTracker';
 import { summarizeStep } from '../summary';
 import type { TWaitAnswer } from '../waits';
 import { askUserTool } from './askUser';
 import { clickTool } from './click';
 import { goBackTool } from './goBack';
+import { annotateWithHandover } from './handover';
 import { listTabsTool } from './listTabs';
 import { navigateTool } from './navigate';
 import { openTabTool } from './openTab';
@@ -81,8 +82,8 @@ export interface IToolRunContext {
   runExclusive: TRunExclusive;
   /** 같은 화면·같은 행동 반복 횟수 — 구조 도구 결과에 안내를 붙인다 (spec 015 FR-5) */
   repeatTracker: IRepeatTracker;
-  /** 같은 화면·같은 행동 5회째 — run 을 failed 로 끝내고 이후 도구를 실행하지 않는다 (spec 024 FR-3) */
-  stopForRepeat(): void;
+  /** 반복·차단 화면 질문에서 사용자가 멈추기를 골랐다 — [중지] 와 같이 run 을 stopped 로 (spec 026 FR-2·3) */
+  stopByUser(): void;
 }
 
 /** runGuardedAction 의 가드 호출 — null 이면 가드 없음 (SR-6 뷰포트 검사는 호출부) */
@@ -110,8 +111,8 @@ export interface IGuardedActionSpec<T> {
   /** 승인 대기 중 강조할 대상 */
   overlayTarget: { ref: string } | { point: IPoint } | null;
   act: () => Promise<TActOutcome<T>>;
-  /** 성공한 결과를 모델에 돌려주기 전에 덧붙일 것 — step 기록(text)은 바꾸지 않는다 */
-  annotate?: (value: T, summary: string) => T;
+  /** 성공한 결과를 모델에 돌려주기 전에 덧붙일 것(사용자에게 묻는 동안 기다릴 수 있다) — step 기록(text)은 바꾸지 않는다 */
+  annotate?: (value: T, summary: string) => T | Promise<T>;
 }
 
 /** 정지 뒤 남은 tool_use 에 돌려주는 결과 (모델 요청은 이미 abort 됐다) */
@@ -195,16 +196,10 @@ async function runStructureTool(tool: IAgentTool<unknown>, ctx: IToolRunContext,
       // note(클릭 화면 변화)는 모델에만 — step 기록 text 엔 넣지 않는다 (spec 024 SR-3)
       return result.ok ? { ok: true, value: result.text + (result.note ?? ''), text: result.text } : result;
     },
-    annotate: (value, summary) => annotateRepeat(ctx, { tool: tool.name, summary, value }),
+    annotate: (value, summary) => annotateWithHandover(ctx, { tool: tool.name, summary, value }),
   });
 }
 
-/** 반복 안내를 붙이고, 5회째면 run 을 멈춘다 — 반복 key 는 note 를 뺀 화면으로 센다 */
-function annotateRepeat(ctx: IToolRunContext, { tool, summary, value }: { tool: string; summary: string; value: string }): string {
-  const { notice, shouldStop } = noteRepeat(ctx.repeatTracker, { tool, summary, resultText: value });
-  if (shouldStop) ctx.stopForRepeat();
-  return value + notice;
-}
 
 /**
  * 공통 파이프라인 — 구조 도구 래퍼와 픽셀 멤버가 같이 쓴다. 전체가 ctx.runExclusive 안에서 돈다.
@@ -235,7 +230,7 @@ async function executeStep<T>(
   const result = await spec.act().catch((): TActOutcome<T> => ({ ok: false, reason: UNEXPECTED_ERROR_RESULT }));
   if (!result.ok) return failStep(ctx, n, 'error', result.reason);
   ctx.endStep(n, 'ok', result.text);
-  return spec.annotate ? spec.annotate(result.value, summary) : result.value;
+  return spec.annotate ? await spec.annotate(result.value, summary) : result.value;
 }
 
 /** 가드 문 통과 결과 — pass 면 실행, skip 이면 실행 없이 result 를 모델에 */
