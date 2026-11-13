@@ -1,6 +1,6 @@
 # Spec: 실제 사이트 평가 세트 — 성공률·비용 측정
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-13
 > **묶음**: agent-budget, eval-sites
 > **관련 spec**: 005 (평가 세트), 007 (모델 프로필), 008 (e2e 외부 요청 차단), 015 (에이전트 정확도)
@@ -83,7 +83,7 @@ DB 변경 없음. 결과 파일: `eval/results/{YYYYMMDD-HHmmss}/{report.json, {
 > ⚠️ **게이트 규칙**: 각 Task 는 명시된 **테스트와 검증이 모두 에러 0**이 될 때까지 수정 → 재실행을 반복하고, 전부 통과했을 때만 체크박스를 채우고 **Task 단위로 커밋**한 뒤 다음 Task 로 진행한다.
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: run 입력 토큰 상한**
+- [x] **Task 1: run 입력 토큰 상한**
   - **묶음**: agent-budget
   - **작업**: FR-1 — env 스키마·`IEnv`, service deps·상한 처리 (deps 가 optional 이라 index.ts 연결 없이도 green — 연결은 Task 5)
   - **파일**: `src/main/env.ts`, `src/main/agent/service.ts`, `src/main/__tests__/env.test.ts`, `src/main/agent/__tests__/service.test.ts`
@@ -95,7 +95,7 @@ DB 변경 없음. 결과 파일: `eval/results/{YYYYMMDD-HHmmss}/{report.json, {
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: run 입력 토큰 상한 MYBROWSER_MAX_INPUT_TOKENS (spec 019 Task 1)`
 
-- [ ] **Task 2: 평가 인자·판정·집계 (순수)**
+- [x] **Task 2: 평가 인자·판정·집계 (순수)**
   - **묶음**: eval-sites
   - **작업**: FR-3 인자, FR-5 판정, FR-6 집계, FR-2 시나리오 목록
   - **파일**: `eval/cliArgs.ts`, `eval/siteJudge.ts`, `eval/siteScenarios.ts`, `eval/__tests__/{cliArgs,siteJudge,siteScenarios}.test.ts`
@@ -108,7 +108,7 @@ DB 변경 없음. 결과 파일: `eval/results/{YYYYMMDD-HHmmss}/{report.json, {
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 실제 사이트 평가 인자·판정·시나리오 (spec 019 Task 2)`
 
-- [ ] **Task 3: 실제 사이트 러너·보고**
+- [x] **Task 3: 실제 사이트 러너·보고**
   - **묶음**: eval-sites
   - **작업**: FR-3 러너, FR-4 기록, FR-6 보고, FR-7 유지, FR-8 전달, SR-1·SR-3. `eval/drive.ts` 의 끝까지 진행 함수는 승인 답을 인자 `approvalAnswer` 로 받고, `SITE_APPROVAL_ANSWER = 'denied' as const` 는 순수 모듈 `eval/siteScenarios.ts`(Task 2)에 정의·export 하고, `sites.eval.ts` 는 그것을 import 해 `drive.ts` 에 넘긴다. `cli.mjs` 는 sites 종료 코드를 위해 `./siteScenarios.ts` 의 `SITE_SCENARIO_LIST.length` 와 `command.env.MYBROWSER_EVAL_REPEAT` 를 `getSiteExitCode`(report.ts, 순수)에 넘긴다
   - **파일**: `e2e/fixtures.ts`, `e2e/fixtures/__tests__/externalRequests.test.ts`, `eval/drive.ts`, `eval/sites.eval.ts`, `eval/agent.eval.ts`, `eval/report.ts`, `eval/cli.mjs`, `.gitignore`, `eval/__tests__/{report,sitesSafety}.test.ts`
@@ -123,7 +123,7 @@ DB 변경 없음. 결과 파일: `eval/results/{YYYYMMDD-HHmmss}/{report.json, {
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 실제 사이트 평가 러너·결과 기록 (spec 019 Task 3)`
 
-- [ ] **Task 4: 문서**
+- [x] **Task 4: 문서**
   - **묶음**: eval-sites
   - **작업**: DESIGN.md §5 한 줄, `eval/cli.mjs` 머리 주석에 사용법
   - **파일**: `docs/DESIGN.md`, `eval/cli.mjs`
@@ -133,7 +133,7 @@ DB 변경 없음. 결과 파일: `eval/results/{YYYYMMDD-HHmmss}/{report.json, {
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `docs: 실제 사이트 평가 세트 사용법 (spec 019 Task 4)`
 
-- [ ] **Task 5: 입력 토큰 상한 연결 (합친 뒤 메인)**
+- [x] **Task 5: 입력 토큰 상한 연결 (합친 뒤 메인)**
   - **묶음**: 합친 뒤 (메인 — 공유 파일 `src/main/index.ts`)
   - **작업**: `createAgentService({...})` 에 `maxInputTokens: env.maxInputTokens`
   - **파일**: `src/main/index.ts`, `e2e/agent-budget.spec.ts`
@@ -150,3 +150,10 @@ DB 변경 없음. 결과 파일: `eval/results/{YYYYMMDD-HHmmss}/{report.json, {
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-13 | 1 | env +4 · service +2 | 76dc6db | 워크트리 agent-budget |
+| 2026-11-13 | 2 | cliArgs +13 · siteJudge 16 · siteScenarios 6 | c1b9f13 | 워크트리 eval-sites (도우미 중단 → 메인이 이어서) |
+| 2026-11-13 | 3 | report +7 · sitesSafety 6 · externalRequests 2 · `pnpm eval` 가짜 7/7 | 52dbddf | stopped_before_confirm 은 새 전이가 없어 시나리오 끝 상태는 done 만 |
+| 2026-11-13 | 4 | 문서만 | 453bde4 | |
+| 2026-11-13 | 5 | e2e/agent-budget 1 | 8f11958 | 합친 뒤 메인 |
+| 2026-11-13 | 검증 | make check 통과 · make e2e 60 passed · 에러 0 | 검증 반영 커밋 | 실제 사이트 실행(`--set sites`)은 하지 않음 — 비용, 사용자 명령 시 |
+
