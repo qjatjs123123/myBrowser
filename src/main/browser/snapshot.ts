@@ -5,6 +5,7 @@ import type { TActionResult } from '@shared/tools';
 import { resolveRefLocator, toActionFailure } from './actions';
 import { DEFAULT_TIMEOUT_MS } from './browserConstants';
 import { compactSnapshot } from './snapshotCompact';
+import { truncateWithActionables } from './snapshotTruncate';
 
 const DEFAULT_MAX_LENGTH = 12_000;
 /** 잘림 안내 — scroll 은 이미 트리에 있는 화면 밖 내용을 더 보여 주지 않는다 (spec 015 FR-4) */
@@ -64,6 +65,7 @@ async function readFrameText(frame: Frame, timeoutMs: number): Promise<string | 
   }
 }
 
+/** 상한을 넘으면 잘림 표시 + 잘린 부분의 누를 수 있는 요소 목록 (spec 025 FR-2) */
 function truncate(text: string, maxLength: number): string {
-  return text.length > maxLength ? `${text.slice(0, maxLength)}${TRUNCATED_MARK}` : text;
+  return truncateWithActionables(text, maxLength, TRUNCATED_MARK);
 }

@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { showCursor, showHighlight } from '../overlay';
 import { readScreenText, takeSnapshot, TRUNCATED_MARK } from '../snapshot';
 import { OPEN_DIALOG_MARK } from '../snapshotCompact';
+import { CUT_ACTIONABLE_TITLE } from '../snapshotTruncate';
 
 import { findRef, getFixtureUrl } from './helpers';
 
@@ -65,7 +66,9 @@ describe('takeSnapshot', () => {
   it('maxLength 를 주면 그 길이로 자른다', async () => {
     await page.goto(getFixtureUrl('browser-form.html'));
     const text = getText(await takeSnapshot(page, { maxLength: 50 }));
-    expect(text).toBe(`${text.slice(0, 50)}${TRUNCATED_MARK}`);
+    // spec 025 FR-2 — 잘린 부분의 누를 수 있는 요소 목록이 뒤에 붙는다 (설계 변경에 따른 기대값 갱신)
+    expect(text.startsWith(`${text.slice(0, 50)}${TRUNCATED_MARK}\n${CUT_ACTIONABLE_TITLE}`)).toBe(true);
+    expect(text).toMatch(/\n- button "예약 확정"[^\n]*\[ref=/);
   });
 
   it('커서·강조 오버레이가 있어도 snapshot 에 나오지 않는다', async () => {
@@ -156,5 +159,24 @@ describe('readScreenText (spec 024)', () => {
     expect(text).toContain('2명');
     expect(text).toContain('인원을 먼저 선택해주세요.');
     expect(text).toContain('프레임 안 버튼');
+  });
+});
+
+describe('잘린 날짜 레이어 (spec 025)', () => {
+  it('레이어 부분 snapshot 이 잘려도 맨 아래 [선택 완료] 가 잘린 부분 목록에 ref 와 함께 나오고 그 ref 로 확정된다', async () => {
+    await page.goto(getFixtureUrl('korail-layer.html'));
+    await page.locator('#open').click();
+    const full = getText(await takeSnapshot(page));
+    expect(full).toContain(TRUNCATED_MARK);
+    const dialogRef = full.match(/- dialog "날짜 선택" \[ref=((?:f\d+)?e\d+)\]/)?.[1] ?? '';
+    const part = getText(await takeSnapshot(page, { ref: dialogRef }));
+    const markAt = part.indexOf(TRUNCATED_MARK);
+    expect(markAt).toBeGreaterThan(0);
+    expect(part.indexOf(CUT_ACTIONABLE_TITLE)).toBeGreaterThan(markAt);
+    expect(part.indexOf('- button "선택 완료"')).toBeGreaterThan(markAt);
+    expect(part).toContain('(비활성 ');
+    await page.locator(`aria-ref=${findRef(part, 'link', '30')}`).click();
+    await page.locator(`aria-ref=${findRef(part, 'button', '선택 완료')}`).click();
+    await expect(page.locator('#departure').inputValue()).resolves.toBe('2026-11-30');
   });
 });

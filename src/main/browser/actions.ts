@@ -27,12 +27,27 @@ export interface IActionOptions {
 /** 모델에 그대로 보여 줄 실패 사유 — playwright 오류 대신 이 문장을 reason 으로 쓴다 */
 export class ActionError extends Error {}
 
+/** 시간 초과 중 원인이 보이는 경우의 사유 (spec 025 FR-3) */
+export const TIMEOUT_REASON = {
+  intercepted:
+    '다른 요소가 가로막아 누를 수 없습니다 — 같은 이름의 link·button 이나 위에 겹친 레이어를 snapshot 에서 찾아 그것을 누른다',
+  notVisible: '보이지 않는 요소라 누를 수 없습니다 — 레이어·탭을 먼저 열거나 다른 요소를 찾는다',
+} as const;
+
 /** [실패 결과] 행동 중 생긴 오류를 `{ ok:false, reason }` 으로 — 실패는 throw 하지 않는다 (rules/electron/main.md) */
 export function toActionFailure(error: unknown): { ok: false; reason: string } {
   if (error instanceof ActionError) return { ok: false, reason: error.message };
-  const firstLine = (error instanceof Error ? error.message : String(error)).split('\n')[0] ?? '';
-  if (error instanceof errors.TimeoutError) return { ok: false, reason: `시간 초과: ${firstLine}` };
+  const message = error instanceof Error ? error.message : String(error);
+  const firstLine = message.split('\n')[0] ?? '';
+  if (error instanceof errors.TimeoutError) return { ok: false, reason: toTimeoutReason(message, firstLine) };
   return { ok: false, reason: firstLine };
+}
+
+/** Playwright 호출 기록(오류 본문)에 원인이 있으면 행동 안내로, 아니면 `시간 초과: {첫 줄}` */
+function toTimeoutReason(message: string, firstLine: string): string {
+  if (message.includes('intercepts pointer events')) return TIMEOUT_REASON.intercepted;
+  if (message.includes('element is not visible')) return TIMEOUT_REASON.notVisible;
+  return `시간 초과: ${firstLine}`;
 }
 
 /** [ref → locator] 마지막 snapshot 의 ref 로 요소를 찾는다 — 없으면 snapshot 을 다시 찍으라는 사유로 실패 */

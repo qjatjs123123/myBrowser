@@ -24,7 +24,7 @@ paths:
 - 반환은 텍스트 1블록이 기본. `snapshot` 은 ref 가 붙은 접근성 트리 텍스트(압축·대화상자 우선·길이 제한, `browser/snapshot.ts`), `screenshot` 류만 이미지 블록.
 - 모든 도구는 `(ctx: IToolContext, input) => Promise<IToolResult>`. `ctx` 에 현재 탭 handle·browser·emit·run id. 도구 안에서 다른 도구를 부르지 않는다.
 - **상태를 바꾸는 도구(click·type_text·select_option·navigate·press)는 실행 전 `guard.check(action)` 를 반드시 거친다** — 루프의 훅이 공통으로 호출하므로 도구 안에서 가드를 생략해도 되지만, 가드를 우회하는 범용 도구(`evaluate`, `run_script`)는 **만들지 않는다**.
-- 실패는 throw 가 아니라 `{ ok: false, reason }` → 루프가 `is_error: true` tool_result 로 변환. 타임아웃 기본 10s.
+- 실패는 throw 가 아니라 `{ ok: false, reason }` → 루프가 `is_error: true` tool_result 로 변환. 타임아웃 기본 10s. 시간 초과 원인이 Playwright 호출 기록에 있으면(가로막힘·안 보임) 다음 행동을 알려 주는 사유로 바꾼다 (`browser/actions.ts` `TIMEOUT_REASON`, spec 025).
 - 도구 결과에 **사람 말 요약**(`summary`)을 함께 반환한다 — `agent:event` step 에 그대로 쓴다.
 
 ## 사람 개입 도구
@@ -42,7 +42,7 @@ paths:
 `queued → running ⇄ waiting_user → done | failed | stopped` (대기 중에도 stop·fail 가능. `stopped_before_confirm` 은 spec 003 기록 호환용 enum 으로만 남고 새 전이가 없다 — spec 004). 전이는 `transition(run, event)` 함수 1곳에서만, 불법 전이는 throw. 모든 전이는 `steps` 테이블과 `agent:event` 에 기록.
 
 ## 컨텍스트·비용
-- `snapshot` 은 압축(`/url: "#…"` 줄 삭제·빈 generic/cell 접기, `browser/snapshotCompact.ts`) 후 열린 dialog 를 `[열린 대화상자]` 로 맨 앞에 싣고 12k 자 제한. 잘리면 `snapshot({ ref })` 부분 보기(그 밖 이전 ref 는 무효) — scroll 은 트리를 더 보여 주지 않는다. ref 는 `e12`·`f2e5`(재이동·iframe) 둘 다 (spec 015).
+- `snapshot` 은 압축(`/url: "#…"` 줄 삭제·빈 generic/cell 접기·연속 비활성 항목 3개 이상은 `(비활성 N개 생략)` 한 줄, `browser/snapshotCompact.ts`) 후 열린 dialog 를 `[열린 대화상자]` 로 맨 앞에 싣고 12k 자 제한. 잘리면 잘림 표시 뒤에 `[잘린 부분의 누를 수 있는 요소]`(이름 있는 button·link·입력 줄 원문, ref 포함, 최대 3k 자 — `browser/snapshotTruncate.ts`, spec 025). 잘리면 `snapshot({ ref })` 부분 보기(그 밖 이전 ref 는 무효) — scroll 은 트리를 더 보여 주지 않는다. ref 는 `e12`·`f2e5`(재이동·iframe) 둘 다 (spec 015).
 - 스크린샷은 뷰포트 1280×800 이하로 축소, 같은 상태에서 연속 스크린샷 금지(도구 설명에 명시).
 - 반복 안내: 같은 화면(ref·`[active]`·`[cursor=pointer]` 를 지운 snapshot) 또는 같은 화면에서의 같은 행동이 3·4회째면 도구 결과 끝에 `[반복 N회째]` 한 줄, **5회째면 run 을 failed("같은 행동을 반복해 멈췄습니다")로 끝낸다** — 행동을 대신 실행하지는 않음 (`agent/repeatTracker.ts`, step 기록엔 없음, spec 024).
 - 클릭 화면 변화: 이동하지 않은 구조 click 결과에 클릭 전후 보이는 글(innerText, 메인+하위 프레임) 비교 요약(`화면 변화: 나타남/사라짐 …` 또는 `화면 변화 없음`)을 붙인다 — 모델에만, step 기록엔 없음. 비교 읽기에 `ariaSnapshot` 을 쓰지 않는다(기본 모드도 aria-ref 표를 초기화한다) (`browser/snapshotDiff.ts`, spec 024).

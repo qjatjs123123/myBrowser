@@ -1,0 +1,72 @@
+{
+  "turns": [
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(link:출발일)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(link:30)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:선택 완료)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "text",
+          "text": "출발일을 11월 30일로 골랐습니다"
+        }
+      ]
+    }
+  ]
+}
