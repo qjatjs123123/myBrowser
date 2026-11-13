@@ -317,12 +317,16 @@ describe('AgentPanel', () => {
       expect(screen.getByText('할 일을 입력하면 여기에 진행 상황이 표시됩니다')).toBeInTheDocument();
     });
 
+    // 입력창 추천 훅이 마운트 때 runs.list 를 1회 부른다 (spec 019) — 그 횟수를 기준으로 열 때마다 1회씩 는다
     it('열 때마다 기록 목록을 새로 읽는다', async () => {
       render(<PanelWithRun />);
+      await waitFor(() => expect(window.api.runs.list).toHaveBeenCalledOnce());
+      const mountCallCount = vi.mocked(window.api.runs.list).mock.calls.length;
       await openHistory();
+      expect(window.api.runs.list).toHaveBeenCalledTimes(mountCallCount + 1);
       fireEvent.click(screen.getByRole('button', { name: '대화로 돌아가기' }));
       await openHistory();
-      expect(window.api.runs.list).toHaveBeenCalledTimes(2);
+      expect(window.api.runs.list).toHaveBeenCalledTimes(mountCallCount + 2);
     });
 
     it('기록을 보는 중에도 승인 카드가 입력창 위에 보인다', async () => {
@@ -404,6 +408,20 @@ describe('AgentPanel', () => {
       emitApprovalWait();
       expect(screen.getByRole('alertdialog', { name: '승인 필요' })).toBeInTheDocument();
       expect(screen.getByRole('region', { name: '설정' })).toBeInTheDocument();
+    });
+  });
+
+  describe('입력창 추천 문구 (spec 019)', () => {
+    it('새 탭이면 입력창 placeholder 가 새 탭 추천 문구다', async () => {
+      render(<PanelWithRun />);
+      expect(
+        await screen.findByPlaceholderText('네이버에서 맛집 검색해서 평점 높은 곳 3개 알려줘'),
+      ).toBeInTheDocument();
+    });
+
+    it('마운트하면 추천에 쓸 최근 작업을 runs.list 로 1회 읽는다', async () => {
+      render(<PanelWithRun />);
+      await waitFor(() => expect(window.api.runs.list).toHaveBeenCalledOnce());
     });
   });
 });
