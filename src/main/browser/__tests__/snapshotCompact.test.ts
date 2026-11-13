@@ -80,3 +80,55 @@ describe('compactSnapshot — 열린 대화상자', () => {
     expect(compactSnapshot(tree)).toBe(tree);
   });
 });
+
+describe('compactSnapshot — 연속 비활성 접기 (spec 025 FR-1)', () => {
+  const disabledDay = (day: number, ref: number) => [
+    `  - link [disabled] [ref=e${String(ref)}]:`,
+    `    - generic [ref=e${String(ref + 1)}]: "${String(day)}"`,
+  ];
+
+  it('비활성 링크 5개(자식 숫자 포함)는 한 줄로 접는다', () => {
+    const tree = lines('- row [ref=e1]:', ...[1, 2, 3, 4, 5].flatMap((day) => disabledDay(day, day * 10)));
+    expect(compactSnapshot(tree)).toBe(lines('- row [ref=e1]:', '  - (비활성 5개 생략)'));
+  });
+
+  it('2개는 그대로 둔다', () => {
+    const tree = lines('- row [ref=e1]:', ...[1, 2].flatMap((day) => disabledDay(day, day * 10)));
+    expect(compactSnapshot(tree)).toBe(tree);
+  });
+
+  it('사이에 활성 링크가 끼면 run 이 끊기고 활성 링크는 접지 않는다', () => {
+    const tree = lines(
+      '- row [ref=e1]:',
+      ...[1, 2].flatMap((day) => disabledDay(day, day * 10)),
+      '  - link "3" [ref=e99] [cursor=pointer]',
+      ...[4, 5, 6].flatMap((day) => disabledDay(day, day * 10)),
+    );
+    expect(compactSnapshot(tree)).toBe(
+      lines(
+        '- row [ref=e1]:',
+        ...[1, 2].flatMap((day) => disabledDay(day, day * 10)),
+        '  - link "3" [ref=e99] [cursor=pointer]',
+        '  - (비활성 3개 생략)',
+      ),
+    );
+  });
+
+  it('이름 있는 비활성 버튼도 접고, dialog 안에서도 동작한다', () => {
+    const tree = lines(
+      '- dialog "날짜 선택" [ref=e1]:',
+      '  - button "A" [disabled] [ref=e2]',
+      '  - button "B" [disabled] [ref=e3]',
+      '  - button "C" [disabled] [ref=e4]',
+      '  - button "선택 완료" [ref=e5] [cursor=pointer]',
+    );
+    expect(compactSnapshot(tree)).toBe(
+      lines(
+        OPEN_DIALOG_MARK,
+        '- dialog "날짜 선택" [ref=e1]:',
+        '  - (비활성 3개 생략)',
+        '  - button "선택 완료" [ref=e5] [cursor=pointer]',
+      ),
+    );
+  });
+});

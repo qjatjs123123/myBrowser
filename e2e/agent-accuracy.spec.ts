@@ -41,3 +41,18 @@ test.describe('같은 클릭 반복 (spec 024)', () => {
     await expect(sidebar.getByText('예약 시간을 골랐습니다')).toHaveCount(0);
   });
 });
+
+test.describe('잘린 날짜 레이어 (spec 025)', () => {
+  test.use({ fakeScenario: 'korail-layer' });
+
+  test('레이어가 12k 에서 잘려도 잘린 부분 목록의 [선택 완료] 를 눌러 출발일을 채운다', async ({ app, win, fixtureUrl }) => {
+    await openInActiveTab(win, fixtureUrl('korail-layer.html'), '코레일 날짜 레이어');
+    await runTask(win, '11월 30일로 출발일 골라줘');
+
+    const sidebar = getSidebar(win);
+    await expect(sidebar.getByRole('status', { name: '실행 상태' })).toHaveText('완료');
+    await expect(sidebar.getByRole('list', { name: '진행 단계' })).toContainText('‘선택 완료’ 클릭');
+    const tabPage = await findTabPage(app, 'korail-layer.html');
+    await expect(tabPage.locator('#departure')).toHaveValue('2026-11-30');
+  });
+});

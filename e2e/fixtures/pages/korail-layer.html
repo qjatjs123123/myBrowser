@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>코레일 날짜 레이어</title>
+    <style>
+      .field { position: relative; display: inline-block; }
+      .field a { position: absolute; inset: 0; }
+      #layer[hidden] { display: none; }
+    </style>
+  </head>
+  <!--
+    spec 025 — 코레일 날짜 레이어 재현(run #20~#40). 여러 달 비활성 날짜 칸 + 긴 안내 목록 때문에 레이어만 부분 snapshot 해도 12k 를 넘고,
+    맨 아래 [선택 완료] 가 잘린다. 활성 날짜는 11월 30일 하나. 30 → [선택 완료] 를 눌러야 출발일이 채워지고 [레이어닫기] 는 선택을 버린다.
+    출발일 textbox 위에 같은 이름의 link 가 겹쳐 textbox 클릭을 가로막는다.
+  -->
+  <body>
+    <h1>승차권 예매</h1>
+    <label for="departure">출발일</label>
+    <span class="field">
+      <input id="departure" aria-label="출발일" readonly placeholder="날짜를 선택해주세요" value="" />
+      <a href="#none" id="open" aria-label="출발일"></a>
+    </span>
+    <button type="button" id="hidden-target">숨길 버튼</button>
+    <div id="layer" role="dialog" aria-label="날짜 선택" hidden>
+      <h2>날짜 선택</h2>
+      <button type="button" id="close">레이어닫기</button>
+      <p id="picked"></p>
+      <div id="months"></div>
+      <div id="guide"></div>
+      <button type="button" id="done">선택 완료</button>
+    </div>
+    <script>
+      const months = document.getElementById('months');
+      const addMonth = (label, dayCount, activeDay) => {
+        const table = document.createElement('table');
+        const caption = document.createElement('caption');
+        caption.textContent = label;
+        table.appendChild(caption);
+        const row = table.insertRow();
+        for (let day = 1; day <= dayCount; day += 1) {
+          const link = document.createElement('a');
+          link.href = '#none';
+          link.innerHTML = `<span>${day}</span>`;
+          if (day === activeDay) link.addEventListener('click', () => (document.getElementById('picked').textContent = `${day}일 선택`));
+          else link.setAttribute('aria-disabled', 'true');
+          row.insertCell().appendChild(link);
+        }
+        months.appendChild(table);
+      };
+      addMonth('2026. 11.', 30, 30);
+      ['2026. 12.', '2027. 1.', '2027. 2.', '2027. 3.'].forEach((label) => addMonth(label, 31, 0));
+      const guide = document.getElementById('guide');
+      for (let i = 1; i <= 300; i += 1) {
+        const p = document.createElement('p');
+        p.textContent = `이용 안내 ${i} — 열차 시각과 좌석은 예매 시점에 따라 달라질 수 있습니다.`;
+        guide.appendChild(p);
+      }
+      const layer = document.getElementById('layer');
+      const picked = document.getElementById('picked');
+      document.getElementById('open').addEventListener('click', (event) => {
+        event.preventDefault();
+        layer.hidden = false;
+      });
+      document.getElementById('close').addEventListener('click', () => {
+        picked.textContent = '';
+        layer.hidden = true;
+      });
+      document.getElementById('done').addEventListener('click', () => {
+        if (picked.textContent === '30일 선택') document.getElementById('departure').value = '2026-11-30';
+        layer.hidden = true;
+      });
+    </script>
+  </body>
+</html>

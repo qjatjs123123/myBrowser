@@ -1,7 +1,19 @@
-import { chromium, type Browser, type Page } from 'playwright-core';
+import { chromium, errors, type Browser, type Page } from 'playwright-core';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { click, goBack, navigate, pressKey, readText, scroll, selectOption, typeText, waitFor } from '../actions';
+import {
+  click,
+  goBack,
+  navigate,
+  pressKey,
+  readText,
+  scroll,
+  selectOption,
+  TIMEOUT_REASON,
+  toActionFailure,
+  typeText,
+  waitFor,
+} from '../actions';
 
 import { findRef, getFixtureUrl, openWithSnapshot } from './helpers';
 
@@ -180,5 +192,28 @@ describe('프레임 접두사 ref (spec 015 FR-1)', () => {
     await expect(click(page, { ref: buttonRef })).resolves.toEqual({ ok: true, text: '클릭함' });
     const frame = page.frames().find((item) => item !== page.mainFrame());
     expect(await frame?.evaluate('window.__clickLog')).toEqual(['next']);
+  });
+});
+
+describe('가려진·보이지 않는 요소 클릭 사유 (spec 025 FR-3)', () => {
+  it('위에 겹친 link 가 가로막는 textbox 를 누르면 가로막힘 사유다', async () => {
+    const tree = await openWithSnapshot(page, 'korail-layer.html');
+    const result = await click(page, { ref: findRef(tree, 'textbox', '출발일') }, { timeoutMs: 1000 });
+    expect(result).toEqual({ ok: false, reason: TIMEOUT_REASON.intercepted });
+  });
+
+  it('snapshot 뒤 숨겨진 버튼을 누르면 보이지 않는 요소 사유다', async () => {
+    const tree = await openWithSnapshot(page, 'korail-layer.html');
+    const ref = findRef(tree, 'button', '숨길 버튼');
+    await page.locator('#hidden-target').evaluate((el) => {
+      (el as { style: { visibility: string } }).style.visibility = 'hidden';
+    });
+    const result = await click(page, { ref }, { timeoutMs: 1000 });
+    expect(result).toEqual({ ok: false, reason: TIMEOUT_REASON.notVisible });
+  });
+
+  it('원인이 없는 시간 초과는 첫 줄을 그대로 쓴다', () => {
+    const error = new errors.TimeoutError('locator.click: Timeout 10000ms exceeded.\nCall log:\n  - waiting');
+    expect(toActionFailure(error)).toEqual({ ok: false, reason: '시간 초과: locator.click: Timeout 10000ms exceeded.' });
   });
 });
