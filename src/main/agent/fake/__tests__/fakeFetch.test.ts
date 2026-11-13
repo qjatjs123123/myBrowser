@@ -135,3 +135,30 @@ describe('createFakeFetch — {{skillNames}}', () => {
     expect(await getEchoText()).toBe('적용한 스킬: 없음');
   });
 });
+
+describe('createFakeFetch — {{firstImage}} (spec 022)', () => {
+  const ECHO_SCENARIO: TFakeScenario = {
+    turns: [{ content: [{ type: 'text', text: '첫 화면 캡처: {{firstImage}}' }] }],
+  };
+
+  async function getEchoText(content: unknown): Promise<string> {
+    const { client } = createClient(ECHO_SCENARIO);
+    const message = await client.beta.messages
+      .stream({ ...BASE_PARAMS, messages: [{ role: 'user', content: content as string }] })
+      .finalMessage();
+    const block = message.content[0];
+    return block?.type === 'text' ? block.text : '';
+  }
+
+  it('첫 user content 에 image 블록이 있으면 있음 으로 바꾼다', async () => {
+    const content = [
+      { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } },
+      { type: 'text', text: '할 일' },
+    ];
+    expect(await getEchoText(content)).toBe('첫 화면 캡처: 있음');
+  });
+
+  it('첫 user content 가 문자열이면 없음 으로 바꾼다', async () => {
+    expect(await getEchoText('할 일')).toBe('첫 화면 캡처: 없음');
+  });
+});

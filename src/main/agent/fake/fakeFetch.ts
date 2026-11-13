@@ -25,6 +25,8 @@ const FAKE_TOKEN_COUNT = 10;
 const SKILL_NAMES_PLACEHOLDER = '{{skillNames}}';
 const SKILL_HEADING_PATTERN = /^## (.+)$/gm;
 const NO_SKILL_TEXT = '없음';
+/** text 블록의 `{{firstImage}}` — 첫 user 메시지에 image 블록이 있으면 있음, 없으면 없음 (spec 022, e2e 확인용) */
+const FIRST_IMAGE_PLACEHOLDER = '{{firstImage}}';
 /** refusal 턴의 가짜 분류 — 시나리오 형식에 category 가 없어 고정값을 쓴다 */
 const FAKE_REFUSAL_DETAILS = { type: 'refusal', category: 'general_harms', explanation: '(가짜 거절)' };
 
@@ -58,7 +60,7 @@ function createMessage({ turn, body, index, createToolUseId }: ICreateMessage) {
   const messageList = Array.isArray(body.messages) ? body.messages : [];
   const content = turn.content.map((block) =>
     block.type === 'text'
-      ? { type: 'text' as const, text: resolveSkillNames(block.text, body.system), citations: null }
+      ? { type: 'text' as const, text: resolveTextPlaceholders(block.text, body), citations: null }
       : {
           type: 'tool_use' as const,
           id: createToolUseId(),
@@ -84,6 +86,26 @@ function createMessage({ turn, body, index, createToolUseId }: ICreateMessage) {
 }
 
 type TFakeMessage = ReturnType<typeof createMessage>;
+
+/** text 블록의 자리표시자를 요청 본문으로 채운다 — 스킬 이름, 첫 화면 캡처 여부 */
+function resolveTextPlaceholders(text: string, body: TFakeRequestBody): string {
+  return resolveFirstImage(resolveSkillNames(text, body.system), body.messages);
+}
+
+function resolveFirstImage(text: string, messages: unknown[] | undefined): string {
+  if (!text.includes(FIRST_IMAGE_PLACEHOLDER)) return text;
+  return text.replaceAll(FIRST_IMAGE_PLACEHOLDER, hasFirstImage(messages) ? '있음' : '없음');
+}
+
+/** 첫 user 메시지 content 에 image 블록이 있는가 */
+function hasFirstImage(messages: unknown[] | undefined): boolean {
+  const first: unknown = messages?.[0];
+  if (typeof first !== 'object' || first === null || !('content' in first) || !Array.isArray(first.content))
+    return false;
+  return first.content.some(
+    (block: unknown) => typeof block === 'object' && block !== null && 'type' in block && block.type === 'image',
+  );
+}
 
 function resolveSkillNames(text: string, system: unknown): string {
   if (!text.includes(SKILL_NAMES_PLACEHOLDER)) return text;

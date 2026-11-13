@@ -71,6 +71,29 @@ export function buildSystemPrompt({ hasComputerToolset }: IBuildSystemPromptInpu
   ].join('\n\n');
 }
 
+/** 캡처를 붙였을 때 text 블록 끝 안내 (spec 022 FR-2) */
+export const FIRST_SCREENSHOT_NOTE =
+  '첨부: 할 일을 시작할 때의 현재 탭 화면이다. 화면 파악에만 쓰고, 클릭·입력은 snapshot 의 ref 로 한다.';
+
+/** 첫 user 메시지 블록 — 캡처 이미지 + 텍스트 (spec 022) */
+export type TFirstUserBlock =
+  { type: 'image'; source: { type: 'base64'; media_type: 'image/png'; data: string } } | { type: 'text'; text: string };
+
+/** 첫 user 메시지 content — 캡처(base64 PNG)가 있으면 [이미지, 텍스트+안내], 없으면 텍스트 그대로 (spec 022 FR-1·FR-2) */
+export function buildFirstUserContent({
+  text,
+  screenshotBase64,
+}: {
+  text: string;
+  screenshotBase64: string | null;
+}): string | TFirstUserBlock[] {
+  if (screenshotBase64 === null) return text;
+  return [
+    { type: 'image', source: { type: 'base64', media_type: 'image/png', data: screenshotBase64 } },
+    { type: 'text', text: `${text}\n\n${FIRST_SCREENSHOT_NOTE}` },
+  ];
+}
+
 export interface IFirstUserMessageInput {
   today: Date;
   pageUrl: string;

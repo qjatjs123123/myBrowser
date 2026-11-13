@@ -316,6 +316,7 @@ function createAgentRuntime(deps: IAgentRuntimeDeps) {
     guardOptions: { allowedHostList: env.mode === 'test' ? ['127.0.0.1'] : [] },
     maxToolCalls: MAX_TOOL_CALLS,
     maxInputTokens: env.maxInputTokens,
+    isFirstScreenshotEnabled: env.isFirstScreenshotEnabled,
     log,
     onAuthFailure: () => account.handleAuthFailure(),
     onRunEnd: () => void account.refreshCredits(),
