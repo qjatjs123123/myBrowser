@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 
-import { app, type BrowserWindow, ipcMain, Menu, safeStorage, screen, session } from 'electron';
+import { app, type BrowserWindow, ipcMain, Menu, Notification, safeStorage, screen, session } from 'electron';
 
 import { DEVICE_NAME_MAX_LENGTH } from '@shared/account/gateway';
 import { FakeScenarioSchema, type TFakeScenario } from '@shared/agent/fakeScenario';
@@ -12,16 +12,19 @@ import { AgentEventSchema } from '@shared/ipc/agent';
 import { AccountStatusSchema } from '@shared/ipc/account';
 import { IPC } from '@shared/ipc/channels';
 import { ShortcutPressedEventSchema } from '@shared/ipc/shortcut';
-import { TabsChangedEventSchema } from '@shared/ipc/tabs';
+import { FindUpdatedEventSchema, TabsChangedEventSchema } from '@shared/ipc/tabs';
 import { WindowStateSchema, type TWindowState } from '@shared/ipc/window';
 import type { ISkillStore } from '@shared/ipc/skills';
+import type { TAgentEvent } from '@shared/ipc/agent';
 
 import { createAccountService, createGatewayClient, sleepWithSignal, type IAccountService } from './account';
 import { createModelProfile, type IModelProfile } from './agent/profiles';
 import { createAgentService } from './agent/service';
+import { createAgentTabActivity } from './app/agentTabActivity';
 import { getCdpSwitches, removeStaleActivePort } from './app/cdp';
 import { createCredentialStore } from './app/credentialStore';
 import { createAppMenuTemplate } from './app/menu';
+import { createRunNotifier, type IRunNotification } from './app/runNotifier';
 import {
   createMainWindow,
   createNativeFrame,
@@ -44,6 +47,8 @@ import { createSidebarEmitter } from './ipc/emit';
 import { createAccountHandlers } from './ipc/handlers/account';
 import { createAgentHandlers } from './ipc/handlers/agent';
 import { createAppHandlers } from './ipc/handlers/app';
+import { createBookmarksHandlers } from './ipc/handlers/bookmarks';
+import { createHistoryHandlers } from './ipc/handlers/history';
 import { createRunsHandlers } from './ipc/handlers/runs';
 import { createSkillsHandlers } from './ipc/handlers/skills';
 import { createWindowHandlers } from './ipc/handlers/window';
@@ -51,6 +56,8 @@ import { createTabsHandlers } from './ipc/handlers/tabs';
 import { registerIpc } from './ipc/registry';
 import { log } from './log';
 import { openDatabase } from './store/db';
+import { createBookmarkRepo } from './store/repos/bookmarks';
+import { createHistoryRepo } from './store/repos/history';
 import { createRunHistoryRepo } from './store/repos/runHistory';
 import { createSkillRepo } from './store/repos/skills';
 import { createRunRepo } from './store/repos/runs';
@@ -93,10 +100,20 @@ function startBrowser(): void {
   // 종료 중에 탭 상태 변경(로드 실패 등)이 늦게 오면 창이 이미 파괴돼 webContents 접근이 throw 한다 (spec 008)
   const emitToSidebar = createSidebarEmitter(() => (window.isDestroyed() ? null : window.webContents));
   let shortcutInput: ReturnType<typeof createShortcutInputHandler> = () => {};
+  const runDatabase = openDatabase(join(app.getPath('userData'), DATABASE_FILE_NAME));
+  database = runDatabase;
+  const storeDeps = { now: () => new Date(), createId: randomUUID };
+  const historyRepo = createHistoryRepo(runDatabase, storeDeps);
   const tabManager = new TabManager({
     host: window.contentView,
     createView: () => createElectronTabView({ onInput: (event, input) => shortcutInput(event, input) }),
     onChanged: (snapshot) => emitToSidebar(IPC.tabs.changed, TabsChangedEventSchema, snapshot),
+    // 방문 기록은 url·제목만 (spec 021 SR-2) — 에이전트가 연 탭도 같이 남는다.
+    // 탭 View 는 창보다 늦게 사라져 종료 뒤(DB 닫힘)에도 로드 완료가 올 수 있다 — 그때는 남기지 않는다
+    onPageLoaded: ({ url, title }) => {
+      if (database) historyRepo.record({ url, title });
+    },
+    onFindUpdated: (event) => emitToSidebar(IPC.tabs.findUpdated, FindUpdatedEventSchema, event),
   });
   const runner = createShortcutRunner({
     tabManager,
@@ -109,16 +126,20 @@ function startBrowser(): void {
   shortcutInput = createShortcutInputHandler(runner, process.platform);
   attachShortcuts(window.webContents, runner, process.platform);
   accountService = createAccountRuntime(tabManager, emitToSidebar);
-  const runDatabase = openDatabase(join(app.getPath('userData'), DATABASE_FILE_NAME));
-  database = runDatabase;
   // 핸들러와 에이전트가 같은 저장소를 쓴다 — 저장 직후 다음 run 에 반영 (spec 013)
-  const skillRepo = createSkillRepo(runDatabase, { now: () => new Date(), createId: randomUUID });
+  const skillRepo = createSkillRepo(runDatabase, storeDeps);
   agentService = createAgentRuntime({
     tabManager,
     emitToSidebar,
     account: accountService,
     runDatabase,
     skills: skillRepo,
+    tabActivity: createAgentTabActivity({ setActivity: (id, activity) => tabManager.setAgentActivity(id, activity) }),
+    notifier: createRunNotifier({
+      isWindowFocused: () => window.isDestroyed() || window.isFocused(),
+      show: showOsNotification,
+      focusWindow: () => focusMainWindow(window),
+    }),
   });
   registerIpc(ipcMain, {
     ...createAppHandlers({ getName: () => app.getName(), getVersion: () => app.getVersion(), mode: env.mode }),
@@ -131,6 +152,8 @@ function startBrowser(): void {
     ),
     ...createRunsHandlers(createRunHistoryRepo(runDatabase)),
     ...createSkillsHandlers(skillRepo),
+    ...createBookmarksHandlers(createBookmarkRepo(runDatabase, storeDeps)),
+    ...createHistoryHandlers(historyRepo),
   });
   tabManager.createTab();
 }
@@ -257,26 +280,37 @@ interface IAgentRuntimeDeps {
   runDatabase: ReturnType<typeof openDatabase>;
   /** 켜진 스킬 — run 시작 때 시스템 프롬프트 두 번째 블록으로 (spec 013) */
   skills: Pick<ISkillStore, 'listEnabled'>;
+  /** 에이전트가 일하는 탭 표시 (spec 021 FR-12) */
+  tabActivity: ReturnType<typeof createAgentTabActivity>;
+  /** 창 포커스가 없을 때 OS 알림 (spec 021 FR-13) */
+  notifier: ReturnType<typeof createRunNotifier>;
 }
 
 /** 에이전트 실행 서비스 조립 — 저장소·탭 포트·드라이버·모델 클라이언트·이벤트 발신 */
-function createAgentRuntime({ tabManager, emitToSidebar, account, runDatabase, skills }: IAgentRuntimeDeps) {
-  const tabsPort: ITabsPort = {
+function createAgentRuntime(deps: IAgentRuntimeDeps) {
+  const { tabManager, emitToSidebar, account, runDatabase, skills, tabActivity, notifier } = deps;
+  const tabsPort: ITabsPort = tabActivity.wrapTabsPort({
     list: () => tabManager.getSnapshot(),
     activate: (id) => tabManager.activateTab(id),
     create: (url) => tabManager.createTab(url),
     getCdpTargetId: (id) => tabManager.getCdpTargetId(id),
+  });
+  const emitAgentEvent = (event: TAgentEvent) => {
+    emitToSidebar(IPC.agent.event, AgentEventSchema, event);
+    tabActivity.handleEvent(event);
+    notifier.handleEvent(event);
   };
   return createAgentService({
     profile: createRuntimeProfile(account),
     createDriver: async () => {
       const cdp = await getCdp();
       const startTabId = tabManager.getActiveTabId() ?? tabManager.createTab();
+      tabActivity.startRun(startTabId);
       return createBrowserDriver({ tabs: tabsPort, cdp, startTabId });
     },
     runStore: createRunRepo(runDatabase),
     skills,
-    emit: (event) => emitToSidebar(IPC.agent.event, AgentEventSchema, event),
+    emit: emitAgentEvent,
     now: () => new Date(),
     createId: randomUUID,
     guardOptions: { allowedHostList: env.mode === 'test' ? ['127.0.0.1'] : [] },
@@ -286,6 +320,34 @@ function createAgentRuntime({ tabManager, emitToSidebar, account, runDatabase, s
     onAuthFailure: () => account.handleAuthFailure(),
     onRunEnd: () => void account.refreshCredits(),
   });
+}
+
+/** 알림 객체가 click 전에 GC 되지 않도록 닫히거나 눌릴 때까지 잡아 둔다 */
+const liveNotificationSet = new Set<Notification>();
+
+/**
+ * OS 알림 어댑터 (spec 021 FR-13·14) — isSupported 는 알림마다 읽는다(캐시 금지, e2e 가 패치한다).
+ * 알림 클릭은 창 포커스만 한다 — 승인·거부 동작 없음 (SR-1)
+ */
+function showOsNotification({ title, body, onClick }: IRunNotification & { onClick: () => void }): void {
+  if (!Notification.isSupported()) return;
+  const notification = new Notification({ title, body });
+  liveNotificationSet.add(notification);
+  const release = () => liveNotificationSet.delete(notification);
+  notification.on('click', () => {
+    release();
+    onClick();
+  });
+  notification.on('close', release);
+  notification.show();
+}
+
+/** 최소화돼 있으면 복원하고 앞으로 가져온다 */
+function focusMainWindow(window: BrowserWindow): void {
+  if (window.isDestroyed()) return;
+  if (window.isMinimized()) window.restore();
+  window.show();
+  window.focus();
 }
 
 void app.whenReady().then(() => {
@@ -310,11 +372,15 @@ app.on('before-quit', (event) => {
     })
     .catch((error: unknown) => log.warn('app', 'CDP 연결 종료 실패', error))
     .finally(() => {
-      database?.close();
-      database = null;
       isCookieFlushed = true;
       app.quit();
     });
+});
+
+// DB 는 창·탭이 모두 닫힌 뒤에 닫는다 — 종료 직전에 끝난 탭 로드(방문 기록)·renderer 조회가 닫힌 DB 를 건드리지 않게 (spec 021)
+app.on('will-quit', () => {
+  database?.close();
+  database = null;
 });
 
 app.on('window-all-closed', () => app.quit());

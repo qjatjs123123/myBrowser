@@ -15,6 +15,12 @@ const EMPTY_SKILL_LIST_RESULT = { ok: true, data: { skillList: [] } } as const;
 const EMPTY_TAB_LIST_RESULT = { ok: true, data: { tabList: [], activeTabId: null } } as const;
 /** runs.list 기본 응답 — 기록 없음 (spec 019 추천 훅이 마운트 때 부른다) */
 const EMPTY_RUN_LIST_RESULT = { ok: true, data: { runList: [] } } as const;
+/** bookmarks.* 기본 응답 — 북마크 없음 (spec 021) */
+const EMPTY_BOOKMARK_LIST_RESULT = { ok: true, data: { bookmarkList: [] } } as const;
+/** history.list 기본 응답 — 기록 없음 (spec 021) */
+const EMPTY_HISTORY_LIST_RESULT = { ok: true, data: { entryList: [] } } as const;
+/** 돌려줄 데이터 없는 성공 */
+const EMPTY_OK_RESULT = { ok: true, data: null } as const;
 
 Object.defineProperty(window, 'api', {
   configurable: true,
@@ -32,6 +38,10 @@ Object.defineProperty(window, 'api', {
       stop: vi.fn(),
       setBounds: vi.fn(),
       onChanged: createSubscribeMock(),
+      zoom: vi.fn(() => Promise.resolve(EMPTY_OK_RESULT)),
+      find: vi.fn(() => Promise.resolve(EMPTY_OK_RESULT)),
+      stopFind: vi.fn(() => Promise.resolve(EMPTY_OK_RESULT)),
+      onFindUpdated: createSubscribeMock(),
     },
     shortcut: { onPressed: createSubscribeMock() },
     agent: {
@@ -64,6 +74,16 @@ Object.defineProperty(window, 'api', {
       create: vi.fn(() => Promise.resolve(EMPTY_SKILL_LIST_RESULT)),
       update: vi.fn(() => Promise.resolve(EMPTY_SKILL_LIST_RESULT)),
       delete: vi.fn(() => Promise.resolve(EMPTY_SKILL_LIST_RESULT)),
+    },
+    bookmarks: {
+      list: vi.fn(() => Promise.resolve(EMPTY_BOOKMARK_LIST_RESULT)),
+      add: vi.fn(() => Promise.resolve(EMPTY_BOOKMARK_LIST_RESULT)),
+      remove: vi.fn(() => Promise.resolve(EMPTY_BOOKMARK_LIST_RESULT)),
+    },
+    history: {
+      list: vi.fn(() => Promise.resolve(EMPTY_HISTORY_LIST_RESULT)),
+      remove: vi.fn(() => Promise.resolve(EMPTY_OK_RESULT)),
+      clear: vi.fn(() => Promise.resolve(EMPTY_OK_RESULT)),
     },
   },
 });

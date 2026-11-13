@@ -23,6 +23,10 @@ function createMockWebContentsView(): Record<string, unknown> {
       focus: vi.fn(),
       close: vi.fn(),
       isDestroyed: vi.fn(),
+      setZoomFactor: vi.fn(),
+      getZoomFactor: vi.fn(() => 1),
+      findInPage: vi.fn(),
+      stopFindInPage: vi.fn(),
       debugger: { attach: vi.fn(), isAttached: vi.fn(), sendCommand: vi.fn() },
       navigationHistory: {
         canGoBack: vi.fn(),

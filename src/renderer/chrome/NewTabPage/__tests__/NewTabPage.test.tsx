@@ -11,7 +11,13 @@ const OK = { ok: true, data: null } as const;
 const ENCODED_QUERY = encodeURIComponent('강남 맛집');
 
 function renderNewTabPage(overrides: Partial<Parameters<typeof NewTabPage>[0]> = {}) {
-  const props = { focusSignal: 0, onNavigate: vi.fn().mockResolvedValue(OK), ...overrides };
+  const props = {
+    focusSignal: 0,
+    historyFocusSignal: 0,
+    bookmarkList: [],
+    onNavigate: vi.fn().mockResolvedValue(OK),
+    ...overrides,
+  };
   const view = render(<NewTabPage {...props} />);
   return { props, view, input: screen.getByRole('textbox', { name: '새 탭 검색' }) };
 }

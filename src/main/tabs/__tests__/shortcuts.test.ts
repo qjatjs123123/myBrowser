@@ -23,6 +23,13 @@ describe('toShortcutAction', () => {
     [key({ key: 'ArrowRight', alt: true }), 'goForward'],
     [key({ key: 'Tab', control: true }), 'nextTab'],
     [key({ key: 'Tab', control: true, shift: true }), 'prevTab'],
+    [key({ key: 'f', control: true }), 'openFindBar'],
+    [key({ key: 'd', control: true }), 'toggleBookmark'],
+    [key({ key: 'h', control: true }), 'openHistory'],
+    [key({ key: '=', control: true }), 'zoomIn'],
+    [key({ key: '+', control: true, shift: true }), 'zoomIn'],
+    [key({ key: '-', control: true }), 'zoomOut'],
+    [key({ key: '0', control: true }), 'zoomReset'],
   ])('linux 에서 %o 는 %s 이다', (input, action) => {
     expect(toShortcutAction(input, 'linux')).toBe(action);
   });
@@ -33,6 +40,22 @@ describe('toShortcutAction', () => {
 
   it('darwin 에서는 Ctrl+T 가 단축키가 아니다', () => {
     expect(toShortcutAction(key({ key: 't', control: true }), 'darwin')).toBeNull();
+  });
+
+  it('darwin 에서 Cmd+H 는 단축키가 아니다 (OS 숨기기)', () => {
+    expect(toShortcutAction(key({ key: 'h', meta: true }), 'darwin')).toBeNull();
+  });
+
+  it('darwin 에서 Cmd+Shift+H 는 openHistory 다', () => {
+    expect(toShortcutAction(key({ key: 'H', meta: true, shift: true }), 'darwin')).toBe('openHistory');
+  });
+
+  it('darwin 에서 Cmd+F 는 openFindBar 다', () => {
+    expect(toShortcutAction(key({ key: 'f', meta: true }), 'darwin')).toBe('openFindBar');
+  });
+
+  it('linux 에서 Ctrl+Shift+H 는 단축키가 아니다', () => {
+    expect(toShortcutAction(key({ key: 'H', control: true, shift: true }), 'linux')).toBeNull();
   });
 
   it('keyUp 은 무시한다', () => {
@@ -76,6 +99,7 @@ function setupRunner(activeTabId: string | null = 'tab-1') {
     reload: vi.fn(),
     goBack: vi.fn(),
     goForward: vi.fn(),
+    zoom: vi.fn(),
     getActiveTabId: vi.fn(() => activeTabId),
   };
   const emitShortcut = vi.fn();
@@ -130,6 +154,46 @@ describe('createShortcutRunner', () => {
     const { runner, tabManager } = setupRunner(null);
     runner('closeTab');
     expect(tabManager.closeTab).not.toHaveBeenCalled();
+  });
+});
+
+describe('createShortcutRunner 찾기·북마크·기록·확대 (spec 021)', () => {
+  it('openFindBar 는 크롬에 포커스하고 openFindBar 를 보낸다', () => {
+    const { runner, emitShortcut, focusChrome } = setupRunner();
+    runner('openFindBar');
+    expect(focusChrome).toHaveBeenCalled();
+    expect(emitShortcut).toHaveBeenCalledWith('openFindBar');
+  });
+
+  it('toggleBookmark 는 포커스를 옮기지 않고 toggleBookmark 를 보낸다', () => {
+    const { runner, emitShortcut, focusChrome } = setupRunner();
+    runner('toggleBookmark');
+    expect(focusChrome).not.toHaveBeenCalled();
+    expect(emitShortcut).toHaveBeenCalledWith('toggleBookmark');
+  });
+
+  it('openHistory 는 새 탭을 열고 기록 검색 포커스를 보낸다', () => {
+    const { runner, tabManager, emitShortcut, focusChrome } = setupRunner();
+    runner('openHistory');
+    expect(tabManager.createTab).toHaveBeenCalledWith();
+    expect(focusChrome).toHaveBeenCalled();
+    expect(emitShortcut).toHaveBeenCalledWith('focusHistorySearch');
+  });
+
+  it.each([
+    ['zoomIn', 'in'],
+    ['zoomOut', 'out'],
+    ['zoomReset', 'reset'],
+  ] as const)('%s 는 활성 탭을 %s 방향으로 확대/축소한다', (action, direction) => {
+    const { runner, tabManager } = setupRunner();
+    runner(action);
+    expect(tabManager.zoom).toHaveBeenCalledWith('tab-1', direction);
+  });
+
+  it('활성 탭이 없으면 zoomIn 은 아무것도 하지 않는다', () => {
+    const { runner, tabManager } = setupRunner(null);
+    runner('zoomIn');
+    expect(tabManager.zoom).not.toHaveBeenCalled();
   });
 });
 

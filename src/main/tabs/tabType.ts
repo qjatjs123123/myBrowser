@@ -14,6 +14,20 @@ export interface ITabViewState {
   isLoading: boolean;
   canGoBack: boolean;
   canGoForward: boolean;
+  /** 확대/축소 배율(%) — 같은 호스트 탭끼리 공유된다 (spec 021) */
+  zoomPercent: number;
+}
+
+/** [탭] 페이지 내 찾기 결과 — found-in-page 의 마지막 갱신 */
+export interface ITabFindResult {
+  activeMatch: number;
+  matchCount: number;
+}
+
+/** [탭] 페이지 내 찾기 옵션 — isNext=false 면 새 검색 */
+export interface ITabFindOptions {
+  isForward: boolean;
+  isNext: boolean;
 }
 
 /**
@@ -31,6 +45,16 @@ export interface ITabView {
   onStateChanged(cb: () => void): void;
   /** 페이지가 팝업(target=_blank·window.open)을 열려고 할 때 대상 url 로 호출된다 */
   onOpenWindow(cb: (url: string) => void): void;
+  /** 확대/축소 배율(%) 적용 */
+  setZoomPercent(percent: number): void;
+  findInPage(text: string, options: ITabFindOptions): void;
+  /** 찾기 끝 — 강조를 지운다 */
+  stopFindInPage(): void;
+  onFindUpdated(cb: (result: ITabFindResult) => void): void;
+  /** 메인 프레임 로드가 끝날 때마다 — 방문 기록용 (spec 021 FR-4) */
+  onPageLoaded(cb: (page: { url: string; title: string }) => void): void;
+  /** Ctrl+마우스 휠 — 위면 in, 아래면 out */
+  onZoomWheel(cb: (direction: 'in' | 'out') => void): void;
   setBounds(rect: ITabRect): void;
   setVisible(isVisible: boolean): void;
   /** 모서리 반지름(px) — Linux 둥근 창의 모서리에 맞춘다 (spec 014). View 의 네 모서리가 같이 깎인다 */

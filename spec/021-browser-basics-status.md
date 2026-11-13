@@ -1,6 +1,6 @@
 # Spec: 브라우저 기본기(북마크·방문 기록·페이지 내 찾기·확대/축소) + 에이전트 실행 상태 표시·OS 알림
 
-> **상태**: 🚧 진행중
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-13
 > **묶음**: 기반 (직접 방식 — 묶음 하나, 메인이 Task 1→10 순서대로. 공유 파일 소유자도 이 묶음)
 > **관련 spec**: 002(크롬형 브라우저·단축키·새 탭 페이지), 003·004(에이전트 run·승인·질문 이벤트), 011(에이전트 버튼 점), 012(단축키 Ctrl+Shift+A), 013(SQLite 저장소 패턴)
@@ -134,7 +134,7 @@ CREATE INDEX history_visited_at ON history (visited_at DESC);
 > 모든 Task 완료 후 **`desktop/refactor` 적용 모드**가 의무 실행된다 (vibe-build 에서는 6단계).
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: IPC 계약 — 스키마·채널·window.api 타입·preload·mock**
+- [x] **Task 1: IPC 계약 — 스키마·채널·window.api 타입·preload·mock**
   - **묶음**: 기반
   - **작업**: 위 IPC 계약대로 `shared/ipc/tabs.ts`(TabState 필드 2개, Zoom·Find 스키마, FindUpdatedEvent), `shared/ipc/bookmarks.ts`·`history.ts`(스키마·상수 `BOOKMARK_COUNT_MAX=500`·`HISTORY_ROW_MAX=5000`·메시지), `shortcut.ts` enum, `channels.ts`, `api.ts`, `preload/index.ts`, `vitest.setup.ts` mock(기본 빈 목록), `e2e/app-shell.spec.ts` — 테스트 이름과 `apiKeyList` 끝에 `bookmarks`, `history` 를 추가한다 (preload 노출과 같은 커밋, spec 013 Task 1 과 같은 방식). TabState 필드 추가로 깨지는 소비자(TabManager.toTabState 는 `zoomPercent: 100, agentActivity: null` 임시 기본, 테스트 픽스처의 탭 상태 객체)를 같은 Task 에서 고친다.
   - **파일**: `src/shared/ipc/{tabs,bookmarks,history,shortcut,channels,api}.ts`, `src/preload/index.ts`, `vitest.setup.ts`, `e2e/app-shell.spec.ts`, `src/main/tabs/tabManager.ts`, 탭 상태를 만드는 기존 테스트
@@ -144,7 +144,7 @@ CREATE INDEX history_visited_at ON history (visited_at DESC);
   - **통과 기준**: 테스트 + 검증 통과, 기존 테스트 전부 green
   - **커밋**: `feat: 북마크·방문 기록·찾기·확대 IPC 계약 (spec 021 Task 1)`
 
-- [ ] **Task 2: 탭 확대/축소·찾기·로드 완료 알림·에이전트 표시 (TabManager)**
+- [x] **Task 2: 탭 확대/축소·찾기·로드 완료 알림·에이전트 표시 (TabManager)**
   - **묶음**: 기반
   - **작업**: `tabs/zoom.ts` — `ZOOM_PERCENT_LIST`, `getNextZoomPercent(current, direction)`(목록에 없는 값이면 가장 가까운 단계 기준). `ITabView` 에 `getZoomPercent/setZoomPercent`, `findInPage(text, { isForward, isNext })`, `stopFindInPage()`, `onFindUpdated(cb)`, `onPageLoaded(cb({url,title}))`, `onZoomWheel(cb('in'|'out'))` 추가, `electronTabView.ts` 구현(`setZoomFactor`, `found-in-page` finalUpdate, `did-finish-load` 메인 프레임, `zoom-changed`). TabManager: `zoom(id, dir)`(적용 후 모든 탭 refresh — 같은 호스트 공유), `find(id, …)`, `stopFind(id)`, `setAgentActivity(id|null, activity|null)`(닫히면 지움), 옵션 `onPageLoaded?({tabId,url,title})`·`onFindUpdated?(event)`, 스냅샷에 `zoomPercent`·`agentActivity`. 이동(did-navigate) 시 찾기 중단. electronTabView 는 `findInPage(text, { forward: isForward, findNext: !isNext })` 로 부른다 (Electron 의 findNext=true 는 "새 검색 세션 시작"이라 spec 의 isNext 와 뜻이 반대).
   - **파일**: `src/main/tabs/{zoom,tabType,electronTabView,tabManager}.ts`, `vitest.setup.main.ts`(mock webContents 에 `setZoomFactor/getZoomFactor/findInPage/stopFindInPage`)
@@ -154,7 +154,7 @@ CREATE INDEX history_visited_at ON history (visited_at DESC);
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat(tabs): 확대/축소·페이지 내 찾기·에이전트 탭 표시 (spec 021 Task 2)`
 
-- [ ] **Task 3: 단축키 — 찾기·북마크·기록·확대/축소**
+- [x] **Task 3: 단축키 — 찾기·북마크·기록·확대/축소**
   - **묶음**: 기반
   - **작업**: `TShortcutAction` 에 `openFindBar|toggleBookmark|openHistory|zoomIn|zoomOut|zoomReset`, 키 표(위 단축키 표). mac 은 Cmd+Shift+H = openHistory(Cmd+H 는 null — OS 숨기기). `IShortcutTabTarget` 에 `zoom(id, dir)`.
   - **파일**: `src/main/tabs/shortcuts.ts`
@@ -164,7 +164,7 @@ CREATE INDEX history_visited_at ON history (visited_at DESC);
   - **통과 기준**: 기존 단축키 테스트 그대로 통과
   - **커밋**: `feat(tabs): 찾기·북마크·기록·확대 단축키 (spec 021 Task 3)`
 
-- [ ] **Task 4: 북마크·방문 기록 저장소 + 마이그레이션 003**
+- [x] **Task 4: 북마크·방문 기록 저장소 + 마이그레이션 003**
   - **묶음**: 기반
   - **작업**: `003_bookmarks_history.sql`, `db.ts` MIGRATION_LIST. `repos/bookmarks.ts` — `list/add/remove`(add: url 고유 upsert·500 상한 `LIMIT`, 빈 제목은 url). `repos/history.ts` — `record({url,title})`(최근 줄과 url 같으면 갱신, 5000 초과분 삭제), `list({query,limit})`(LIKE, `%`·`_` 이스케이프), `remove(id)`, `clear()`. 의존 주입 `now`·`createId`.
   - **파일**: `src/main/store/migrations/003_bookmarks_history.sql`, `src/main/store/db.ts`, `src/main/store/repos/{bookmarks,history}.ts`
@@ -174,7 +174,7 @@ CREATE INDEX history_visited_at ON history (visited_at DESC);
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat(store): 북마크·방문 기록 저장소 (spec 021 Task 4)`
 
-- [ ] **Task 5: 에이전트 탭 표시·OS 알림 모듈**
+- [x] **Task 5: 에이전트 탭 표시·OS 알림 모듈**
   - **묶음**: 기반
   - **작업**: `app/agentTabActivity.ts`, `app/runNotifier.ts`(`toRunNotification` + `createRunNotifier`, 120자 자르기) — 위 흐름대로. electron import 없음.
   - **파일**: `src/main/app/{agentTabActivity,runNotifier}.ts`
@@ -184,7 +184,7 @@ CREATE INDEX history_visited_at ON history (visited_at DESC);
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat(app): 에이전트 탭 표시·실행 알림 (spec 021 Task 5)`
 
-- [ ] **Task 6: IPC 핸들러 + main 조립**
+- [x] **Task 6: IPC 핸들러 + main 조립**
   - **묶음**: 기반
   - **작업**: `handlers/bookmarks.ts`·`handlers/history.ts`(safeParse → repo → 봉투, 응답 parse), `handlers/tabs.ts` 에 zoom·find·stopFind. `index.ts`: 저장소 생성, TabManager `onPageLoaded → history.record`, `onFindUpdated → emit tabs:findUpdated`, tabsPort 를 `tabActivity.wrapTabsPort` 로 감싸기·createDriver 에서 `startRun`, agent emit 감싸기(notifier·tabActivity), electron Notification 어댑터(`Notification.isSupported()`·`window.isFocused()` 는 알림마다 호출 시점에 읽는다 — 캐시 금지), 단축키 러너에 zoom.
   - **파일**: `src/main/ipc/handlers/{bookmarks,history,tabs}.ts`, `src/main/index.ts`
@@ -194,7 +194,7 @@ CREATE INDEX history_visited_at ON history (visited_at DESC);
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat(ipc): 북마크·방문 기록·찾기·확대 핸들러 조립 (spec 021 Task 6)`
 
-- [ ] **Task 7: renderer 훅 — useBookmarks·useHistory·useFindInPage**
+- [x] **Task 7: renderer 훅 — useBookmarks·useHistory·useFindInPage**
   - **묶음**: 기반
   - **작업**: `useBookmarks()`(list 로드, `isBookmarked(url)`, `toggle(tab)` — 실패는 결과 봉투 반환), `useHistory({ query })`(query 바뀌면 200ms 디바운스 후 list, `remove(id)`·`clear()` 후 다시 읽기), `useFindInPage(tab)`(`isOpen/open/close/search(text)/next/prev`, `onFindUpdated` 구독 — 같은 tabId 만, tabId 또는 활성 탭 url 이 바뀌면 close 하고 `tabs.stopFind` 호출 — 테스트: url 변경 시 isOpen=false·stopFind 호출).
   - **파일**: `src/renderer/hooks/{useBookmarks,useHistory,useFindInPage}.ts`
@@ -204,7 +204,7 @@ CREATE INDEX history_visited_at ON history (visited_at DESC);
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat(chrome): 북마크·방문 기록·찾기 훅 (spec 021 Task 7)`
 
-- [ ] **Task 8: 크롬 UI — 찾기 줄·북마크 별·배율 버튼·새 탭 북마크/기록·탭 에이전트 표시**
+- [x] **Task 8: 크롬 UI — 찾기 줄·북마크 별·배율 버튼·새 탭 북마크/기록·탭 에이전트 표시**
   - **묶음**: 기반
   - **작업**: `chrome/FindBar/`(입력 `aria-label="찾을 내용"`, `n/m` `aria-live="polite"`, [이전 결과]·[다음 결과]·[찾기 닫기], Enter/Shift+Enter/Esc), `chrome/BookmarkButton/`(lucide Star, aria-label "북마크", aria-pressed, 새 탭이면 disabled), `chrome/ZoomBadge/`(100% 면 null), `NewTabPage` 에 「북마크」 nav(aria-label "북마크") 타일 + 「방문 기록」 region(검색 `aria-label="방문 기록 검색"`, list `aria-label="방문 기록 목록"`, 항목별 [기록에서 지우기], [방문 기록 모두 지우기] 두 번 누르기), `focusHistorySearch` 신호, `TabItem` 에 agentActivity 표시(탭 button 의 **형제**로 — 탭 이름 불변). `BrowserChrome` 조립: 단축키 `openFindBar`(새 탭이 아니면)·`toggleBookmark`·`focusHistorySearch`, 찾기 줄은 툴바 아래·콘텐츠 영역 밖. 디자인은 `.claude/skills/desktop/design/SKILL.md`.
   - **파일**: `src/renderer/chrome/{FindBar,BookmarkButton,ZoomBadge}/index.tsx`, `src/renderer/chrome/NewTabPage/{index,BookmarkSection,HistorySection}.tsx`, `src/renderer/chrome/TabBar/TabItem.tsx`, `src/renderer/chrome/BrowserChrome/index.tsx`
@@ -214,7 +214,7 @@ CREATE INDEX history_visited_at ON history (visited_at DESC);
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat(chrome): 찾기 줄·북마크·배율·방문 기록·에이전트 탭 표시 화면 (spec 021 Task 8)`
 
-- [ ] **Task 9: e2e — 브라우저 기본기**
+- [x] **Task 9: e2e — 브라우저 기본기**
   - **묶음**: 기반
   - **작업**: `e2e/fixtures/pages/browser-find.html`(같은 단어 3번). `e2e/browser-basics.spec.ts`: ① 픽스처 열기 → [북마크] 누름 → aria-pressed → 새 탭에 북마크 타일 → 누르면 이동 → 재실행(같은 userData) 후에도 타일 남음 ② 방문 기록 목록에 두 픽스처 제목, 검색으로 하나만, [기록에서 지우기], [방문 기록 모두 지우기] 두 번 ③ Ctrl+F(탭 페이지 포커스 상태에서 키) → 단어 입력 → `1/3` → Enter `2/3` → Esc 로 닫힘 → 다시 열고 다른 픽스처로 이동하면 찾기 줄이 사라진다 ④ Ctrl+= 두 번 → 배율 버튼 "125%" → 누르면 사라짐 ⑤ Ctrl+H → 새 탭 + 기록 검색 포커스.
   - **파일**: `e2e/browser-basics.spec.ts`, `e2e/fixtures/pages/browser-find.html`
@@ -224,7 +224,7 @@ CREATE INDEX history_visited_at ON history (visited_at DESC);
   - **통과 기준**: 기존 e2e(`browser-chrome`·`app-shell`·`task-suggestion`) 통과 — 새 탭 페이지 문구가 기존 선택자와 겹치면 고친다
   - **커밋**: `test(e2e): 북마크·방문 기록·찾기·확대 흐름 (spec 021 Task 9)`
 
-- [ ] **Task 10: e2e — 에이전트 탭 표시·알림**
+- [x] **Task 10: e2e — 에이전트 탭 표시·알림**
   - **묶음**: 기반
   - **작업**: `e2e/agent-status.spec.ts` (가짜 모델 — 기존 승인 시나리오 재사용 가능하면 재사용, 아니면 `e2e/fixtures/model/agent-status.json`): ① run 시작 → 대상 탭 항목에 "에이전트 작업 중" → 승인 대기 중 "에이전트 응답 대기" → [거부]/종료 후 표시 없음 ② `app.evaluate` 로 메인 창 `isFocused = () => false`, `Notification.isSupported = () => true`, `Notification.prototype.show` 기록 패치 → 승인 대기·종료 때 알림 제목 기록 확인 (승인 전 클릭 미실행 확인 — 픽스처 `__clickLog` 비어 있음).
   - **파일**: `e2e/agent-status.spec.ts`, (필요 시) `e2e/fixtures/model/agent-status.json`
@@ -240,3 +240,5 @@ CREATE INDEX history_visited_at ON history (visited_at DESC);
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-13 | 1~10 | 단위 2115 통과, e2e 70/70 (browser-basics 6·agent-status 2 추가), 앱 에러 0 | 검증 반영 커밋 1회 (직접 방식) | 전체 e2e 에서 종료 중 닫힌 DB 접근 발견 → DB 닫기를 will-quit 로, 늦은 탭 로드 완료는 기록 건너뜀 |
+

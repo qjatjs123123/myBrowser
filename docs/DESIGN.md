@@ -77,6 +77,8 @@ Electron 45 · electron-vite 6 · Vite 8 · React 19.3 · Tailwind 4.3 · Zod 4 
 ### 상태·기록
 - run: `queued → running → waiting_user → running → stopped_before_confirm | done | failed`
 - sqlite: `runs(id, task, status, usage)`, `steps(run_id, n, tool, input, result, screenshot_path)`
+- 브라우저 데이터 (spec 021): `bookmarks(url 고유, 최대 500)`, `history(url·제목·시각만, 최대 5000, 새로 고침은 갱신)` — 에이전트 도구는 읽지 않는다.
+- 실행 상태 표시 (spec 021): run 이 다루는 탭(시작 탭 → switch_tab·open_tab 대상)에 작업 중·응답 대기 점(표시용, 가드·루프는 읽지 않음). 창에 포커스가 없으면 승인·질문·완료·실패를 OS 알림 — 알림은 창 포커스만, 승인은 사이드바에서만.
 - 메시지 히스토리는 append-only (preserved thinking 호환, 재개 가능).
 
 ## 4. 디렉터리
