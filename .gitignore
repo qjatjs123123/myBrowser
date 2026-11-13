@@ -30,6 +30,7 @@ userData/
 
 # Test / Coverage
 eval/results/*.json
+eval/results/*/
 coverage/
 test-results/
 playwright-report/

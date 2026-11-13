@@ -4,6 +4,7 @@
  * - renderer console.error·pageerror·main 의 [main.error] 를 모아 HARNESS_RUN_DIR/console-errors.log 에 쓰고, 1건이라도 있으면 테스트를 실패시킨다
  * - 탭 페이지는 로컬 픽스처 서버(fixtureUrl)만 연다 — 외부 사이트 금지
  * - `test.use({ appEnv, executablePath })` 로 env 를 덮어쓰거나(값 undefined = 키 제거) 설치판 실행 파일을 띄운다 (spec 005)
+ * - `allowExternalRequests` 는 실제 사이트 평가 세트(eval/sites.eval.ts) 전용 — e2e spec 에서는 쓰지 않는다 (spec 019 SR-3)
  * 규칙: .claude/rules/test-convention.md 「e2e」, .claude/skills/desktop/app-check
  */
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
@@ -50,6 +51,8 @@ interface IFixtures {
   appEnv: TAppEnv;
   /** 설치판 실행 파일 — 주면 소스 폴더(ROOT)를 인자로 넘기지 않는다. `test.use({ executablePath })` */
   executablePath: string | undefined;
+  /** 외부 요청 차단을 끈다 — eval/sites.eval.ts 만 쓴다 (spec 019 SR-3). 기본 false */
+  allowExternalRequests: boolean;
 }
 
 /** launchElectron 입력 */
@@ -59,6 +62,7 @@ interface ILaunchElectronOptions {
   fakeScenario?: string;
   appEnv: TAppEnv;
   executablePath?: string;
+  allowExternalRequests?: boolean;
 }
 
 function isIgnored(line: string): boolean {
@@ -104,7 +108,7 @@ async function launchElectron(options: ILaunchElectronOptions): Promise<Electron
       else if (line.startsWith('[main.error]') && !isIgnored(line)) errorList.push(line);
     }
   });
-  await blockExternalRequests(app);
+  if (!options.allowExternalRequests) await blockExternalRequests(app);
   return app;
 }
 
@@ -194,6 +198,7 @@ export const test = base.extend<IFixtures, { fixtureServer: IFixtureServer }>({
   fakeScenario: [undefined, { option: true }],
   appEnv: [{}, { option: true }],
   executablePath: [undefined, { option: true }],
+  allowExternalRequests: [false, { option: true }],
 
   fixtureServer: [
     async ({}, use) => {
@@ -215,10 +220,11 @@ export const test = base.extend<IFixtures, { fixtureServer: IFixtureServer }>({
     if (errorList.length) throw new Error(`앱에서 에러 ${errorList.length}건 발생:\n${errorList.join('\n')}`);
   },
 
-  launchApp: async ({ errorList, fakeScenario, appEnv, executablePath }, use) => {
+  launchApp: async ({ errorList, fakeScenario, appEnv, executablePath, allowExternalRequests }, use) => {
     await use(async ({ userDataDir, appEnv: callAppEnv }) => {
       const merged = { ...appEnv, ...callAppEnv };
-      const app = await launchElectron({ userDataDir, errorList, fakeScenario, appEnv: merged, executablePath });
+      const launchOptions = { userDataDir, errorList, fakeScenario, appEnv: merged, executablePath };
+      const app = await launchElectron({ ...launchOptions, allowExternalRequests });
       return { app, win: await openChromeWindow(app, errorList) };
     });
   },
