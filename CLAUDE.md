@@ -24,7 +24,7 @@ Electron(Chromium) 기반 **브라우저 에이전트** 단일 패키지. 사용
 | 제약 | 편집 직후 eslint --fix + prettier | `.claude/hooks/post-edit-format.sh` |
 | 제약 | 위험 명령 차단 / 권한 허용 목록 | `.claude/settings.json` |
 | 검증 | 앱 실검증 — Playwright `_electron` 으로 실제 앱을 띄워 에러 0 → e2e 고정 (UI·에이전트 Task 필수) | `.claude/skills/desktop/app-check/SKILL.md` |
-| 검증 | 종료 시 품질 게이트 — lint·타입·vitest + 새 파일 테스트 누락 + e2e (실패하면 종료 차단, 최대 6회) | `.claude/hooks/quality-gate.sh` |
+| 검증 | 종료 시 품질 게이트 — lint·타입·vitest + 새 파일 테스트 누락 (e2e 는 돌리지 않음 — app-check·harness·CI 가 맡음. 실패하면 종료 차단, 최대 6회) | `.claude/hooks/quality-gate.sh` |
 | 검증 | 최종 검증 루프 | `.claude/skills/vibe-build/harness.md` |
 | 정리 | CI / 주간 점검 | `.github/workflows/ci.yml`, `scripts/gc/check.sh` |
 
