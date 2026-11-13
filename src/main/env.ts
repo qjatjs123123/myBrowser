@@ -31,6 +31,8 @@ export interface IEnv {
   fakeScenarioDir?: string;
   /** 모델 id — 날짜 접미사 금지. prod 는 GATEWAY_MODEL 고정, dev 기본은 DEV_DEFAULT_MODEL */
   model: string;
+  /** run 누적 입력 토큰 상한 (spec 020 FR-1) — 없으면 상한 없음 */
+  maxInputTokens?: number;
 }
 
 const DEFAULT_CDP_PORT = 9222;
@@ -59,6 +61,7 @@ const RawEnvSchema = z.object({
     .min(1)
     .refine((value) => !/-\d{8}$/.test(value), '모델 id 에 날짜 접미사를 붙이지 않습니다')
     .optional(),
+  MYBROWSER_MAX_INPUT_TOKENS: z.coerce.number().int().positive().optional(),
 });
 
 /** 실행 모드 판정 — test 가 가장 우선, 그다음 패키징 여부 */
@@ -124,6 +127,7 @@ export function readEnv(source: NodeJS.ProcessEnv, { isPackaged, defaultGatewayU
     fakeScenario: raw.MYBROWSER_FAKE_SCENARIO,
     fakeScenarioDir: mode === 'test' ? raw.MYBROWSER_FAKE_SCENARIO_DIR : undefined,
     model: getModel(profileKind, raw),
+    maxInputTokens: raw.MYBROWSER_MAX_INPUT_TOKENS,
   };
 }
 

@@ -113,7 +113,13 @@ function startBrowser(): void {
   database = runDatabase;
   // 핸들러와 에이전트가 같은 저장소를 쓴다 — 저장 직후 다음 run 에 반영 (spec 013)
   const skillRepo = createSkillRepo(runDatabase, { now: () => new Date(), createId: randomUUID });
-  agentService = createAgentRuntime({ tabManager, emitToSidebar, account: accountService, runDatabase, skills: skillRepo });
+  agentService = createAgentRuntime({
+    tabManager,
+    emitToSidebar,
+    account: accountService,
+    runDatabase,
+    skills: skillRepo,
+  });
   registerIpc(ipcMain, {
     ...createAppHandlers({ getName: () => app.getName(), getVersion: () => app.getVersion(), mode: env.mode }),
     ...createTabsHandlers(tabManager),
@@ -275,6 +281,7 @@ function createAgentRuntime({ tabManager, emitToSidebar, account, runDatabase, s
     createId: randomUUID,
     guardOptions: { allowedHostList: env.mode === 'test' ? ['127.0.0.1'] : [] },
     maxToolCalls: MAX_TOOL_CALLS,
+    maxInputTokens: env.maxInputTokens,
     log,
     onAuthFailure: () => account.handleAuthFailure(),
     onRunEnd: () => void account.refreshCredits(),

@@ -980,6 +980,71 @@ describe('AgentService — 호출 상한 ⑧', () => {
   });
 });
 
+describe('AgentService — 입력 토큰 상한 (spec 020 FR-1)', () => {
+  const TURN_INPUT_TOKENS = 600;
+
+  /** 가짜 fetch 응답의 입력 토큰(고정 10)을 턴당 600 으로 바꾼다 */
+  function createUsageFetch(scenario: TFakeScenario) {
+    const fake = createFakeFetch(scenario);
+    const fetch = async (input: string | URL | Request, init?: RequestInit) => {
+      const text = await (await fake.fetch(input, init)).text();
+      const replaced = text.replaceAll('"input_tokens":10', `"input_tokens":${TURN_INPUT_TOKENS}`);
+      return new Response(replaced, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+    };
+    return { fetch, requestList: fake.requestList };
+  }
+
+  function setupWithUsage(maxInputTokens?: number) {
+    const usageFetch = createUsageFetch({
+      turns: [toolTurn('snapshot'), toolTurn('read_text'), toolTurn('snapshot'), textTurn('끝')],
+    });
+    const t = setup({
+      deps: { maxInputTokens },
+      profile: { createClient: () => new Anthropic({ apiKey: 'fake', fetch: usageFetch.fetch, maxRetries: 0 }) },
+    });
+    return { ...t, requestList: usageFetch.requestList };
+  }
+
+  it('누적 입력 토큰이 상한 안이면 다음 턴으로 계속한다', async () => {
+    const t = setupWithUsage(1000);
+    await t.service.start('읽어');
+    await t.waitForEnd();
+    expect(t.driver.snapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('누적 입력 토큰이 상한을 넘으면 한도 사유로 failed 로 끝낸다', async () => {
+    const t = setupWithUsage(1000);
+    await t.service.start('읽어');
+    await t.waitForEnd();
+    expect(t.store.getRun('run-1')).toMatchObject({ status: 'failed', reason: '입력 토큰 한도(1000)를 넘었습니다' });
+  });
+
+  it('상한을 넘으면 그 턴의 도구와 다음 모델 호출을 하지 않는다', async () => {
+    const t = setupWithUsage(1000);
+    await t.service.start('읽어');
+    await t.waitForEnd();
+    expect([t.requestList.length, t.driver.readText.mock.calls.length]).toEqual([2, 0]);
+  });
+
+  it('상한을 넘어 끝난 run 의 usage_json 에 누적 입력 토큰 1200 을 남긴다', async () => {
+    const t = setupWithUsage(1000);
+    await t.service.start('읽어');
+    await t.waitForEnd();
+    expect(t.callList).toContainEqual([
+      'updateRun',
+      'run-1',
+      expect.objectContaining({ status: 'failed', usageJson: expect.stringContaining('"inputTokens":1200') }),
+    ]);
+  });
+
+  it('상한이 없으면 큰 usage 에도 끝까지 계속한다', async () => {
+    const t = setupWithUsage();
+    await t.service.start('읽어');
+    await t.waitForEnd();
+    expect([t.store.getRun('run-1')?.status, t.requestList.length]).toEqual(['done', 4]);
+  });
+});
+
 describe('AgentService — 도구 실패 ⑨', () => {
   it('driver.click 이 ok:false 면 step 은 error 이고 run 은 계속된다', async () => {
     const driver = createFakeDriver();

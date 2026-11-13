@@ -19,8 +19,9 @@ export const DB_FILE_NAME = 'mybrowser.db';
  * usage_json 은 agent/service.ts 가 쓰는 `{ inputTokens, outputTokens }`.
  */
 const SQL = {
-  selectLastRun: `SELECT id, status, usage_json, created_at, ended_at FROM runs ORDER BY created_at DESC LIMIT 1`,
+  selectLastRun: `SELECT id, status, summary, reason, usage_json, created_at, ended_at FROM runs ORDER BY created_at DESC LIMIT 1`,
   countSteps: `SELECT COUNT(*) AS count FROM steps WHERE run_id = ?`,
+  selectSteps: `SELECT n, tool, status, summary FROM steps WHERE run_id = ? ORDER BY n`,
 } as const;
 
 const UsageSchema = z.object({ inputTokens: z.number(), outputTokens: z.number() });
@@ -51,6 +52,8 @@ export type TEvalResult = z.infer<typeof EvalResultSchema>;
 /** DB 에서 읽은 run 1건의 지표 */
 export interface IRunMetrics {
   status: string;
+  /** 끝난 답 — 완료면 summary, 실패면 reason (spec 020 FR-4) */
+  answer: string | null;
   toolCalls: number;
   inputTokens: number;
   outputTokens: number;
@@ -67,10 +70,43 @@ export function readRunMetrics(dbPath: string): IRunMetrics | null {
     const usage = parseUsage(run['usage_json']);
     return {
       status: String(run['status']),
+      answer: toNullableText(run['summary']) ?? toNullableText(run['reason']),
       toolCalls: Number(stepRow?.['count'] ?? 0),
       ...usage,
       durationMs: getDurationMs(run['created_at'], run['ended_at']),
     };
+  } finally {
+    db.close();
+  }
+}
+
+function toNullableText(value: unknown): string | null {
+  return typeof value === 'string' && value !== '' ? value : null;
+}
+
+/** 단계 로그 1줄 (spec 020 FR-4 — `{id}-{n}.steps.json`) */
+export interface IStepLog {
+  n: number;
+  tool: string;
+  status: string;
+  summary: string;
+}
+
+/** 마지막 run 의 단계 목록 — run 이 없으면 빈 목록 */
+export function readStepList(dbPath: string): IStepLog[] {
+  const db = new DatabaseSync(dbPath, { readOnly: true });
+  try {
+    const run = db.prepare(SQL.selectLastRun).get();
+    if (!run) return [];
+    return db
+      .prepare(SQL.selectSteps)
+      .all(String(run['id']))
+      .map((row) => ({
+        n: Number(row['n']),
+        tool: String(row['tool']),
+        status: String(row['status']),
+        summary: String(row['summary']),
+      }));
   } finally {
     db.close();
   }
@@ -141,14 +177,17 @@ export function convertToReportJson({
   };
 }
 
-/** 결과 파일 이름 — 로컬 시각 `YYYYMMDD-HHmmss.json` */
-export function getResultFileName(date: Date): string {
+/** 결과 디렉터리 이름 — 로컬 시각 `YYYYMMDD-HHmmss` (spec 020 FR-4: 실행 1번 = 디렉터리 1개) */
+export function getResultDirName(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, '0');
   const day = `${String(date.getFullYear())}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
-  return `${day}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}.json`;
+  return `${day}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 }
 
-/** 결과 JSON 을 `{dir}/{YYYYMMDD-HHmmss}.json` 에 쓰고 경로를 돌려준다 */
+/** 보고 파일 이름 — 결과 디렉터리 안 */
+export const REPORT_FILE_NAME = 'report.json';
+
+/** 결과 JSON 을 `{dir}/report.json` 에 쓰고 경로를 돌려준다 — dir 은 cli.mjs 가 실행 전에 만든 결과 디렉터리 */
 export function writeReportJson({
   dir,
   resultList,
@@ -160,10 +199,52 @@ export function writeReportJson({
   isReal: boolean;
   createdAt: Date;
 }): string {
+  return writeJson(dir, convertToReportJson({ resultList, isReal, createdAt }));
+}
+
+/** `{dir}/report.json` 에 JSON 을 쓴다 */
+function writeJson(dir: string, body: unknown): string {
   mkdirSync(dir, { recursive: true });
-  const path = join(dir, getResultFileName(createdAt));
-  writeFileSync(path, `${JSON.stringify(convertToReportJson({ resultList, isReal, createdAt }), null, 2)}\n`);
+  const path = join(dir, REPORT_FILE_NAME);
+  writeFileSync(path, `${JSON.stringify(body, null, 2)}\n`);
   return path;
+}
+
+/** 실제 사이트 세트의 보고 JSON 을 `{dir}/report.json` 에 쓴다 (spec 020 FR-4·FR-6) — summary 는 siteJudge 의 집계 */
+export function writeSiteReportJson({
+  dir,
+  resultList,
+  summary,
+  exitCode,
+  createdAt,
+}: {
+  dir: string;
+  resultList: unknown[];
+  summary: unknown;
+  exitCode: 0 | 1;
+  createdAt: Date;
+}): string {
+  return writeJson(dir, {
+    createdAt: createdAt.toISOString(),
+    mode: 'real',
+    set: 'sites',
+    exitCode,
+    summary,
+    resultList,
+  });
+}
+
+/** 실제 사이트 세트 종료 코드 — 결과 줄이 시나리오 수 × 반복만큼 다 있으면 0 (판정과 무관, spec 020 FR-3) */
+export function getSiteExitCode({
+  lineCount,
+  scenarioCount,
+  repeat,
+}: {
+  lineCount: number;
+  scenarioCount: number;
+  repeat: number;
+}): 0 | 1 {
+  return lineCount === scenarioCount * repeat ? 0 : 1;
 }
 
 /** 러너가 시나리오마다 한 줄씩 쓴 JSONL → 결과 목록 (형식이 틀린 줄은 버리지 않고 throw) */

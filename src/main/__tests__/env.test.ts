@@ -176,6 +176,22 @@ describe('readEnv — fakeScenarioDir (spec 005)', () => {
   });
 });
 
+describe('readEnv — 입력 토큰 상한 (spec 020 FR-1)', () => {
+  it('MYBROWSER_MAX_INPUT_TOKENS=1500000 이면 maxInputTokens 가 1500000 이다', () => {
+    expect(readEnv({ ...DEV_PROFILE, MYBROWSER_MAX_INPUT_TOKENS: '1500000' }, DEV).maxInputTokens).toBe(1_500_000);
+  });
+
+  it('MYBROWSER_MAX_INPUT_TOKENS 가 없으면 maxInputTokens 는 undefined 다', () => {
+    expect(readEnv(DEV_PROFILE, DEV).maxInputTokens).toBeUndefined();
+  });
+
+  it.each(['0', '-1', 'abc', '1.5'])('MYBROWSER_MAX_INPUT_TOKENS=%s 면 시작 시점에 실패한다', (value) => {
+    expect(() => readEnv({ ...DEV_PROFILE, MYBROWSER_MAX_INPUT_TOKENS: value }, DEV)).toThrow(
+      'MYBROWSER_MAX_INPUT_TOKENS',
+    );
+  });
+});
+
 describe('loadDotEnv', () => {
   /** 파일 내용을 source 에 쓰는 가짜 loadEnvFile */
   function createFakeLoad(source: NodeJS.ProcessEnv, fileValues: Record<string, string>) {
