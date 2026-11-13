@@ -24,6 +24,7 @@ import { createAgentTabActivity } from './app/agentTabActivity';
 import { getCdpSwitches, removeStaleActivePort } from './app/cdp';
 import { createCredentialStore } from './app/credentialStore';
 import { createAppMenuTemplate } from './app/menu';
+import { createMainMenuTemplate } from './app/mainMenu';
 import { createRunNotifier, type IRunNotification } from './app/runNotifier';
 import {
   createMainWindow,
@@ -142,7 +143,16 @@ function startBrowser(): void {
     }),
   });
   registerIpc(ipcMain, {
-    ...createAppHandlers({ getName: () => app.getName(), getVersion: () => app.getVersion(), mode: env.mode }),
+    ...createAppHandlers({
+      getName: () => app.getName(),
+      getVersion: () => app.getVersion(),
+      mode: env.mode,
+      // [⋮] 메뉴 「방문 기록」 은 Ctrl+H 와 같은 경로 (spec 023)
+      showMenu: (point) =>
+        Menu.buildFromTemplate(
+          createMainMenuTemplate({ platform: process.platform, onOpenHistory: () => runner('openHistory') }),
+        ).popup({ window, ...point }),
+    }),
     ...createTabsHandlers(tabManager),
     ...createAgentHandlers(agentService),
     ...createAccountHandlers(accountService),

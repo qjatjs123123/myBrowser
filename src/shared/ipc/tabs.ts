@@ -17,6 +17,9 @@ export const FIND_TEXT_MAX = 200;
 /** [tabs] 에이전트 표시 — working = queued·running, waiting = waiting_user */
 export const AgentActivitySchema = z.enum(['working', 'waiting']);
 
+/** [tabs] 렌더러가 그리는 내부 페이지 — 새 탭(about:blank) View 위에만 붙는다 (spec 023) */
+export const InternalPageSchema = z.enum(['history']);
+
 /** [tabs] 탭 하나의 상태 — main 이 단일 출처 */
 export const TabStateSchema = z.strictObject({
   id: TabIdSchema,
@@ -33,6 +36,8 @@ export const TabStateSchema = z.strictObject({
   zoomPercent: z.number().int().min(ZOOM_PERCENT_MIN).max(ZOOM_PERCENT_MAX),
   /** 에이전트가 이 탭에서 일하는 중(working)·사용자 응답 대기(waiting) — 표시용 (spec 021 FR-12, SR-4) */
   agentActivity: AgentActivitySchema.nullable(),
+  /** 새 탭 자리에 그릴 내부 페이지 — history = 방문 기록 페이지 (spec 023). isNewTab 이 false 면 항상 null */
+  internalPage: InternalPageSchema.nullable(),
 });
 
 /** [tabs] 전체 탭 목록 + 활성 탭 id */
@@ -107,3 +112,5 @@ export type TZoomTabRequest = z.infer<typeof ZoomTabRequestSchema>;
 export type TZoomDirection = TZoomTabRequest['direction'];
 export type TFindInPageRequest = z.infer<typeof FindInPageRequestSchema>;
 export type TFindUpdatedEvent = z.infer<typeof FindUpdatedEventSchema>;
+
+export type TInternalPage = z.infer<typeof InternalPageSchema>;

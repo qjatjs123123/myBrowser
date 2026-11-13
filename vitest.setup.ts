@@ -25,7 +25,7 @@ const EMPTY_OK_RESULT = { ok: true, data: null } as const;
 Object.defineProperty(window, 'api', {
   configurable: true,
   value: {
-    app: { getInfo: vi.fn() },
+    app: { getInfo: vi.fn(), showMenu: vi.fn() },
     tabs: {
       list: vi.fn(() => Promise.resolve(EMPTY_TAB_LIST_RESULT)),
       create: vi.fn(),

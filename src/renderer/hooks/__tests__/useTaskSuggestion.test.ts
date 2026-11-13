@@ -21,6 +21,7 @@ function createTab(overrides: Partial<TTabState> = {}): TTabState {
     isNewTab: true,
     zoomPercent: 100,
     agentActivity: null,
+    internalPage: null,
     ...overrides,
   };
 }

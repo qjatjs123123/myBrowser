@@ -22,7 +22,7 @@ test('renderer 에는 window.api 의 app·tabs·shortcut·agent·account·window
   }));
   expect(exposure).toEqual({
     apiKeyList: ['app', 'tabs', 'shortcut', 'agent', 'account', 'window', 'runs', 'skills', 'bookmarks', 'history'],
-    appKeyList: ['getInfo'],
+    appKeyList: ['getInfo', 'showMenu'],
     hasRequire: false,
     hasProcess: false,
   });

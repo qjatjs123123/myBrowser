@@ -18,6 +18,7 @@ const SNAPSHOT: TTabsSnapshot = {
       isNewTab: true,
       zoomPercent: 100,
       agentActivity: null,
+      internalPage: null,
     },
   ],
   activeTabId: 'tab-1',

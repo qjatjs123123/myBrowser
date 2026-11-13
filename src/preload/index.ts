@@ -16,6 +16,7 @@ function subscribe<T>(channel: string, cb: (payload: T) => void): TUnsubscribe {
 const api: IApi = {
   app: {
     getInfo: () => ipcRenderer.invoke(IPC.app.getInfo),
+    showMenu: (req) => ipcRenderer.invoke(IPC.app.showMenu, req),
   },
   tabs: {
     list: () => ipcRenderer.invoke(IPC.tabs.list),

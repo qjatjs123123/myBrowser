@@ -28,6 +28,7 @@ function createTab(overrides: Partial<TTabState> = {}): TTabState {
     isNewTab: true,
     zoomPercent: 100,
     agentActivity: null,
+    internalPage: null,
     ...overrides,
   };
 }
@@ -203,11 +204,37 @@ describe('BrowserChrome 북마크·찾기·배율 (spec 021)', () => {
     expect(window.api.tabs.zoom).toHaveBeenCalledWith({ tabId: 'tab-2', direction: 'reset' });
   });
 
-  it('focusHistorySearch 단축키면 새 탭의 방문 기록 검색에 포커스한다', async () => {
-    givenSnapshot({ tabList: [createTab()], activeTabId: 'tab-1' });
+  it('focusHistorySearch 단축키면 방문 기록 페이지의 검색에 포커스한다 (spec 023)', async () => {
+    givenSnapshot({ tabList: [createTab({ title: '방문 기록', internalPage: 'history' })], activeTabId: 'tab-1' });
     render(<BrowserChrome />);
     const historyInput = await screen.findByRole('textbox', { name: '방문 기록 검색' });
     act(() => getPressedListener()({ action: 'focusHistorySearch' }));
     expect(historyInput).toHaveFocus();
+  });
+
+  it('internalPage 가 history 면 시작 화면 대신 방문 기록 페이지를 그린다 (spec 023)', async () => {
+    givenSnapshot({ tabList: [createTab({ title: '방문 기록', internalPage: 'history' })], activeTabId: 'tab-1' });
+    render(<BrowserChrome />);
+    expect(await screen.findByRole('heading', { name: '방문 기록', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: '새 탭 검색' })).not.toBeInTheDocument();
+  });
+
+  it('일반 새 탭에는 방문 기록이 없다 (spec 023 FR-1)', async () => {
+    givenSnapshot({ tabList: [createTab()], activeTabId: 'tab-1' });
+    render(<BrowserChrome />);
+    await screen.findByRole('textbox', { name: '새 탭 검색' });
+    expect(screen.queryByRole('textbox', { name: '방문 기록 검색' })).not.toBeInTheDocument();
+  });
+
+  it('[메뉴] 를 누르면 버튼 위치로 app:showMenu 를 부르고, 실패하면 toast 로 알린다 (spec 023)', async () => {
+    vi.mocked(window.api.app.showMenu).mockResolvedValue({
+      ok: false,
+      error: { code: 'INVALID_INPUT', message: '요청 형식이 올바르지 않습니다' },
+    });
+    givenSnapshot({ tabList: [createTab()], activeTabId: 'tab-1' });
+    render(<BrowserChrome />);
+    fireEvent.click(await screen.findByRole('button', { name: '메뉴' }));
+    expect(window.api.app.showMenu).toHaveBeenCalledWith({ x: expect.any(Number), y: expect.any(Number) });
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('요청 형식이 올바르지 않습니다'));
   });
 });

@@ -34,6 +34,8 @@ export interface IShortcutInput {
 /** 단축키가 다루는 TabManager 의 공개 메서드 */
 export interface IShortcutTabTarget {
   createTab(url?: string): string;
+  /** 방문 기록 페이지 탭 — 열린 것이 있으면 그 탭 (spec 023) */
+  openHistoryPage(): string;
   closeTab(id: string): void;
   cycleTab(delta: 1 | -1): void;
   reload(id: string): void;
@@ -145,7 +147,7 @@ function createFocusActions({ tabManager, emitShortcut, focusChrome }: IShortcut
     // 북마크 토글은 포커스를 옮기지 않는다 — 페이지에서 Ctrl+D 해도 페이지 입력 위치가 그대로
     toggleBookmark: () => emitShortcut('toggleBookmark'),
     openHistory: () => {
-      tabManager.createTab();
+      tabManager.openHistoryPage();
       focusChrome();
       emitShortcut('focusHistorySearch');
     },

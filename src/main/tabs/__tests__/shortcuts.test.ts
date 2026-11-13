@@ -94,6 +94,7 @@ describe('toShortcutAction', () => {
 function setupRunner(activeTabId: string | null = 'tab-1') {
   const tabManager: IShortcutTabTarget = {
     createTab: vi.fn(() => 'tab-2'),
+    openHistoryPage: vi.fn(() => 'tab-3'),
     closeTab: vi.fn(),
     cycleTab: vi.fn(),
     reload: vi.fn(),
@@ -172,10 +173,11 @@ describe('createShortcutRunner 찾기·북마크·기록·확대 (spec 021)', ()
     expect(emitShortcut).toHaveBeenCalledWith('toggleBookmark');
   });
 
-  it('openHistory 는 새 탭을 열고 기록 검색 포커스를 보낸다', () => {
+  it('openHistory 는 방문 기록 페이지 탭을 열고 기록 검색 포커스를 보낸다 (spec 023)', () => {
     const { runner, tabManager, emitShortcut, focusChrome } = setupRunner();
     runner('openHistory');
-    expect(tabManager.createTab).toHaveBeenCalledWith();
+    expect(tabManager.openHistoryPage).toHaveBeenCalledWith();
+    expect(tabManager.createTab).not.toHaveBeenCalled();
     expect(focusChrome).toHaveBeenCalled();
     expect(emitShortcut).toHaveBeenCalledWith('focusHistorySearch');
   });

@@ -3,7 +3,7 @@
  * 규칙: .claude/rules/electron/ipc.md 「채널명」
  */
 export const IPC = {
-  app: { getInfo: 'app:getInfo' },
+  app: { getInfo: 'app:getInfo', showMenu: 'app:showMenu' },
   tabs: {
     list: 'tabs:list',
     create: 'tabs:create',
