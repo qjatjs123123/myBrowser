@@ -110,4 +110,10 @@ Claude 는 에러를 만나면 이 문서를 먼저 확인한다. 새 문제를 
 - 증상: 최대화 후 창이 모니터 (0,0) 이 아니라 오른쪽·아래로 밀려 그려지고 오른쪽·아래가 잘린다. X bounds(`getBounds`)·Windows `GetWindowRect` 는 정상이라 좌표만 보면 맞아 보인다. 실제 마우스는 보이는 탭 줄을 눌러도 renderer 에는 y≈40~57(주소창)로 들어와 끌기·더블클릭 복원이 안 된다.
 - 원인: WSLg(Weston) 가 **창 관리자 최대화 상태**의 프레임 없는 X 창을 그림자 여백만큼 밀어 그린다 (`_NET_FRAME_EXTENTS` 6,6,27,6). 투명 창 여부와 무관 — 순수 Electron 창으로도 재현. 일반 창을 `setBounds` 로 같은 위치에 두면 정확히 그려진다.
 - 해결: Linux 는 `app/windowMaximize.ts` 가 최대화를 "측정 → unmaximize → setBounds(작업 영역)" 으로 바꾸고 최대화 상태를 앱이 관리한다. `display.workArea` 는 WSLg 에서 작업 표시줄을 빼지 않으므로 크기는 창 관리자 최대화 bounds 로 잰다.
+- 함정 (spec 018): 창 관리자가 unmaximize 뒤 창을 예전 위치로 되돌리는 시점이 일정하지 않다 (unmaximize 이벤트 뒤 ~80ms 일 때도 ~340ms 일 때도 있음). "N ms 뒤 1회 재적용" 은 놓친다 → 배치 후 1초 동안 `move`·`resize` 이벤트에서 작업 영역을 벗어나면 다시 적용(최대 3회).
 - 확인 방법: CDP 합성 입력은 renderer 좌표로 바로 들어가 재현되지 않는다. 화면 픽셀로 본다 — renderer 에 `position:fixed` 색 사각형을 넣고, PowerShell `SetWindowPos(HWND_TOPMOST)` 후 `CopyFromScreen` 으로 모니터 (0,0) 픽셀을 읽는다 (`AppActivate` 는 창을 SW_RESTORE 해 bounds 를 바꾸므로 쓰지 않는다).
+
+## WSLg 에서 둥근 창 모서리(spec 014)가 네모로 보임 (spec 018 조사)
+- 증상: 창 내용의 모서리는 둥근데 창 둘레에 사각 그림자·윤곽이 보여 전체가 직각처럼 보인다.
+- 원인: Weston(WSLg 창 관리자)이 프레임 없는 X 창 둘레에 사각 그림자(약 32px 여백, `_NET_FRAME_EXTENTS` 38,38,59,38)를 그린다. 투명 모서리 자체는 정상 — 검은 창 위에 반지름 40px 투명 창을 띄우면 모서리 픽셀이 검정으로 비친다.
+- 결정: WSLg 개발 환경에서만 보이는 외관이라 그대로 둔다. 배포판(Windows `.exe`·macOS)은 OS 가 모서리를 그린다.
