@@ -6,11 +6,14 @@ import type { TTabRequest } from '@shared/ipc/tabs';
 import { AddressBar } from '@/chrome/AddressBar';
 import { BookmarkButton } from '@/chrome/BookmarkButton';
 import { FindBar } from '@/chrome/FindBar';
+import { HistoryPage } from '@/chrome/HistoryPage';
+import { MoreMenuButton } from '@/chrome/MoreMenuButton';
 import { NavButtons } from '@/chrome/NavButtons';
 import { NewTabPage } from '@/chrome/NewTabPage';
 import { type ITabBarWindowDrag, TabBar } from '@/chrome/TabBar';
 import { WindowControls } from '@/chrome/WindowControls';
 import { ZoomBadge } from '@/chrome/ZoomBadge';
+import { useAppMenu } from '@/hooks/useAppMenu';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useContentBounds } from '@/hooks/useContentBounds';
 import { useFindInPage } from '@/hooks/useFindInPage';
@@ -23,7 +26,7 @@ import { isMacPlatform } from '@/utils/platform';
 const NO_ACTIVE_TAB_MESSAGE = '탭을 찾을 수 없습니다';
 const IS_MAC = isMacPlatform(navigator.userAgent);
 
-/** 새 탭 화면에서 어느 입력에 포커스할지 — 마지막 요청만 (Ctrl+T = 검색, Ctrl+H = 방문 기록) */
+/** 새 탭·방문 기록 화면에서 어느 입력에 포커스할지 — 마지막 요청만 (Ctrl+T = 새 탭 검색, Ctrl+H·[메뉴] 「방문 기록」 = 기록 검색) */
 interface INewTabFocus {
   target: 'search' | 'history';
   signal: number;
@@ -44,6 +47,7 @@ interface IBrowserChromeProps {
  * 브라우저 크롬 조립 — 탭 줄 + 툴바(탐색 버튼·주소창·끝 slot) + [탭 콘텐츠 영역 | 옆 패널].
  * 콘텐츠 영역의 사각형을 main 에 알리고(탭 View 가 그 자리에 그려진다), 활성 탭이 새 탭이면 그 안에 시작 화면을 그린다.
  * 주소창 옆 배율·북마크 버튼, 툴바 아래 찾기 줄(콘텐츠 영역 밖 — 탭 View 가 DOM 위에 그려진다) (spec 021).
+ * [메뉴] 버튼(네이티브 팝업)과 방문 기록 전용 페이지(새 탭 자리에 internalPage 로) (spec 023).
  */
 export function BrowserChrome({ toolbarEnd, sidePanel, windowDrag, hasEdgeInset = false }: IBrowserChromeProps) {
   const tabs = useTabs();
@@ -53,6 +57,7 @@ export function BrowserChrome({ toolbarEnd, sidePanel, windowDrag, hasEdgeInset 
   const { activeTab } = tabs;
   const pageTab = activeTab && !activeTab.isNewTab ? activeTab : null;
   const bookmarks = useBookmarks();
+  const appMenu = useAppMenu();
   const find = useFindInPage(pageTab);
   useContentBounds(contentRef);
   const toggleBookmark = () => {
@@ -127,6 +132,9 @@ export function BrowserChrome({ toolbarEnd, sidePanel, windowDrag, hasEdgeInset 
               onToggle={toggleBookmark}
             />
           </div>
+          <div className="flex h-8 shrink-0 items-center">
+            <MoreMenuButton onOpen={(point) => void notifyFailure(appMenu.open(point))} />
+          </div>
           {toolbarEnd && <div className="flex h-8 shrink-0 items-center">{toolbarEnd}</div>}
         </div>
         {find.isOpen && (
@@ -147,11 +155,17 @@ export function BrowserChrome({ toolbarEnd, sidePanel, windowDrag, hasEdgeInset 
         className={cn('flex min-h-0 flex-1', hasEdgeInset && 'pb-1 pl-1 has-[>aside[hidden]]:pr-1')}
       >
         <div ref={contentRef} role="region" aria-label="탭 콘텐츠" className="min-h-0 min-w-0 flex-1">
-          {activeTab?.isNewTab && (
+          {activeTab?.isNewTab && activeTab.internalPage === 'history' && (
+            <HistoryPage
+              key={activeTab.id}
+              focusSignal={newTabFocus.target === 'history' ? newTabFocus.signal : 0}
+              onNavigate={navigate}
+            />
+          )}
+          {activeTab?.isNewTab && activeTab.internalPage === null && (
             <NewTabPage
               key={activeTab.id}
               focusSignal={newTabFocus.target === 'search' ? newTabFocus.signal : 0}
-              historyFocusSignal={newTabFocus.target === 'history' ? newTabFocus.signal : 0}
               bookmarkList={bookmarks.bookmarkList}
               onNavigate={navigate}
             />

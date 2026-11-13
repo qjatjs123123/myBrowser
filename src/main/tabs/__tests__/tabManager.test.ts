@@ -404,3 +404,51 @@ describe('TabManager 에이전트 표시 (spec 021)', () => {
     expect(lastSnapshot()?.tabList[0]?.agentActivity).toBeNull();
   });
 });
+
+describe('TabManager 방문 기록 페이지 (spec 023)', () => {
+  it('openHistoryPage 는 about:blank 새 탭을 열고 제목 "방문 기록"·internalPage history 로 보낸다', () => {
+    const { manager, viewList, lastSnapshot } = setup();
+    manager.setBounds(BOUNDS);
+    const id = manager.openHistoryPage();
+    expect(manager.getActiveTabId()).toBe(id);
+    expect(viewList[0]?.load).toHaveBeenCalledWith('about:blank');
+    expect(viewList[0]?.setVisible).toHaveBeenLastCalledWith(false);
+    expect(lastSnapshot()?.tabList[0]).toMatchObject({ isNewTab: true, title: '방문 기록', internalPage: 'history' });
+  });
+
+  it('일반 새 탭은 internalPage 가 null 이다', () => {
+    const { manager, lastSnapshot } = setup();
+    manager.createTab();
+    expect(lastSnapshot()?.tabList[0]?.internalPage).toBeNull();
+  });
+
+  it('이미 열린 방문 기록 탭이 있으면 새로 만들지 않고 그 탭을 활성화한다', () => {
+    const { manager, viewList } = setup();
+    const historyId = manager.openHistoryPage();
+    manager.createTab('https://a.com/');
+    expect(manager.openHistoryPage()).toBe(historyId);
+    expect(manager.getActiveTabId()).toBe(historyId);
+    expect(viewList).toHaveLength(2);
+  });
+
+  it('페이지로 이동하면 internalPage 가 지워지고 뒤로 와도 일반 새 탭이다', () => {
+    const { manager, viewList, lastSnapshot } = setup();
+    manager.openHistoryPage();
+    const view = viewList[0]!;
+    view.state = { ...view.state, url: 'https://a.com/', title: 'A' };
+    view.emitStateChanged();
+    expect(lastSnapshot()?.tabList[0]).toMatchObject({ isNewTab: false, title: 'A', internalPage: null });
+    view.state = { ...view.state, url: 'about:blank', title: '' };
+    view.emitStateChanged();
+    expect(lastSnapshot()?.tabList[0]).toMatchObject({ isNewTab: true, title: '새 탭', internalPage: null });
+  });
+
+  it('방문 기록 탭을 닫으면 다음 openHistoryPage 는 새 탭을 만든다', () => {
+    const { manager, viewList } = setup();
+    const first = manager.openHistoryPage();
+    manager.createTab('https://a.com/');
+    manager.closeTab(first);
+    expect(manager.openHistoryPage()).not.toBe(first);
+    expect(viewList).toHaveLength(3);
+  });
+});

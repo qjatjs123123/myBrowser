@@ -7,7 +7,7 @@ import type {
   TStartAgentResponse,
   TStopAgentRequest,
 } from './agent';
-import type { TAppInfo } from './app';
+import type { TAppInfo, TShowMenuRequest } from './app';
 import type { TBookmarkAddRequest, TBookmarkListResponse, TBookmarkRemoveRequest } from './bookmarks';
 import type { THistoryListRequest, THistoryListResponse, THistoryRemoveRequest } from './history';
 import type { TIpcResult } from './result';
@@ -43,6 +43,8 @@ export type TUnsubscribe = () => void;
 export interface IApi {
   app: {
     getInfo: () => Promise<TIpcResult<TAppInfo>>;
+    /** 툴바 [메뉴] 네이티브 팝업 (spec 023) */
+    showMenu: (req: TShowMenuRequest) => Promise<TIpcResult<null>>;
   };
   tabs: {
     list: () => Promise<TIpcResult<TListTabsResponse>>;

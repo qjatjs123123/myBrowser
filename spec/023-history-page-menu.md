@@ -1,6 +1,6 @@
 # Spec: 방문 기록 전용 페이지 + 툴바 [⋮] 메뉴
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-13
 > **묶음**: 기반 (직접 방식 — 묶음 하나, 메인이 Task 1→5 순서대로)
 > **관련 spec**: 002(새 탭 시작 화면·단축키), 021(방문 기록·Ctrl+H·북마크 — 이번에 기록 위치를 옮긴다)
@@ -54,41 +54,41 @@ spec 021 은 방문 기록을 새 탭 시작 화면 아래에 그렸다. 사용�
 ## 3. 작업 순서 (Tasks)
 
 ### Task 1 — shared 계약 + 소비자 맞추기
-- [ ] `src/shared/ipc/tabs.ts` `InternalPageSchema`·`TInternalPage`, `TabStateSchema.internalPage`; `src/shared/ipc/app.ts` `ShowMenuRequestSchema`·`TShowMenuRequest`; `channels.ts` `app.showMenu`; `api.ts` `IApi.app.showMenu`; `preload/index.ts`; `vitest.setup.ts` mock; `e2e/app-shell.spec.ts` 의 `appKeyList` 기대값을 `['getInfo', 'showMenu']` 로 (apiKeyList 는 그대로)
-- [ ] 탭 상태 리터럴을 쓰는 테스트에 `internalPage: null` 추가, main `toTabState` 가 `internalPage: null` 을 채운다(Task 2 에서 실제 값)
+- [x] `src/shared/ipc/tabs.ts` `InternalPageSchema`·`TInternalPage`, `TabStateSchema.internalPage`; `src/shared/ipc/app.ts` `ShowMenuRequestSchema`·`TShowMenuRequest`; `channels.ts` `app.showMenu`; `api.ts` `IApi.app.showMenu`; `preload/index.ts`; `vitest.setup.ts` mock; `e2e/app-shell.spec.ts` 의 `appKeyList` 기대값을 `['getInfo', 'showMenu']` 로 (apiKeyList 는 그대로)
+- [x] 탭 상태 리터럴을 쓰는 테스트에 `internalPage: null` 추가, main `toTabState` 가 `internalPage: null` 을 채운다(Task 2 에서 실제 값)
 - **테스트**: `src/shared/ipc/__tests__/{tabs,app}.test.ts` — internalPage 허용 값/거부, ShowMenuRequest 음수·소수 거부. `pnpm test src/shared`
 - **검증**: `pnpm type-check` + 단위 테스트
 - **커밋**: `feat: 방문 기록 페이지·메뉴 IPC 계약 (spec 023 Task 1)`
 - **묶음**: 기반
 
 ### Task 2 — TabManager 방문 기록 탭 + Ctrl+H
-- [ ] `TabManager.openHistoryPage()`, 항목 `internalPage`, 새 탭이 아니게 되면 지움, 제목 "방문 기록"
-- [ ] `shortcuts.ts` `openHistory` → `tabManager.openHistoryPage()` (IShortcutTabTarget 에 추가, createTab 대신)
+- [x] `TabManager.openHistoryPage()`, 항목 `internalPage`, 새 탭이 아니게 되면 지움, 제목 "방문 기록"
+- [x] `shortcuts.ts` `openHistory` → `tabManager.openHistoryPage()` (IShortcutTabTarget 에 추가, createTab 대신)
 - **테스트**: `src/main/tabs/__tests__/tabManager.test.ts` — 열기·제목·isNewTab·두 번 열면 같은 탭 활성·이동하면 internalPage null·닫으면 다음에 새로 만듦; `shortcuts.test.ts` openHistory 가 openHistoryPage 호출. `pnpm test src/main/tabs`
 - **검증**: `pnpm type-check` + 단위 테스트
 - **커밋**: `feat: 방문 기록 전용 탭과 Ctrl+H (spec 023 Task 2)`
 - **묶음**: 기반
 
 ### Task 3 — 메인 메뉴 (main)
-- [ ] `src/main/app/mainMenu.ts` `createMainMenuTemplate`, `src/main/ipc/handlers/app.ts` `app:showMenu`(safeParse → 주입된 `showMenu(point)`), registry 등록, `index.ts` 조립(Menu.popup, 「방문 기록」 = Ctrl+H 와 같은 동작)
-- [ ] `src/main/ipc/__tests__/registry.test.ts` 의 `createAppHandlers` 호출에 가짜 `showMenu` 를 넣고 등록 키 기대값을 `[IPC.app.getInfo, IPC.app.showMenu]` 로 (`app.test.ts` 기존 두 호출도 같이)
+- [x] `src/main/app/mainMenu.ts` `createMainMenuTemplate`, `src/main/ipc/handlers/app.ts` `app:showMenu`(safeParse → 주입된 `showMenu(point)`), registry 등록, `index.ts` 조립(Menu.popup, 「방문 기록」 = Ctrl+H 와 같은 동작)
+- [x] `src/main/ipc/__tests__/registry.test.ts` 의 `createAppHandlers` 호출에 가짜 `showMenu` 를 넣고 등록 키 기대값을 `[IPC.app.getInfo, IPC.app.showMenu]` 로 (`app.test.ts` 기존 두 호출도 같이)
 - **테스트**: `src/main/app/__tests__/mainMenu.test.ts` — 항목 라벨·accelerator(linux CmdOrCtrl+H / darwin Cmd+Shift+H)·registerAccelerator false·click 이 onOpenHistory 호출; `src/main/ipc/__tests__/app.test.ts` — 잘못된 좌표(음수·소수·추가 필드)는 `fail('INVALID_INPUT', …)` 이고 showMenu 를 부르지 않음, 정상은 showMenu 호출·ok(null). `pnpm test src/main`
 - **검증**: `pnpm type-check` + 단위 테스트
 - **커밋**: `feat: 툴바 메뉴 네이티브 팝업 (spec 023 Task 3)`
 - **묶음**: 기반
 
 ### Task 4 — renderer: 방문 기록 페이지·[메뉴] 버튼·시작 화면 정리
-- [ ] `chrome/HistoryPage/`(HistorySection 옮김 + 페이지 제목), `NewTabPage` 에서 기록 제거, `hooks/useAppMenu.ts`, `chrome/MoreMenuButton/`, `BrowserChrome` 조립
-- [ ] HistoryPage 는 제목을 `<h1>방문 기록</h1>` 하나만 두고, 옮긴 섹션의 `h2` 와 `section aria-label` 은 뺀다. 새 단위·e2e 테스트는 제목을 `getByRole('heading', { name: '방문 기록', level: 1 })`, 탭을 `getByRole('tab', { name: '방문 기록', exact: true })` 로 찾는다
-- [ ] `MoreMenuButton` 은 버튼 사각형의 `{ x: Math.max(0, Math.round(rect.left)), y: Math.max(0, Math.round(rect.bottom)) }` 를 보낸다
-- [ ] `architecture.md` §3 과 `react-convention.md` 「위치」의 chrome 목록에 `HistoryPage/(방문 기록 전용 페이지)`·`MoreMenuButton/(툴바 [메뉴] — 네이티브 팝업)` 추가, NewTabPage 설명을 `(시작 화면 — 북마크)` 로
+- [x] `chrome/HistoryPage/`(HistorySection 옮김 + 페이지 제목), `NewTabPage` 에서 기록 제거, `hooks/useAppMenu.ts`, `chrome/MoreMenuButton/`, `BrowserChrome` 조립
+- [x] HistoryPage 는 제목을 `<h1>방문 기록</h1>` 하나만 두고, 옮긴 섹션의 `h2` 와 `section aria-label` 은 뺀다. 새 단위·e2e 테스트는 제목을 `getByRole('heading', { name: '방문 기록', level: 1 })`, 탭을 `getByRole('tab', { name: '방문 기록', exact: true })` 로 찾는다
+- [x] `MoreMenuButton` 은 버튼 사각형의 `{ x: Math.max(0, Math.round(rect.left)), y: Math.max(0, Math.round(rect.bottom)) }` 를 보낸다
+- [x] `architecture.md` §3 과 `react-convention.md` 「위치」의 chrome 목록에 `HistoryPage/(방문 기록 전용 페이지)`·`MoreMenuButton/(툴바 [메뉴] — 네이티브 팝업)` 추가, NewTabPage 설명을 `(시작 화면 — 북마크)` 로
 - **테스트**: `HistoryPage/__tests__/HistoryPage.test.tsx`(옮긴 기록 테스트), `NewTabPage.test.tsx` 기록 없음, `MoreMenuButton.test.tsx`(좌표 전달 — 소수 사각형 left 10.4·bottom 39.6 → `{10, 40}`), `useAppMenu.test.ts`, `BrowserChrome.test.tsx`(internalPage history 면 기록 페이지·focusHistorySearch 포커스). `pnpm test src/renderer`
 - **검증**: desktop/app-check — [메뉴] → 「방문 기록」 → 기록 탭·검색 포커스, 기록 클릭 이동, 새 탭에 기록 없음. 콘솔·main 에러 0
 - **커밋**: `feat: 방문 기록 페이지와 툴바 메뉴 버튼 (spec 023 Task 4)`
 - **묶음**: 기반
 
 ### Task 5 — e2e
-- [ ] `e2e/browser-basics.spec.ts` 의 기록 테스트를 메뉴 경로로(테스트에서 `Menu.prototype.popup` 을 가로채 항목 click), Ctrl+H 테스트는 "방문 기록" 탭·포커스·두 번 눌러도 탭 1개 추가, 새 탭에 기록 영역 없음
+- [x] `e2e/browser-basics.spec.ts` 의 기록 테스트를 메뉴 경로로(테스트에서 `Menu.prototype.popup` 을 가로채 항목 click), Ctrl+H 테스트는 "방문 기록" 탭·포커스·두 번 눌러도 탭 1개 추가, 새 탭에 기록 영역 없음
 - **테스트**: `make e2e SPEC=e2e/browser-basics.spec.ts`, 이어 전체 `make e2e`
 - **검증**: desktop/app-check (위 흐름), 기존 e2e 의 "방문 기록" 선택자 영향 확인
 - **커밋**: `test: 방문 기록 페이지·메뉴 e2e (spec 023 Task 5)`
@@ -98,3 +98,4 @@ spec 021 은 방문 기록을 새 탭 시작 화면 아래에 그렸다. 사용�
 
 ## 4. 진행 로그
 - 2026-11-13 spec 작성
+- 2026-11-13 spec-reviewer FAIL 6건 반영 → PASS. Task 1~5 구현(직접 방식). e2e 는 Menu.prototype.popup 을 가로채 항목 click. make check 통과, e2e 73/73, 앱 에러 0

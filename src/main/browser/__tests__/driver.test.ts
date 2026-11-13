@@ -61,6 +61,7 @@ function setup() {
       isNewTab: false,
       zoomPercent: 100,
       agentActivity: null,
+      internalPage: null,
     })),
     activeTabId,
   });

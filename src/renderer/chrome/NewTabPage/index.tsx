@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 
 import { BookmarkSection } from './BookmarkSection';
-import { HistorySection } from './HistorySection';
 import { ShortcutTile } from './ShortcutTile';
 
 /** 시작 화면 바로가기 — 외부 접속은 사용자가 누를 때만 일어난다 (FR-5) */
@@ -23,18 +22,16 @@ const SHORTCUT_LIST = [
 interface INewTabPageProps {
   /** 값이 바뀔 때마다 검색창에 포커스 (Ctrl+T) */
   focusSignal: number;
-  /** 값이 바뀔 때마다 방문 기록 검색에 포커스 (Ctrl+H — spec 021 FR-6) */
-  historyFocusSignal: number;
   /** 최신 추가 순 북마크 (spec 021 FR-3) */
   bookmarkList: TBookmark[];
   onNavigate: (url: string) => Promise<TIpcResult<null>>;
 }
 
 /**
- * 새 탭 시작 화면 — 검색창 + 엔진별 검색 버튼 + 바로가기, 그 아래 북마크·방문 기록 (spec 021).
+ * 새 탭 시작 화면 — 검색창 + 엔진별 검색 버튼 + 바로가기, 그 아래 북마크 (spec 021). 방문 기록은 전용 페이지(spec 023).
  * 빈 입력은 무시하고 Enter 는 네이버 검색
  */
-export function NewTabPage({ focusSignal, historyFocusSignal, bookmarkList, onNavigate }: INewTabPageProps) {
+export function NewTabPage({ focusSignal, bookmarkList, onNavigate }: INewTabPageProps) {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   useFocusSignal(inputRef, focusSignal);
@@ -84,7 +81,6 @@ export function NewTabPage({ focusSignal, historyFocusSignal, bookmarkList, onNa
       </nav>
       <div className="mt-10 flex w-full max-w-xl flex-col gap-8 pb-10">
         <BookmarkSection bookmarkList={bookmarkList} onSelect={navigate} />
-        <HistorySection focusSignal={historyFocusSignal} onSelect={navigate} />
       </div>
     </div>
   );

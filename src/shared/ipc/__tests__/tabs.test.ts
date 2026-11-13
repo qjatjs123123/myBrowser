@@ -25,6 +25,7 @@ const VALID_TAB = {
   isNewTab: true,
   zoomPercent: 100,
   agentActivity: null,
+  internalPage: null,
 };
 
 describe('TabRequestSchema', () => {
@@ -207,5 +208,17 @@ describe('FindUpdatedEventSchema', () => {
 
   it('개수가 음수면 실패한다', () => {
     expect(FindUpdatedEventSchema.safeParse({ tabId: 'tab-1', activeMatch: -1, matchCount: 3 }).success).toBe(false);
+  });
+});
+
+describe('TabStateSchema 의 내부 페이지 (spec 023)', () => {
+  it('internalPage 가 history 면 통과한다', () => {
+    expect(TabStateSchema.safeParse({ ...VALID_TAB, internalPage: 'history' }).success).toBe(true);
+  });
+
+  it('internalPage 가 목록 밖 값이거나 빠지면 실패한다', () => {
+    expect(TabStateSchema.safeParse({ ...VALID_TAB, internalPage: 'settings' }).success).toBe(false);
+    const { internalPage: _omitted, ...withoutPage } = VALID_TAB;
+    expect(TabStateSchema.safeParse(withoutPage).success).toBe(false);
   });
 });

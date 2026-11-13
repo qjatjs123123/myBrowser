@@ -21,7 +21,7 @@ interface IHistorySectionProps {
   onSelect: (url: string) => void;
 }
 
-/** 시작 화면 방문 기록 — 검색 + 최근 순 목록 + 항목별·전체 지우기 */
+/** 방문 기록 페이지 본문 — 검색 + 전체 지우기 + 최근 순 목록 + 항목별 지우기 (spec 021 FR-5, spec 023) */
 export function HistorySection({ focusSignal, onSelect }: IHistorySectionProps) {
   const [query, setQuery] = useState('');
   const history = useHistory(query);
@@ -32,21 +32,20 @@ export function HistorySection({ focusSignal, onSelect }: IHistorySectionProps) 
   }, [history.loadError]);
 
   return (
-    <section aria-label="방문 기록" className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-muted-foreground">방문 기록</h2>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            ref={inputRef}
+            aria-label="방문 기록 검색"
+            placeholder="제목·주소로 찾기"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="h-9 rounded-full border-transparent bg-muted pl-9 text-sm shadow-none focus-visible:border-transparent focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-ring dark:bg-muted"
+          />
+        </div>
         <ClearAllButton isDisabled={history.entryList.length === 0} onClear={() => void notifyFailure(history.clear())} />
-      </div>
-      <div className="relative">
-        <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          ref={inputRef}
-          aria-label="방문 기록 검색"
-          placeholder="제목·주소로 찾기"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="h-9 rounded-full border-transparent bg-muted pl-9 text-sm shadow-none focus-visible:border-transparent focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-ring dark:bg-muted"
-        />
       </div>
       <HistoryList
         entryList={history.entryList}
@@ -54,7 +53,7 @@ export function HistorySection({ focusSignal, onSelect }: IHistorySectionProps) 
         onSelect={onSelect}
         onRemove={(id) => void notifyFailure(history.remove(id))}
       />
-    </section>
+    </div>
   );
 }
 

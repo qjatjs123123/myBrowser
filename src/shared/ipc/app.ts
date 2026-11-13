@@ -9,3 +9,11 @@ export const AppInfoSchema = z.strictObject({
 
 export type TAppInfo = z.infer<typeof AppInfoSchema>;
 export type TAppMode = TAppInfo['mode'];
+
+/** [app:showMenu] 요청 — 툴바 [메뉴] 를 띄울 위치(창 콘텐츠 기준 DIP). 항목·동작은 main 이 정한다 (spec 023 SR-2) */
+export const ShowMenuRequestSchema = z.strictObject({
+  x: z.number().int().min(0),
+  y: z.number().int().min(0),
+});
+
+export type TShowMenuRequest = z.infer<typeof ShowMenuRequestSchema>;

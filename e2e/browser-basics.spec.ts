@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { Page } from '@playwright/test';
+import type { ElectronApplication, Page } from '@playwright/test';
 
 import { expect, pressKeyInTab, test } from './fixtures';
 import { openInActiveTab } from './helpers';
@@ -14,6 +14,33 @@ const BASIC_TITLE = '픽스처 첫 페이지';
 const SECOND_TITLE = '픽스처 두 번째 페이지';
 const FIND_TITLE = '픽스처 찾기 페이지';
 const MOD_MODIFIER = process.platform === 'darwin' ? 'meta' : 'control';
+
+/**
+ * [메뉴] 를 눌러 네이티브 팝업의 「방문 기록」 을 고른다 — OS 메뉴는 Playwright 가 누를 수 없어
+ * main 의 Menu.prototype.popup 을 가로채 띄운 메뉴를 잡아 두고 그 항목을 click 한다.
+ */
+async function openHistoryFromMenu(app: ElectronApplication, win: Page): Promise<void> {
+  await app.evaluate(({ Menu }) => {
+    const store = globalThis as typeof globalThis & { lastPopupMenu?: Electron.Menu };
+    Menu.prototype.popup = function capturePopup(this: Electron.Menu) {
+      store.lastPopupMenu = this;
+    };
+    store.lastPopupMenu = undefined;
+  });
+  await win.getByRole('button', { name: '메뉴', exact: true }).click();
+  await expect
+    .poll(() =>
+      app.evaluate(() => {
+        const store = globalThis as typeof globalThis & { lastPopupMenu?: Electron.Menu };
+        return store.lastPopupMenu?.items.map((item) => item.label) ?? [];
+      }),
+    )
+    .toEqual(['방문 기록']);
+  await app.evaluate(() => {
+    const store = globalThis as typeof globalThis & { lastPopupMenu?: Electron.Menu };
+    store.lastPopupMenu?.items[0]?.click();
+  });
+}
 
 /** 새 탭 버튼으로 시작 화면을 연다 */
 async function openNewTab(win: Page): Promise<void> {
@@ -58,10 +85,20 @@ test('Ctrl+D 로 북마크를 넣고 다시 누르면 뺀다', async ({ app, win
   await expect(star).toHaveAttribute('aria-pressed', 'false');
 });
 
-test('방문 기록이 새 탭에 보이고 검색·한 줄 지우기·모두 지우기가 된다', async ({ win, fixtureUrl }) => {
+test('새 탭에는 방문 기록이 없고 [메뉴] 「방문 기록」 페이지에서 검색·한 줄 지우기·모두 지우기가 된다 (spec 023)', async ({
+  app,
+  win,
+  fixtureUrl,
+}) => {
   await openInActiveTab(win, fixtureUrl('basic.html'), BASIC_TITLE);
   await openInActiveTab(win, fixtureUrl('second.html'), SECOND_TITLE);
   await openNewTab(win);
+  await expect(win.getByRole('textbox', { name: '방문 기록 검색' })).toBeHidden();
+
+  await openHistoryFromMenu(app, win);
+  await expect(win.getByRole('tab', { name: '방문 기록', exact: true })).toBeVisible();
+  await expect(win.getByRole('heading', { name: '방문 기록', level: 1 })).toBeVisible();
+  await expect(win.getByRole('textbox', { name: '방문 기록 검색' })).toBeFocused();
   const list = win.getByRole('list', { name: '방문 기록 목록' });
   await expect(list.getByRole('button', { name: SECOND_TITLE, exact: true })).toBeVisible();
   await expect(list.getByRole('button', { name: BASIC_TITLE, exact: true })).toBeVisible();
@@ -76,6 +113,18 @@ test('방문 기록이 새 탭에 보이고 검색·한 줄 지우기·모두 �
   await win.getByRole('button', { name: '방문 기록 모두 지우기' }).click();
   await win.getByRole('button', { name: '정말 모두 지울까요?' }).click();
   await expect(win.getByText('방문 기록이 없습니다')).toBeVisible();
+});
+
+test('방문 기록 항목을 누르면 그 탭이 페이지로 이동하고 탭 제목도 바뀐다 (spec 023)', async ({ app, win, fixtureUrl }) => {
+  await openInActiveTab(win, fixtureUrl('basic.html'), BASIC_TITLE);
+  await openHistoryFromMenu(app, win);
+  await win
+    .getByRole('list', { name: '방문 기록 목록' })
+    .getByRole('button', { name: BASIC_TITLE, exact: true })
+    .click();
+  await expect(win.getByRole('combobox', { name: '주소창' })).toHaveValue(fixtureUrl('basic.html'));
+  await expect(win.getByRole('tab', { name: '방문 기록', exact: true })).toHaveCount(0);
+  await expect(win.getByRole('heading', { name: '방문 기록', level: 1 })).toBeHidden();
 });
 
 test('Ctrl+F 로 찾기 줄을 열어 개수를 보고 Enter 로 다음, Esc 로 닫으며 이동하면 사라진다', async ({
@@ -115,7 +164,11 @@ test('Ctrl+= 두 번이면 125% 배율 버튼이 보이고 누르면 100% 로 �
   await expect(win.getByRole('button', { name: /^확대\/축소/ })).toBeHidden();
 });
 
-test('Ctrl+H 면 새 탭이 열리고 방문 기록 검색에 포커스한다', async ({ app, win, fixtureUrl }) => {
+test('Ctrl+H 면 방문 기록 탭이 열리고 검색에 포커스하며, 다시 눌러도 탭이 늘지 않는다 (spec 023)', async ({
+  app,
+  win,
+  fixtureUrl,
+}) => {
   await openInActiveTab(win, fixtureUrl('basic.html'), BASIC_TITLE);
   const historyKey = process.platform === 'darwin' ? ['meta', 'shift'] : ['control'];
   await pressKeyInTab(app, {
@@ -123,6 +176,12 @@ test('Ctrl+H 면 새 탭이 열리고 방문 기록 검색에 포커스한다', 
     keyCode: 'h',
     modifierList: historyKey as ('control' | 'meta' | 'shift')[],
   });
+  await expect(win.getByRole('tab')).toHaveCount(2);
+  await expect(win.getByRole('tab', { name: '방문 기록', exact: true })).toBeVisible();
+  await expect(win.getByRole('textbox', { name: '방문 기록 검색' })).toBeFocused();
+
+  await win.getByRole('tab', { name: BASIC_TITLE }).click();
+  await openHistoryFromMenu(app, win);
   await expect(win.getByRole('tab')).toHaveCount(2);
   await expect(win.getByRole('textbox', { name: '방문 기록 검색' })).toBeFocused();
 });

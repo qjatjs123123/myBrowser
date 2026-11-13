@@ -1,4 +1,11 @@
-import type { TAgentActivity, TFindUpdatedEvent, TTabState, TTabsSnapshot, TZoomDirection } from '@shared/ipc/tabs';
+import type {
+  TAgentActivity,
+  TFindUpdatedEvent,
+  TInternalPage,
+  TTabState,
+  TTabsSnapshot,
+  TZoomDirection,
+} from '@shared/ipc/tabs';
 
 import type { ITabFindOptions, ITabHost, ITabRect, ITabView, TTabViewFactory } from './tabType';
 import { isAllowedTabUrl } from './urlPolicy';
@@ -6,6 +13,8 @@ import { getNextZoomPercent } from './zoom';
 
 const NEW_TAB_URL = 'about:blank';
 const NEW_TAB_TITLE = '새 탭';
+/** 내부 페이지 탭 제목 (spec 023) */
+const INTERNAL_PAGE_TITLE: Readonly<Record<TInternalPage, string>> = { history: '방문 기록' };
 const HTTP_URL_PATTERN = /^https?:\/\//;
 
 /** 에이전트가 일하는 탭 하나 — 표시용 (spec 021 SR-4) */
@@ -24,6 +33,8 @@ export interface ITabPageLoaded {
 interface ITabEntry {
   id: string;
   view: ITabView;
+  /** 새 탭 자리에 renderer 가 그릴 내부 페이지 — View 가 새 탭 url 을 떠나면 지운다 (spec 023) */
+  internalPage: TInternalPage | null;
 }
 
 export interface ITabManagerOptions {
@@ -56,18 +67,17 @@ export class TabManager {
 
   /** 탭을 만들어 활성화한다 — url 이 없거나 허용되지 않으면 새 탭(about:blank) */
   createTab(url?: string): string {
-    const id = this.createId();
-    const view = this.options.createView();
-    view.setBorderRadius(this.cornerRadius);
-    view.onStateChanged(() => this.refresh());
-    view.onOpenWindow((popupUrl) => this.handleOpenWindow(popupUrl));
-    this.attachPageEvents(id, view);
-    this.entryList.push({ id, view });
-    this.options.host.addChildView(view.nativeView);
-    this.activeTabId = id;
-    view.load(url !== undefined && isAllowedTabUrl(url) ? url : NEW_TAB_URL);
-    this.refresh();
-    return id;
+    return this.addTab(url !== undefined && isAllowedTabUrl(url) ? url : NEW_TAB_URL, null);
+  }
+
+  /** 방문 기록 페이지 탭을 연다 — 이미 열린 것이 있으면 그 탭을 활성화한다 (spec 023 FR-4) */
+  openHistoryPage(): string {
+    const existing = this.entryList.find(
+      (entry) => entry.internalPage === 'history' && isNewTabUrl(entry.view.getState().url),
+    );
+    if (!existing) return this.addTab(NEW_TAB_URL, 'history');
+    this.activateTab(existing.id);
+    return existing.id;
   }
 
   /** 탭을 닫는다 — 활성 탭이면 오른쪽→왼쪽 이웃을 활성, 마지막 탭이면 새 탭 1개를 연다 */
@@ -196,6 +206,26 @@ export class TabManager {
     view.onZoomWheel((direction) => this.zoom(id, direction));
   }
 
+  private addTab(url: string, internalPage: TInternalPage | null): string {
+    const id = this.createId();
+    const view = this.options.createView();
+    const entry: ITabEntry = { id, view, internalPage };
+    view.setBorderRadius(this.cornerRadius);
+    view.onStateChanged(() => {
+      // 새 탭 url 을 떠나면 내부 페이지도 끝 — 뒤로 와도 일반 시작 화면 (FR-5)
+      if (!isNewTabUrl(view.getState().url)) entry.internalPage = null;
+      this.refresh();
+    });
+    view.onOpenWindow((popupUrl) => this.handleOpenWindow(popupUrl));
+    this.attachPageEvents(id, view);
+    this.entryList.push(entry);
+    this.options.host.addChildView(view.nativeView);
+    this.activeTabId = id;
+    view.load(url);
+    this.refresh();
+    return id;
+  }
+
   private handleOpenWindow(url: string): void {
     if (isAllowedTabUrl(url) && url !== NEW_TAB_URL) this.createTab(url);
   }
@@ -224,10 +254,18 @@ function isNewTabUrl(url: string): boolean {
   return url === '' || url === NEW_TAB_URL;
 }
 
-function toTabState({ id, view }: ITabEntry, agentMark: IAgentMark | null): TTabState {
+function toTabState({ id, view, internalPage }: ITabEntry, agentMark: IAgentMark | null): TTabState {
   const state = view.getState();
   const isNewTab = isNewTabUrl(state.url);
-  const title = isNewTab ? NEW_TAB_TITLE : state.title || state.url;
+  const page = isNewTab ? internalPage : null;
+  const title = toTabTitle(state, isNewTab, page);
   const agentActivity = agentMark?.tabId === id ? agentMark.activity : null;
-  return { id, ...state, title, isNewTab, agentActivity };
+  return { id, ...state, title, isNewTab, agentActivity, internalPage: page };
+}
+
+/** 내부 페이지면 그 이름, 새 탭이면 '새 탭', 아니면 페이지 제목(없으면 url) */
+function toTabTitle(state: { url: string; title: string }, isNewTab: boolean, page: TInternalPage | null): string {
+  if (page) return INTERNAL_PAGE_TITLE[page];
+  if (isNewTab) return NEW_TAB_TITLE;
+  return state.title || state.url;
 }
