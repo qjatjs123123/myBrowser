@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createWindowControls, createWindowOptions, hasRoundedCorners, watchWindowState } from '../window';
+import {
+  createNativeFrame,
+  createWindowControls,
+  createWindowOptions,
+  hasRoundedCorners,
+  watchFullScreen,
+  watchMaximizeEvents,
+} from '../window';
 
 /** 창 대역 — isMaximized 값만 정한다 */
 function createFakeWindow(isMaximized: boolean) {
@@ -98,42 +105,55 @@ describe('hasRoundedCorners (spec 014)', () => {
   });
 });
 
-describe('watchWindowState (spec 014)', () => {
-  /** on 으로 붙은 리스너를 이벤트 이름으로 부를 수 있는 창 대역 */
-  function createWatchedWindow(isMaximized: boolean) {
-    const listenerMap = new Map<string, () => void>();
-    const window = {
-      on: vi.fn((name: string, listener: () => void) => {
-        listenerMap.set(name, listener);
-        return window;
-      }),
-      isMaximized: vi.fn(() => isMaximized),
-    };
-    const onChange = vi.fn();
-    watchWindowState(window as never, onChange);
-    const emit = (name: string) => listenerMap.get(name)?.();
-    return { emit, onChange };
-  }
+/** on 으로 붙은 리스너를 이벤트 이름으로 부를 수 있는 창 대역 */
+function createWatchedWindow() {
+  const listenerMap = new Map<string, () => void>();
+  const window = {
+    on: vi.fn((name: string, listener: () => void) => {
+      listenerMap.set(name, listener);
+      return window;
+    }),
+  };
+  const emit = (name: string) => listenerMap.get(name)?.();
+  return { window: window as never, emit, onChange: vi.fn() };
+}
 
+describe('watchMaximizeEvents (spec 014)', () => {
   it.each([
     ['maximize', true],
-    ['enter-full-screen', true],
     ['unmaximize', false],
   ] as const)('%s 이면 isMaximized %s', (eventName, expected) => {
-    const { emit, onChange } = createWatchedWindow(false);
+    const { window, emit, onChange } = createWatchedWindow();
+    watchMaximizeEvents(window, onChange);
     emit(eventName);
     expect(onChange).toHaveBeenLastCalledWith({ isMaximized: expected });
   });
+});
 
-  it('전체 화면을 풀 때 창이 최대화 상태면 true — 직각을 유지한다', () => {
-    const { emit, onChange } = createWatchedWindow(true);
-    emit('leave-full-screen');
+describe('watchFullScreen (spec 014·017)', () => {
+  it('전체 화면이 되면 isMaximized true', () => {
+    const { window, emit, onChange } = createWatchedWindow();
+    watchFullScreen(window, onChange, () => false);
+    emit('enter-full-screen');
     expect(onChange).toHaveBeenLastCalledWith({ isMaximized: true });
   });
 
-  it('전체 화면을 풀 때 최대화가 아니면 false', () => {
-    const { emit, onChange } = createWatchedWindow(false);
+  it.each([true, false])('전체 화면을 풀 때 isMaximized() 가 %s 면 그 값을 알린다', (isMaximized) => {
+    const { window, emit, onChange } = createWatchedWindow();
+    watchFullScreen(window, onChange, () => isMaximized);
     emit('leave-full-screen');
-    expect(onChange).toHaveBeenLastCalledWith({ isMaximized: false });
+    expect(onChange).toHaveBeenLastCalledWith({ isMaximized });
+  });
+});
+
+describe('createNativeFrame (spec 017)', () => {
+  it('최대화 여부·직전 bounds 는 창에서 읽고, release 는 unmaximize 를 부른다', () => {
+    const normal = { x: 1, y: 2, width: 3, height: 4 };
+    const window = { isMaximized: vi.fn(() => true), getNormalBounds: vi.fn(() => normal), unmaximize: vi.fn() };
+    const frame = createNativeFrame(window as never);
+    expect(frame.isMaximized()).toBe(true);
+    expect(frame.getNormalBounds()).toBe(normal);
+    frame.release();
+    expect(window.unmaximize).toHaveBeenCalledOnce();
   });
 });

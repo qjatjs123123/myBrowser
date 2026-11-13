@@ -1,6 +1,6 @@
 # Spec: Linux 최대화를 모니터 작업 영역 (0,0) 에 직접 배치
 
-> **상태**: 🚧 진행중
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-13
 > **묶음**: 기반 (단일 묶음 — 직접 방식)
 > **관련 spec**: 014, 016
@@ -75,7 +75,7 @@
 > ⚠️ **게이트 규칙**: 각 Task 는 명시된 **테스트와 검증이 모두 에러 0**이 될 때까지 수정 → 재실행을 반복하고, 전부 통과했을 때만 체크박스를 채우고 **Task 단위로 커밋**한 뒤 다음 Task 로 진행한다.
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: main 작업 영역 최대화기 + 포인터 세션·창 상태 연결 + e2e**
+- [x] **Task 1: main 작업 영역 최대화기 + 포인터 세션·창 상태 연결 + e2e**
   - **묶음**: 기반
   - **작업**: `windowMaximize.ts` 신규, `windowPointer.ts` frame 주입·재적용 제거, `window.ts` 상태 구독 분리·`createNativeFrame`, `index.ts` 조립. 같은 Task 에서 `emit('unmaximize')` 의존 e2e 2개를 더블클릭 복원으로 바꾸고 최대화 배치 e2e 를 더한다 (커밋마다 green)
   - **파일**: `src/main/app/{windowMaximize,windowPointer,window}.ts`, `src/main/index.ts`, `src/main/app/__tests__/{windowMaximize,windowPointer,window}.test.ts`, `e2e/window-frame.spec.ts`
@@ -89,7 +89,7 @@
   - **통과 기준**: 테스트 + 검증 통과, 전체 e2e 회귀 통과
   - **커밋**: `fix: Linux 최대화를 작업 영역 setBounds 로 배치 (spec 017 Task 1)`
 
-- [ ] **Task 2: 설계·문제 해결 문서**
+- [x] **Task 2: 설계·문제 해결 문서**
   - **묶음**: 기반
   - **작업**: DESIGN.md §2 Linux 창 문단에 「최대화 = 작업 영역 setBounds (WSLg WM 최대화 32px 밀림)」, TROUBLESHOOTING 항목
   - **파일**: `docs/DESIGN.md`, `docs/TROUBLESHOOTING.md`
@@ -105,3 +105,6 @@
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-13 | 1 | windowMaximize 14 · windowPointer · window 82(src/main/app) · window-frame e2e 12 | 검증 반영 커밋 | 직접 방식. WSLg 실창 픽셀: 왼쪽 모니터 (0,0)~(19,19) 파랑·작업 영역 오른쪽 아래 초록, 더블클릭 복원, 최대화 중 끌기 복원 |
+| 2026-11-13 | 2 | 문서만 | 검증 반영 커밋 | |
+| 2026-11-13 | 검증 | make check 1811 · make e2e 59 · 에러 0 | 검증 반영 커밋 | 실제 마우스 조작은 사용자 확인 |

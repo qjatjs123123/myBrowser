@@ -2,12 +2,10 @@ import type { Rectangle } from 'electron';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  RESTORE_SETTLE_MS,
   computeMovedBounds,
   computeResizedBounds,
   computeRestoredBounds,
   createWindowPointerSession,
-  type TPointerWindow,
   type TWindowEdge,
 } from '../windowPointer';
 
@@ -71,45 +69,39 @@ describe('computeRestoredBounds (spec 016 FR-3)', () => {
   });
 });
 
-/** 창 대역 — 최대화 여부·현재 bounds 를 들고, setBounds 를 기록하고, unmaximize 이벤트를 테스트가 보낸다 */
+/** 창·최대화 상태 대역 — 현재 bounds 를 들고 setBounds 를 기록한다. 최대화 중이면 직전 bounds 는 ORIGIN */
 function createFakeWindow({ isMaximized = false } = {}) {
   const state = { isMaximized, bounds: isMaximized ? { x: 0, y: 0, width: 1920, height: 1080 } : ORIGIN };
-  const unmaximizeListenerList: (() => void)[] = [];
   const window = {
     getBounds: vi.fn(() => state.bounds),
-    getNormalBounds: vi.fn(() => ORIGIN),
-    isMaximized: vi.fn(() => state.isMaximized),
-    unmaximize: vi.fn(() => {
-      state.isMaximized = false;
-    }),
     setBounds: vi.fn((bounds: Rectangle) => {
       state.bounds = bounds;
     }),
-    once: vi.fn((eventName: string, listener: () => void) => {
-      if (eventName === 'unmaximize') unmaximizeListenerList.push(listener);
-      return window;
+  };
+  const frame = {
+    isMaximized: vi.fn(() => state.isMaximized),
+    getNormalBounds: vi.fn(() => ORIGIN),
+    release: vi.fn(() => {
+      state.isMaximized = false;
     }),
   };
-  /** 창 관리자가 최대화 해제를 끝내며 창을 bounds 로 옮긴 것처럼 */
-  const finishUnmaximize = (bounds: Rectangle) => {
-    state.bounds = bounds;
-    for (const listener of unmaximizeListenerList.splice(0)) listener();
-  };
-  return { window: window as typeof window & TPointerWindow, finishUnmaximize };
+  /** 세션을 바로 만든다 */
+  const createSession = () => createWindowPointerSession(window, frame, MIN_SIZE);
+  return { window, frame, createSession };
 }
 
 describe('createWindowPointerSession', () => {
   it('시작 없이 온 move·end 는 아무것도 하지 않는다', () => {
-    const { window } = createFakeWindow();
-    const session = createWindowPointerSession(window, MIN_SIZE);
+    const { window, createSession } = createFakeWindow();
+    const session = createSession();
     session.move({ screenX: 10, screenY: 10 });
     session.end();
     expect(window.setBounds).not.toHaveBeenCalled();
   });
 
   it('move 로 시작하면 끄는 만큼 창을 옮기고, end 뒤 move 는 무시한다', () => {
-    const { window } = createFakeWindow();
-    const session = createWindowPointerSession(window, MIN_SIZE);
+    const { window, createSession } = createFakeWindow();
+    const session = createSession();
     session.start({ kind: 'move', screenX: 500, screenY: 60 });
     session.move({ screenX: 510, screenY: 70 });
     session.end();
@@ -119,79 +111,38 @@ describe('createWindowPointerSession', () => {
   });
 
   it('변으로 시작하면 크기를 바꾼다', () => {
-    const { window } = createFakeWindow();
-    const session = createWindowPointerSession(window, MIN_SIZE);
+    const { window, createSession } = createFakeWindow();
+    const session = createSession();
     session.start({ kind: 'se', screenX: 0, screenY: 0 });
     session.move({ screenX: 40, screenY: 30 });
     expect(window.setBounds).toHaveBeenCalledWith({ x: 100, y: 50, width: 1320, height: 830 });
   });
 
-  it('최대화 중 move 로 시작하면 unmaximize 1회 후 복원 bounds 에서 이어 옮긴다', () => {
-    const { window } = createFakeWindow({ isMaximized: true });
-    const session = createWindowPointerSession(window, MIN_SIZE);
+  it('최대화 중 move 로 시작하면 최대화 상태를 1회 풀고 복원 bounds 에서 이어 옮긴다 (spec 017 FR-5)', () => {
+    const { window, frame, createSession } = createFakeWindow({ isMaximized: true });
+    const session = createSession();
     session.start({ kind: 'move', screenX: 960, screenY: 10 });
-    expect(window.unmaximize).toHaveBeenCalledOnce();
+    expect(frame.release).toHaveBeenCalledOnce();
     expect(window.setBounds).toHaveBeenLastCalledWith({ x: 320, y: 0, width: 1280, height: 800 });
     session.move({ screenX: 970, screenY: 20 });
     expect(window.setBounds).toHaveBeenLastCalledWith({ x: 330, y: 10, width: 1280, height: 800 });
   });
 
   it('최대화 중 변으로 시작하면 무시한다', () => {
-    const { window } = createFakeWindow({ isMaximized: true });
-    const session = createWindowPointerSession(window, MIN_SIZE);
+    const { window, frame, createSession } = createFakeWindow({ isMaximized: true });
+    const session = createSession();
     session.start({ kind: 'e', screenX: 0, screenY: 0 });
     session.move({ screenX: 50, screenY: 0 });
-    expect(window.unmaximize).not.toHaveBeenCalled();
+    expect(frame.release).not.toHaveBeenCalled();
     expect(window.setBounds).not.toHaveBeenCalled();
   });
 
   it('다시 start 하면 새 시작 bounds·지점에서 계산한다', () => {
-    const { window } = createFakeWindow();
-    const session = createWindowPointerSession(window, MIN_SIZE);
+    const { window, createSession } = createFakeWindow();
+    const session = createSession();
     session.start({ kind: 'move', screenX: 0, screenY: 0 });
     session.start({ kind: 'e', screenX: 100, screenY: 100 });
     session.move({ screenX: 110, screenY: 100 });
     expect(window.setBounds).toHaveBeenCalledWith({ x: 100, y: 50, width: 1290, height: 800 });
-  });
-
-  describe('최대화에서 끌어 내린 뒤 창 관리자의 늦은 복원 (WSLg)', () => {
-    const OLD_NORMAL = { x: 320, y: 200, width: 1280, height: 800 };
-
-    /** 최대화 창을 끌어 내리고 한 번 옮긴다 — 예약된 콜백은 scheduledList 에 모은다 */
-    function startRestoredDrag() {
-      const fake = createFakeWindow({ isMaximized: true });
-      const scheduledList: { callback: () => void; delayMs: number }[] = [];
-      const schedule = (callback: () => void, delayMs: number) => void scheduledList.push({ callback, delayMs });
-      const session = createWindowPointerSession(fake.window, MIN_SIZE, { schedule });
-      session.start({ kind: 'move', screenX: 960, screenY: 10 });
-      session.move({ screenX: 965, screenY: 15 });
-      session.end();
-      return { ...fake, scheduledList };
-    }
-
-    it('최대화 해제가 끝나고 정한 시간 뒤 창이 예전 위치면 마지막 bounds 를 한 번 다시 적용한다', () => {
-      const { window, finishUnmaximize, scheduledList } = startRestoredDrag();
-      finishUnmaximize(OLD_NORMAL);
-      expect(scheduledList.map(({ delayMs }) => delayMs)).toEqual([RESTORE_SETTLE_MS]);
-      const callCount = window.setBounds.mock.calls.length;
-      scheduledList[0]?.callback();
-      expect(window.setBounds).toHaveBeenCalledTimes(callCount + 1);
-      expect(window.setBounds).toHaveBeenLastCalledWith({ x: 325, y: 5, width: 1280, height: 800 });
-    });
-
-    it('그때 창이 이미 마지막 bounds 면 다시 적용하지 않는다', () => {
-      const { window, finishUnmaximize, scheduledList } = startRestoredDrag();
-      finishUnmaximize({ x: 325, y: 5, width: 1280, height: 800 });
-      const callCount = window.setBounds.mock.calls.length;
-      scheduledList[0]?.callback();
-      expect(window.setBounds).toHaveBeenCalledTimes(callCount);
-    });
-
-    it('최대화가 아니던 창을 끌 때는 최대화 해제를 기다리지 않는다', () => {
-      const { window } = createFakeWindow();
-      const session = createWindowPointerSession(window, MIN_SIZE, { schedule: vi.fn() });
-      session.start({ kind: 'move', screenX: 0, screenY: 0 });
-      expect(window.once).not.toHaveBeenCalled();
-    });
   });
 });

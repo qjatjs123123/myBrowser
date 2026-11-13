@@ -2,6 +2,8 @@ import type { BrowserWindow, Rectangle } from 'electron';
 
 import type { TWindowPointerKind, TWindowPointerPoint, TWindowPointerStartRequest } from '@shared/ipc/window';
 
+import type { IBoundsMaximizer } from './windowMaximize';
+
 /** 창 크기 (DIP) */
 export interface ISize {
   width: number;
@@ -18,10 +20,10 @@ export interface IPoint {
 export type TWindowEdge = Exclude<TWindowPointerKind, 'move'>;
 
 /** 창 이동·크기 조절에 쓰는 창 메서드 — 부를 때마다 창에서 찾는다(e2e 가 인스턴스에 대역을 심는다) */
-export type TPointerWindow = Pick<
-  BrowserWindow,
-  'getBounds' | 'setBounds' | 'isMaximized' | 'unmaximize' | 'getNormalBounds' | 'once'
->;
+export type TPointerWindow = Pick<BrowserWindow, 'getBounds' | 'setBounds'>;
+
+/** 최대화 상태 — Linux 는 앱 최대화기(spec 017), 그 외는 창 관리자 최대화(createNativeFrame) */
+export type TPointerFrame = Pick<IBoundsMaximizer, 'isMaximized' | 'getNormalBounds' | 'release'>;
 
 /** window:pointer* 핸들러가 부르는 세션 */
 export interface IWindowPointerSession {
@@ -86,20 +88,6 @@ interface IActivePointer {
   kind: TWindowPointerKind;
   origin: Rectangle;
   start: IPoint;
-  /** 최대화에서 끌어 내린 이동인가 — 창 관리자의 늦은 복원 뒤 다시 적용한다 */
-  isRestoredDrag: boolean;
-}
-
-/**
- * 최대화 해제는 창 관리자가 늦게(WSLg 실측: unmaximize 이벤트 ~80ms 뒤) 끝내며 창을 예전 위치로 되돌린다.
- * 최대화에서 끌어 내린 이동은 unmaximize 이벤트 뒤 이 시간이 지나면 마지막으로 옮긴 bounds 를 한 번 더 적용한다 (spec 016 FR-3).
- * 매 move 이벤트마다 되돌리면 setBounds 가 다시 move 를 낳아 창 관리자와 핑퐁한다 — 한 번만.
- */
-export const RESTORE_SETTLE_MS = 200;
-
-/** 테스트가 타이머를 주입한다 */
-interface IPointerSessionOptions {
-  schedule?: (callback: () => void, delayMs: number) => void;
 }
 
 /**
@@ -108,28 +96,17 @@ interface IPointerSessionOptions {
  */
 export function createWindowPointerSession(
   window: TPointerWindow,
+  frame: TPointerFrame,
   minSize: ISize,
-  { schedule = (callback, delayMs) => void setTimeout(callback, delayMs) }: IPointerSessionOptions = {},
 ): IWindowPointerSession {
   let active: IActivePointer | null = null;
-  /** 마지막으로 적용한 bounds — 늦은 복원 뒤 다시 적용한다 */
-  let lastBounds: Rectangle | null = null;
-  const reapplyAfterRestore = () =>
-    window.once('unmaximize', () =>
-      schedule(() => {
-        if (lastBounds && !isSameBounds(window.getBounds(), lastBounds)) window.setBounds(lastBounds);
-      }, RESTORE_SETTLE_MS),
-    );
   return {
     start: (request) => {
-      active = beginPointer(window, request);
-      lastBounds = active?.origin ?? null;
-      if (active?.isRestoredDrag) reapplyAfterRestore();
+      active = beginPointer(window, frame, request);
     },
     move: (point) => {
       if (!active) return;
-      lastBounds = computePointerBounds(active, toPoint(point), minSize);
-      window.setBounds(lastBounds);
+      window.setBounds(computePointerBounds(active, toPoint(point), minSize));
     },
     end: () => {
       active = null;
@@ -143,19 +120,19 @@ function computePointerBounds(active: IActivePointer, current: IPoint, minSize: 
   return computeResizedBounds(active.origin, active.kind, active.start, current, minSize);
 }
 
-/** 조작 시작 — 최대화 중 이동이면 원래 크기로 돌려 놓고, 최대화 중 크기 조절은 하지 않는다 */
-function beginPointer(window: TPointerWindow, request: TWindowPointerStartRequest): IActivePointer | null {
+/** 조작 시작 — 최대화 중 이동이면 원래 크기로 돌려 놓고(spec 016 FR-3), 최대화 중 크기 조절은 하지 않는다 */
+function beginPointer(
+  window: TPointerWindow,
+  frame: TPointerFrame,
+  request: TWindowPointerStartRequest,
+): IActivePointer | null {
   const start = toPoint(request);
-  if (!window.isMaximized()) return { kind: request.kind, origin: window.getBounds(), start, isRestoredDrag: false };
+  if (!frame.isMaximized()) return { kind: request.kind, origin: window.getBounds(), start };
   if (request.kind !== 'move') return null;
-  const restored = computeRestoredBounds(window.getBounds(), window.getNormalBounds(), start);
-  window.unmaximize();
+  const restored = computeRestoredBounds(window.getBounds(), frame.getNormalBounds(), start);
+  frame.release();
   window.setBounds(restored);
-  return { kind: 'move', origin: restored, start, isRestoredDrag: true };
-}
-
-function isSameBounds(a: Rectangle, b: Rectangle): boolean {
-  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+  return { kind: 'move', origin: restored, start };
 }
 
 function toPoint(point: TWindowPointerPoint): IPoint {

@@ -105,3 +105,9 @@ Claude 는 에러를 만나면 이 문서를 먼저 확인한다. 새 문제를 
 - 원인: 앱 버그가 아니다 — Playwright `_electron` 이 붙은 페이지에 기본으로 `colorScheme: 'light'` 를 에뮬레이트해 OS 테마를 덮는다.
 - 해결: e2e 에서 `await win.emulateMedia({ colorScheme: null })` 로 에뮬레이션을 푼 뒤 `nativeTheme.themeSource` 를 바꾼다 (`e2e/sidebar-layout.spec.ts`). 재현: emulateMedia 없이 → false, 푼 뒤 dark → true, light → false.
 
+
+## WSLg 에서 최대화하면 창 내용이 ~32px 밀려 보이고, 탭 줄을 눌러도 주소창이 눌림 (spec 017)
+- 증상: 최대화 후 창이 모니터 (0,0) 이 아니라 오른쪽·아래로 밀려 그려지고 오른쪽·아래가 잘린다. X bounds(`getBounds`)·Windows `GetWindowRect` 는 정상이라 좌표만 보면 맞아 보인다. 실제 마우스는 보이는 탭 줄을 눌러도 renderer 에는 y≈40~57(주소창)로 들어와 끌기·더블클릭 복원이 안 된다.
+- 원인: WSLg(Weston) 가 **창 관리자 최대화 상태**의 프레임 없는 X 창을 그림자 여백만큼 밀어 그린다 (`_NET_FRAME_EXTENTS` 6,6,27,6). 투명 창 여부와 무관 — 순수 Electron 창으로도 재현. 일반 창을 `setBounds` 로 같은 위치에 두면 정확히 그려진다.
+- 해결: Linux 는 `app/windowMaximize.ts` 가 최대화를 "측정 → unmaximize → setBounds(작업 영역)" 으로 바꾸고 최대화 상태를 앱이 관리한다. `display.workArea` 는 WSLg 에서 작업 표시줄을 빼지 않으므로 크기는 창 관리자 최대화 bounds 로 잰다.
+- 확인 방법: CDP 합성 입력은 renderer 좌표로 바로 들어가 재현되지 않는다. 화면 픽셀로 본다 — renderer 에 `position:fixed` 색 사각형을 넣고, PowerShell `SetWindowPos(HWND_TOPMOST)` 후 `CopyFromScreen` 으로 모니터 (0,0) 픽셀을 읽는다 (`AppActivate` 는 창을 SW_RESTORE 해 bounds 를 바꾸므로 쓰지 않는다).
