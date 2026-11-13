@@ -56,7 +56,7 @@ export interface IAgentServiceDeps {
   createId: () => string;
   guardOptions: { allowedHostList: string[] };
   maxToolCalls: number;
-  /** run 누적 입력 토큰 상한 (spec 019 FR-1) — 넘으면 failed. 없으면 상한 없음 */
+  /** run 누적 입력 토큰 상한 (spec 020 FR-1) — 넘으면 failed. 없으면 상한 없음 */
   maxInputTokens?: number;
   log?: IAgentLog;
   /** 켜진 스킬 읽기 (spec 013) — 없으면 스킬 없이 실행 */
@@ -308,7 +308,7 @@ function countToolCall(deps: IAgentServiceDeps, session: IRunSession): boolean {
   return false;
 }
 
-/** 누적 입력 토큰이 상한을 넘으면 도구 호출 한도와 같은 방식으로 run 을 끝낸다 (spec 019 FR-1) */
+/** 누적 입력 토큰이 상한을 넘으면 도구 호출 한도와 같은 방식으로 run 을 끝낸다 (spec 020 FR-1) */
 function checkInputTokenLimit(deps: IAgentServiceDeps, session: IRunSession): void {
   const limit = deps.maxInputTokens;
   if (limit === undefined || session.usage.inputTokens <= limit) return;
@@ -316,7 +316,7 @@ function checkInputTokenLimit(deps: IAgentServiceDeps, session: IRunSession): vo
   halt(deps, session, 'failed');
 }
 
-/** 입력 토큰 상한 실패 사유 — eval 러너가 이 문구로 판정한다 (spec 019 묶음 간 계약) */
+/** 입력 토큰 상한 실패 사유 — eval 러너가 이 문구로 판정한다 (spec 020 묶음 간 계약) */
 function toInputTokenLimitReason(limit: number): string {
   return `입력 토큰 한도(${limit})를 넘었습니다`;
 }

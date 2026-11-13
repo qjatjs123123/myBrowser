@@ -176,7 +176,7 @@ describe('readEnv — fakeScenarioDir (spec 005)', () => {
   });
 });
 
-describe('readEnv — 입력 토큰 상한 (spec 019 FR-1)', () => {
+describe('readEnv — 입력 토큰 상한 (spec 020 FR-1)', () => {
   it('MYBROWSER_MAX_INPUT_TOKENS=1500000 이면 maxInputTokens 가 1500000 이다', () => {
     expect(readEnv({ ...DEV_PROFILE, MYBROWSER_MAX_INPUT_TOKENS: '1500000' }, DEV).maxInputTokens).toBe(1_500_000);
   });

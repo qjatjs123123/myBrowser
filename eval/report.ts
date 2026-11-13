@@ -52,7 +52,7 @@ export type TEvalResult = z.infer<typeof EvalResultSchema>;
 /** DB 에서 읽은 run 1건의 지표 */
 export interface IRunMetrics {
   status: string;
-  /** 끝난 답 — 완료면 summary, 실패면 reason (spec 019 FR-4) */
+  /** 끝난 답 — 완료면 summary, 실패면 reason (spec 020 FR-4) */
   answer: string | null;
   toolCalls: number;
   inputTokens: number;
@@ -84,7 +84,7 @@ function toNullableText(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null;
 }
 
-/** 단계 로그 1줄 (spec 019 FR-4 — `{id}-{n}.steps.json`) */
+/** 단계 로그 1줄 (spec 020 FR-4 — `{id}-{n}.steps.json`) */
 export interface IStepLog {
   n: number;
   tool: string;
@@ -177,7 +177,7 @@ export function convertToReportJson({
   };
 }
 
-/** 결과 디렉터리 이름 — 로컬 시각 `YYYYMMDD-HHmmss` (spec 019 FR-4: 실행 1번 = 디렉터리 1개) */
+/** 결과 디렉터리 이름 — 로컬 시각 `YYYYMMDD-HHmmss` (spec 020 FR-4: 실행 1번 = 디렉터리 1개) */
 export function getResultDirName(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, '0');
   const day = `${String(date.getFullYear())}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
@@ -210,7 +210,7 @@ function writeJson(dir: string, body: unknown): string {
   return path;
 }
 
-/** 실제 사이트 세트의 보고 JSON 을 `{dir}/report.json` 에 쓴다 (spec 019 FR-4·FR-6) — summary 는 siteJudge 의 집계 */
+/** 실제 사이트 세트의 보고 JSON 을 `{dir}/report.json` 에 쓴다 (spec 020 FR-4·FR-6) — summary 는 siteJudge 의 집계 */
 export function writeSiteReportJson({
   dir,
   resultList,
@@ -234,7 +234,7 @@ export function writeSiteReportJson({
   });
 }
 
-/** 실제 사이트 세트 종료 코드 — 결과 줄이 시나리오 수 × 반복만큼 다 있으면 0 (판정과 무관, spec 019 FR-3) */
+/** 실제 사이트 세트 종료 코드 — 결과 줄이 시나리오 수 × 반복만큼 다 있으면 0 (판정과 무관, spec 020 FR-3) */
 export function getSiteExitCode({
   lineCount,
   scenarioCount,

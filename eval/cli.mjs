@@ -1,11 +1,11 @@
 /**
- * [평가 세트] `pnpm eval` 진입점 — 인자 해석(cliArgs.ts) → playwright 평가 프로젝트 실행 → 결과 표·JSON (spec 005 FR-8, spec 019).
+ * [평가 세트] `pnpm eval` 진입점 — 인자 해석(cliArgs.ts) → playwright 평가 프로젝트 실행 → 결과 표·JSON (spec 005 FR-8, spec 020).
  * .ts 는 Node 의 type stripping 으로 그대로 불러 쓴다. 로직은 cliArgs.ts·report.ts·siteJudge.ts 에 두고 여기는 연결만 한다.
  *
  * 사용법:
  *   pnpm eval                                          로컬 픽스처 7개, 가짜 모델 (비용 없음)
  *   pnpm eval -- --real --yes-spend                    같은 픽스처를 실제 모델(dev 프로필)로 (비용 발생)
- *   pnpm eval -- --real --yes-spend --set sites        실제 사이트 세트 (spec 019, 비용 발생) — 시나리오당 3회
+ *   pnpm eval -- --real --yes-spend --set sites        실제 사이트 세트 (spec 020, 비용 발생) — 시나리오당 3회
  *   pnpm eval -- --real --yes-spend --set sites --repeat 1 --grep naver   반복·시나리오 고르기
  * 결과: eval/results/{YYYYMMDD-HHmmss}/report.json (sites 세트는 + {id}-{n}.png 끝 화면, {id}-{n}.steps.json 단계 로그).
  * `--real` 이면 .env 의 ANTHROPIC_API_KEY·ANTHROPIC_BASE_URL 두 키만, 셸에 없을 때 앱에 넘긴다 (FR-8 — 값은 출력하지 않는다).
@@ -37,7 +37,7 @@ const RESULT_ROOT = join(ROOT, 'eval', 'results');
 const DOT_ENV_PATH = join(ROOT, '.env');
 /** 러너가 시나리오마다 결과 1줄을 붙여 쓰는 파일 — eval/*.eval.ts 가 읽는다 */
 const RESULT_FILE_ENV = 'MYBROWSER_EVAL_RESULT_FILE';
-/** 러너가 스크린샷·단계 로그를 쓰는 결과 디렉터리 (spec 019 FR-4) */
+/** 러너가 스크린샷·단계 로그를 쓰는 결과 디렉터리 (spec 020 FR-4) */
 const OUT_DIR_ENV = 'MYBROWSER_EVAL_OUT_DIR';
 
 const command = resolveEvalCommand({

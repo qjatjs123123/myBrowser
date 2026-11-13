@@ -980,7 +980,7 @@ describe('AgentService — 호출 상한 ⑧', () => {
   });
 });
 
-describe('AgentService — 입력 토큰 상한 (spec 019 FR-1)', () => {
+describe('AgentService — 입력 토큰 상한 (spec 020 FR-1)', () => {
   const TURN_INPUT_TOKENS = 600;
 
   /** 가짜 fetch 응답의 입력 토큰(고정 10)을 턴당 600 으로 바꾼다 */

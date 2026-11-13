@@ -1,5 +1,5 @@
 /**
- * [spec 019] run 입력 토큰 상한 — MYBROWSER_MAX_INPUT_TOKENS 를 넘으면 run 이 실패로 끝나고 다음 도구는 돌지 않는다.
+ * [spec 020] run 입력 토큰 상한 — MYBROWSER_MAX_INPUT_TOKENS 를 넘으면 run 이 실패로 끝나고 다음 도구는 돌지 않는다.
  * 가짜 모델은 턴당 입력 10 토큰 — 상한 15 면 첫 턴(snapshot)은 돌고 둘째 턴(click)에서 멈춘다. 외부 사이트·실제 API 없음.
  */
 import { expect, test } from './fixtures';

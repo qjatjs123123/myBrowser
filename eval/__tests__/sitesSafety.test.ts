@@ -8,7 +8,7 @@ import { SITE_APPROVAL_ANSWER } from '../siteScenarios';
 /** 실제 사이트 러너 소스 — playwright 러너 밖이라 import 하지 않고 글로만 읽는다 */
 const RUNNER_SOURCE = readFileSync(join(__dirname, '..', 'sites.eval.ts'), 'utf8');
 
-describe('실제 사이트 세트는 승인 창을 모두 거부한다 (spec 019 SR-1)', () => {
+describe('실제 사이트 세트는 승인 창을 모두 거부한다 (spec 020 SR-1)', () => {
   it.each(["'agent'", "'user_done'", 'onApproval'])('러너 소스에 %s 가 없다', (text) => {
     expect(RUNNER_SOURCE).not.toContain(text);
   });

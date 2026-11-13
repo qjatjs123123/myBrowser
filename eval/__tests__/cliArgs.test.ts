@@ -60,7 +60,7 @@ function resolve(argList: string[]) {
   return resolveEvalCommand({ argList, hasApiKey: true });
 }
 
-describe('resolveEvalCommand — --set·--repeat (spec 019)', () => {
+describe('resolveEvalCommand — --set·--repeat (spec 020)', () => {
   it('--set sites 를 --real 없이 쓰면 종료 코드 2 와 안내를 돌려준다', () => {
     expect(resolve(['--set', 'sites'])).toEqual({ kind: 'exit', code: 2, message: EVAL_MESSAGE.needRealForSites });
   });
@@ -122,7 +122,7 @@ describe('resolveEvalCommand — --set·--repeat (spec 019)', () => {
   });
 });
 
-describe('pickModelEnv (spec 019 FR-8)', () => {
+describe('pickModelEnv (spec 020 FR-8)', () => {
   it('셸에 없는 모델 키만 .env 값으로 채운다', () => {
     const dotEnv = { ANTHROPIC_API_KEY: 'k', ANTHROPIC_BASE_URL: 'https://proxy.example' };
     expect(pickModelEnv({ dotEnv, processEnv: { ANTHROPIC_BASE_URL: 'https://shell.example' } })).toEqual({

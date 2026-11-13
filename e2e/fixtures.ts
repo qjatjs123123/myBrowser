@@ -4,7 +4,7 @@
  * - renderer console.error·pageerror·main 의 [main.error] 를 모아 HARNESS_RUN_DIR/console-errors.log 에 쓰고, 1건이라도 있으면 테스트를 실패시킨다
  * - 탭 페이지는 로컬 픽스처 서버(fixtureUrl)만 연다 — 외부 사이트 금지
  * - `test.use({ appEnv, executablePath })` 로 env 를 덮어쓰거나(값 undefined = 키 제거) 설치판 실행 파일을 띄운다 (spec 005)
- * - `allowExternalRequests` 는 실제 사이트 평가 세트(eval/sites.eval.ts) 전용 — e2e spec 에서는 쓰지 않는다 (spec 019 SR-3)
+ * - `allowExternalRequests` 는 실제 사이트 평가 세트(eval/sites.eval.ts) 전용 — e2e spec 에서는 쓰지 않는다 (spec 020 SR-3)
  * 규칙: .claude/rules/test-convention.md 「e2e」, .claude/skills/desktop/app-check
  */
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
@@ -51,7 +51,7 @@ interface IFixtures {
   appEnv: TAppEnv;
   /** 설치판 실행 파일 — 주면 소스 폴더(ROOT)를 인자로 넘기지 않는다. `test.use({ executablePath })` */
   executablePath: string | undefined;
-  /** 외부 요청 차단을 끈다 — eval/sites.eval.ts 만 쓴다 (spec 019 SR-3). 기본 false */
+  /** 외부 요청 차단을 끈다 — eval/sites.eval.ts 만 쓴다 (spec 020 SR-3). 기본 false */
   allowExternalRequests: boolean;
 }
 

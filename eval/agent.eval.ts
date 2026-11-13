@@ -17,7 +17,7 @@ import { DB_FILE_NAME, isPassed, readRunMetrics, type TEvalResult } from './repo
 import { EVAL_SCENARIO_LIST, type IEvalScenario } from './scenarios';
 
 const isReal = process.env[EVAL_REAL_ENV] === '1';
-/** 실제 사이트 세트를 돌릴 때는 이 픽스처 세트를 만들지 않는다 (spec 019 FR-7) */
+/** 실제 사이트 세트를 돌릴 때는 이 픽스처 세트를 만들지 않는다 (spec 020 FR-7) */
 const isSiteSet = process.env[EVAL_SET_ENV] === SITE_SET_NAME;
 const RESULT_FILE = process.env['MYBROWSER_EVAL_RESULT_FILE'];
 

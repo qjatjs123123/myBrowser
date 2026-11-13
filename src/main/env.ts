@@ -31,7 +31,7 @@ export interface IEnv {
   fakeScenarioDir?: string;
   /** 모델 id — 날짜 접미사 금지. prod 는 GATEWAY_MODEL 고정, dev 기본은 DEV_DEFAULT_MODEL */
   model: string;
-  /** run 누적 입력 토큰 상한 (spec 019 FR-1) — 없으면 상한 없음 */
+  /** run 누적 입력 토큰 상한 (spec 020 FR-1) — 없으면 상한 없음 */
   maxInputTokens?: number;
 }
 

@@ -1,7 +1,7 @@
 /**
- * [평가 세트] 실행 진행 공용 모듈 — 앱 화면에서 할 일이 끝날 때까지 승인 창·질문 카드에 답한다 (spec 005 FR-8, spec 019).
+ * [평가 세트] 실행 진행 공용 모듈 — 앱 화면에서 할 일이 끝날 때까지 승인 창·질문 카드에 답한다 (spec 005 FR-8, spec 020).
  * 픽스처 세트(agent.eval.ts)와 실제 사이트 세트(sites.eval.ts)가 같이 쓴다. 승인 답은 호출하는 쪽이 정한다 —
- * 실제 사이트 세트는 항상 거부만 넘긴다 (spec 019 SR-1).
+ * 실제 사이트 세트는 항상 거부만 넘긴다 (spec 020 SR-1).
  */
 import type { ElectronApplication, Locator, Page } from '@playwright/test';
 
@@ -70,7 +70,7 @@ async function answerQuestion(card: Locator, option: string | undefined): Promis
 
 /**
  * [실제 사이트] 주소창에 시작 URL 을 넣고 Enter → 그 host 의 탭 페이지가 잡히고 domcontentloaded 까지 기다린다.
- * 리다이렉트·동적 제목·봇 차단이 있어 제목은 비교하지 않는다 (spec 019 Task 3). 실패하면 SITE_OPEN_FAILED 로 throw.
+ * 리다이렉트·동적 제목·봇 차단이 있어 제목은 비교하지 않는다 (spec 020 Task 3). 실패하면 SITE_OPEN_FAILED 로 throw.
  */
 export async function openSiteInActiveTab(app: ElectronApplication, win: Page, startUrl: string): Promise<void> {
   try {

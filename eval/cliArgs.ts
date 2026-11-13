@@ -1,5 +1,5 @@
 /**
- * [평가 세트] `pnpm eval` 인자 해석 — 순수 함수 (spec 005 FR-8, SR-6 / spec 019 FR-3·FR-8).
+ * [평가 세트] `pnpm eval` 인자 해석 — 순수 함수 (spec 005 FR-8, SR-6 / spec 020 FR-3·FR-8).
  * `--real` 은 `--yes-spend` 를 함께 줘야만 실제 모델로 돈다. `--set sites` 는 실제 사이트 세트(`--real` 필수),
  * `--repeat N` 은 sites 세트의 시나리오당 반복 횟수. `eval/cli.mjs` 가 type stripping 으로 불러 쓴다
  * (지울 수 있는 TS 문법만, 로컬 import 없음).

@@ -4,6 +4,7 @@
 > **생성일**: 2026-11-13
 > **묶음**: agent-budget, eval-sites
 > **관련 spec**: 005 (평가 세트), 007 (모델 프로필), 008 (e2e 외부 요청 차단), 015 (에이전트 정확도)
+> **번호 변경**: 작업 중 다른 세션이 dev 에 spec 019(입력창 추천 문구)를 먼저 합쳐 이 spec 은 020 으로 옮겼다 — 이 기능의 묶음·Task 커밋 메시지는 `(spec 019 …)` 로 남아 있다 (커밋 76dc6db·c1b9f13·52dbddf·453bde4·8f11958·10f0e0c).
 > **설계 참조**: docs/DESIGN.md §5 로드맵 (단계 6 원가 실측)
 
 ---
@@ -57,7 +58,7 @@
   - `eval/agent.eval.ts` — `MYBROWSER_EVAL_SET=sites` 이면 테스트 0개(기존 세트와 섞이지 않게), 공용 모듈 사용.
   - `eval/report.ts` — run 의 summary·reason 과 steps 목록을 읽는 함수 추가, 세트별 결과 디렉터리 쓰기.
   - `eval/cli.mjs` — spawn 전에 결과 디렉터리를 만들어 `MYBROWSER_EVAL_OUT_DIR` 로 넘긴다. 세트가 sites 면 `parseSiteResultLines` → 사이트 집계 표·`report.json`(summary 포함)·FR-3 종료 코드, 아니면 기존 표·기존 종료 코드(기존 세트도 같은 디렉터리의 `report.json`). 가짜 세트의 시작 페이지 열기는 기존 제목 방식 유지.
-- 문서: `docs/DESIGN.md` §5 단계 6 에 「실제 사이트 평가 세트(spec 019)」 한 줄, `README` 류 사용법은 `eval/` 머리 주석으로.
+- 문서: `docs/DESIGN.md` §5 단계 6 에 「실제 사이트 평가 세트(spec 020)」 한 줄, `README` 류 사용법은 `eval/` 머리 주석으로.
 
 ### IPC 계약
 변경 없음
@@ -93,7 +94,7 @@ DB 변경 없음. 결과 파일: `eval/results/{YYYYMMDD-HHmmss}/{report.json, {
   - **실행**: `pnpm test src/main/__tests__/env.test.ts src/main/agent/__tests__/service.test.ts`
   - **검증**: `pnpm type-check` + 단위 테스트 + `make e2e SPEC=e2e/agent-mvp.spec.ts` (기존 가짜 모델 흐름 영향 없음)
   - **통과 기준**: 테스트 + 검증 통과
-  - **커밋**: `feat: run 입력 토큰 상한 MYBROWSER_MAX_INPUT_TOKENS (spec 019 Task 1)`
+  - **커밋**: `feat: run 입력 토큰 상한 MYBROWSER_MAX_INPUT_TOKENS (spec 020 Task 1)`
 
 - [x] **Task 2: 평가 인자·판정·집계 (순수)**
   - **묶음**: eval-sites
@@ -106,7 +107,7 @@ DB 변경 없음. 결과 파일: `eval/results/{YYYYMMDD-HHmmss}/{report.json, {
   - **실행**: `pnpm test eval/__tests__`
   - **검증**: `pnpm type-check` + 단위 테스트
   - **통과 기준**: 테스트 + 검증 통과
-  - **커밋**: `feat: 실제 사이트 평가 인자·판정·시나리오 (spec 019 Task 2)`
+  - **커밋**: `feat: 실제 사이트 평가 인자·판정·시나리오 (spec 020 Task 2)`
 
 - [x] **Task 3: 실제 사이트 러너·보고**
   - **묶음**: eval-sites
@@ -121,7 +122,7 @@ DB 변경 없음. 결과 파일: `eval/results/{YYYYMMDD-HHmmss}/{report.json, {
   - **실행**: `pnpm test eval/__tests__ e2e/fixtures/__tests__` + `pnpm eval`
   - **검증**: `pnpm type-check` + 단위 테스트 + `pnpm eval`(가짜 모델, 비용 없음) 7/7 + `make e2e`(fixtures 변경 회귀). **`--set sites` 실제 실행은 하지 않는다** (비용 — 사용자 명령 시).
   - **통과 기준**: 테스트 + 검증 통과
-  - **커밋**: `feat: 실제 사이트 평가 러너·결과 기록 (spec 019 Task 3)`
+  - **커밋**: `feat: 실제 사이트 평가 러너·결과 기록 (spec 020 Task 3)`
 
 - [x] **Task 4: 문서**
   - **묶음**: eval-sites
@@ -131,7 +132,7 @@ DB 변경 없음. 결과 파일: `eval/results/{YYYYMMDD-HHmmss}/{report.json, {
   - **실행**: `pnpm test eval/__tests__`
   - **검증**: `pnpm type-check`
   - **통과 기준**: 테스트 + 검증 통과
-  - **커밋**: `docs: 실제 사이트 평가 세트 사용법 (spec 019 Task 4)`
+  - **커밋**: `docs: 실제 사이트 평가 세트 사용법 (spec 020 Task 4)`
 
 - [x] **Task 5: 입력 토큰 상한 연결 (합친 뒤 메인)**
   - **묶음**: 합친 뒤 (메인 — 공유 파일 `src/main/index.ts`)
@@ -142,7 +143,7 @@ DB 변경 없음. 결과 파일: `eval/results/{YYYYMMDD-HHmmss}/{report.json, {
   - **실행**: `make e2e SPEC=e2e/agent-budget.spec.ts`
   - **검증**: `desktop/app-check` — 가짜 모델로 위 흐름, 콘솔·main 에러 0 + e2e 통과
   - **통과 기준**: 테스트 + 검증 통과
-  - **커밋**: `feat: 입력 토큰 상한 연결 (spec 019)`
+  - **커밋**: `feat: 입력 토큰 상한 연결 (spec 020)`
 
 ---
 

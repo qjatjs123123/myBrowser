@@ -109,7 +109,7 @@ describe('writeReportJson', () => {
   });
 });
 
-describe('writeSiteReportJson (spec 019)', () => {
+describe('writeSiteReportJson (spec 020)', () => {
   it('결과 디렉터리의 report.json 에 세트·집계·결과를 쓴다', () => {
     const createdAt = new Date(2026, 10, 13, 10, 0, 0);
     const summary = { total: { runs: 1 } };
@@ -124,7 +124,7 @@ describe('writeSiteReportJson (spec 019)', () => {
   });
 });
 
-describe('getSiteExitCode (spec 019)', () => {
+describe('getSiteExitCode (spec 020)', () => {
   it('결과 줄 수가 시나리오 수 × 반복과 같으면 0 이다', () => {
     expect(getSiteExitCode({ lineCount: 30, scenarioCount: 10, repeat: 3 })).toBe(0);
   });
@@ -186,7 +186,7 @@ describe('readRunMetrics', () => {
   });
 });
 
-describe('readRunMetrics·readStepList — 답과 단계 로그 (spec 019)', () => {
+describe('readRunMetrics·readStepList — 답과 단계 로그 (spec 020)', () => {
   /** run 1건(단계 2개)을 쓴 DB 경로 */
   function createDb(patch: { summary?: string; reason?: string; status: 'done' | 'failed' }): string {
     const dbPath = join(dir, 'detail.db');

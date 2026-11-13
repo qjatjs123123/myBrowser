@@ -23,7 +23,7 @@ function findOptionUserList(dir: string, isTarget: (name: string) => boolean): s
     .map((path) => relative(ROOT, path));
 }
 
-describe('외부 요청 차단 끄기 옵션의 사용 위치 (spec 019 SR-3)', () => {
+describe('외부 요청 차단 끄기 옵션의 사용 위치 (spec 020 SR-3)', () => {
   it('e2e spec 은 외부 요청 차단을 끄지 않는다', () => {
     expect(findOptionUserList('e2e', (name) => name.endsWith('.spec.ts'))).toEqual([]);
   });

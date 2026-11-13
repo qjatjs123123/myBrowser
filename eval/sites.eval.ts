@@ -1,5 +1,5 @@
 /**
- * [평가 세트] 실제 사이트 세트 (spec 019) — `pnpm eval -- --real --yes-spend --set sites [--repeat N]` 일 때만 테스트를 만든다.
+ * [평가 세트] 실제 사이트 세트 (spec 020) — `pnpm eval -- --real --yes-spend --set sites [--repeat N]` 일 때만 테스트를 만든다.
  * 시나리오 × 회차마다 깨끗한 프로필로 앱을 띄워 실제 사이트에서 할 일을 실행하고, 승인 창은 항상 거부한다 (SR-1).
  * 판정은 assert 하지 않고 결과 줄만 쓴다 — 집계·종료 코드는 eval/cli.mjs (FR-3·FR-6).
  * 실행마다 MYBROWSER_EVAL_OUT_DIR 에 `{id}-{n}.png`(끝 화면)·`{id}-{n}.steps.json`(단계 로그)을 남긴다 (FR-4).
