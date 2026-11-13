@@ -223,7 +223,7 @@ describe('readRunMetrics·readStepList — 답과 단계 로그 (spec 020)', () 
   });
 });
 
-describe('report.json 의 첫 화면 캡처 기록 (spec 021)', () => {
+describe('report.json 의 첫 화면 캡처 기록 (spec 022)', () => {
   it('writeReportJson 에 firstScreenshot 을 주면 그 값을 쓴다', () => {
     const createdAt = new Date(2026, 10, 13, 10, 0, 0);
     const path = writeReportJson({

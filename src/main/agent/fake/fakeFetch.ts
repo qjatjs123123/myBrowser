@@ -25,7 +25,7 @@ const FAKE_TOKEN_COUNT = 10;
 const SKILL_NAMES_PLACEHOLDER = '{{skillNames}}';
 const SKILL_HEADING_PATTERN = /^## (.+)$/gm;
 const NO_SKILL_TEXT = '없음';
-/** text 블록의 `{{firstImage}}` — 첫 user 메시지에 image 블록이 있으면 있음, 없으면 없음 (spec 021, e2e 확인용) */
+/** text 블록의 `{{firstImage}}` — 첫 user 메시지에 image 블록이 있으면 있음, 없으면 없음 (spec 022, e2e 확인용) */
 const FIRST_IMAGE_PLACEHOLDER = '{{firstImage}}';
 /** refusal 턴의 가짜 분류 — 시나리오 형식에 category 가 없어 고정값을 쓴다 */
 const FAKE_REFUSAL_DETAILS = { type: 'refusal', category: 'general_harms', explanation: '(가짜 거절)' };

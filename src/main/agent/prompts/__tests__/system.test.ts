@@ -81,7 +81,7 @@ describe('buildFirstUserMessage', () => {
   });
 });
 
-describe('buildFirstUserContent (spec 021)', () => {
+describe('buildFirstUserContent (spec 022)', () => {
   it('캡처가 있으면 [이미지, 텍스트+안내] 순서다', () => {
     expect(buildFirstUserContent({ text: '할 일: 찾아줘', screenshotBase64: 'AAAA' })).toEqual([
       { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } },

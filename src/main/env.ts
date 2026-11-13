@@ -33,7 +33,7 @@ export interface IEnv {
   model: string;
   /** run 누적 입력 토큰 상한 (spec 020 FR-1) — 없으면 상한 없음 */
   maxInputTokens?: number;
-  /** run 시작 때 현재 탭 캡처를 첫 메시지에 붙일지 (spec 021 FR-4) — MYBROWSER_FIRST_SCREENSHOT 이 '0' 이 아니면 켬 */
+  /** run 시작 때 현재 탭 캡처를 첫 메시지에 붙일지 (spec 022 FR-4) — MYBROWSER_FIRST_SCREENSHOT 이 '0' 이 아니면 켬 */
   isFirstScreenshotEnabled: boolean;
 }
 

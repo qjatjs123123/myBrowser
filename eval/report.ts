@@ -169,7 +169,7 @@ export function convertToReportJson({
   resultList: TEvalResult[];
   isReal: boolean;
   createdAt: Date;
-  /** 첫 화면 캡처 첨부를 켰는가 (spec 021 FR-5) — 주면 기록한다 */
+  /** 첫 화면 캡처 첨부를 켰는가 (spec 022 FR-5) — 주면 기록한다 */
   firstScreenshot?: boolean;
 }) {
   return {
@@ -230,7 +230,7 @@ export function writeSiteReportJson({
   summary: unknown;
   exitCode: 0 | 1;
   createdAt: Date;
-  /** 첫 화면 캡처 첨부를 켰는가 (spec 021 FR-5) — 주면 기록한다 */
+  /** 첫 화면 캡처 첨부를 켰는가 (spec 022 FR-5) — 주면 기록한다 */
   firstScreenshot?: boolean;
 }): string {
   return writeJson(dir, {

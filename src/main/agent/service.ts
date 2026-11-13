@@ -59,7 +59,7 @@ export interface IAgentServiceDeps {
   maxToolCalls: number;
   /** run 누적 입력 토큰 상한 (spec 020 FR-1) — 넘으면 failed. 없으면 상한 없음 */
   maxInputTokens?: number;
-  /** run 시작 때 현재 탭 캡처를 첫 메시지에 붙인다 (spec 021) — 없으면 붙이지 않는다 */
+  /** run 시작 때 현재 탭 캡처를 첫 메시지에 붙인다 (spec 022) — 없으면 붙이지 않는다 */
   isFirstScreenshotEnabled?: boolean;
   log?: IAgentLog;
   /** 켜진 스킬 읽기 (spec 013) — 없으면 스킬 없이 실행 */
@@ -270,11 +270,11 @@ async function runLoopFor(
   });
 }
 
-/** 첫 화면 캡처가 이 시간 안에 끝나지 않으면 텍스트만 보낸다 (spec 021 FR-3) */
+/** 첫 화면 캡처가 이 시간 안에 끝나지 않으면 텍스트만 보낸다 (spec 022 FR-3) */
 export const FIRST_SCREENSHOT_TIMEOUT_MS = 5_000;
 const FIRST_SCREENSHOT_TIMEOUT_REASON = '시간 초과';
 
-/** run 시작 때 현재 탭을 1번 찍는다 — 실패·throw·시간 초과면 warn(사유만, SR-2) 후 null (spec 021 FR-1·FR-3) */
+/** run 시작 때 현재 탭을 1번 찍는다 — 실패·throw·시간 초과면 warn(사유만, SR-2) 후 null (spec 022 FR-1·FR-3) */
 async function captureFirstScreenshot(deps: IAgentServiceDeps, session: IRunSession): Promise<string | null> {
   const result = await raceTimeout(session.driver.takeScreenshot(), FIRST_SCREENSHOT_TIMEOUT_MS).catch(
     (error: unknown) => ({ ok: false as const, reason: error instanceof Error ? error.message : String(error) }),

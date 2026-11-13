@@ -4,6 +4,7 @@
 > **생성일**: 2026-11-13
 > **묶음**: 기반 (단일 묶음 — 직접 방식)
 > **관련 spec**: 003 (루프), 004 (스크린샷·픽셀), 007 (모델 프로필), 020 (실제 사이트 평가 세트)
+> **번호 변경**: 다른 세션이 021(feature/021-browser-basics-status)을 쓰고 있어 022 로 옮겼다 — Task 커밋 메시지는 `(spec 021 …)` 로 남아 있다 (2e5de11·bf97f5b·a358247·b4fb514·4364f31).
 > **설계 참조**: docs/DESIGN.md §3 「모델·API」·「도구 (2층)」
 
 ---
@@ -78,7 +79,7 @@ DB 변경 없음
   - **실행**: `pnpm test src/main/__tests__/env.test.ts src/main/agent/prompts/__tests__/system.test.ts src/main/agent/__tests__/service.test.ts`
   - **검증**: `pnpm type-check` + 단위 테스트
   - **통과 기준**: 테스트 + 검증 통과
-  - **커밋**: `feat: 할 일 시작 시 현재 탭 캡처를 첫 메시지에 첨부 (spec 021 Task 1)`
+  - **커밋**: `feat: 할 일 시작 시 현재 탭 캡처를 첫 메시지에 첨부 (spec 022 Task 1)`
 
 - [x] **Task 2: 가짜 모델 자리표시자·e2e**
   - **묶음**: 기반
@@ -90,7 +91,7 @@ DB 변경 없음
   - **실행**: `pnpm test src/main/agent/fake/__tests__/fakeFetch.test.ts` + `make e2e SPEC=e2e/first-screenshot.spec.ts`
   - **검증**: `desktop/app-check` — 가짜 모델로 위 두 흐름, 콘솔·main 에러 0 + e2e 통과. 기존 `e2e/agent-*.spec.ts` 가 기본 켬 상태로 그대로 통과
   - **통과 기준**: 테스트 + 검증 통과
-  - **커밋**: `feat: 가짜 모델 첫 화면 자리표시자와 캡처 첨부 e2e (spec 021 Task 2)`
+  - **커밋**: `feat: 가짜 모델 첫 화면 자리표시자와 캡처 첨부 e2e (spec 022 Task 2)`
 
 - [x] **Task 3: 평가 기록·문서**
   - **묶음**: 기반
@@ -101,7 +102,7 @@ DB 변경 없음
   - **실행**: `pnpm test eval/__tests__` + `pnpm eval`(가짜 7/7)
   - **검증**: `pnpm type-check` + 단위 테스트 + `pnpm eval`
   - **통과 기준**: 테스트 + 검증 통과
-  - **커밋**: `feat: 평가 결과에 첫 화면 캡처 여부 기록 (spec 021 Task 3)`
+  - **커밋**: `feat: 평가 결과에 첫 화면 캡처 여부 기록 (spec 022 Task 3)`
 
 ---
 

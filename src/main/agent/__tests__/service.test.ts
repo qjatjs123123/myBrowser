@@ -1267,7 +1267,7 @@ describe('AgentService — 스킬 (spec 013)', () => {
   });
 });
 
-describe('AgentService — 첫 화면 캡처 첨부 (spec 021)', () => {
+describe('AgentService — 첫 화면 캡처 첨부 (spec 022)', () => {
   const scenario = { turns: [toolTurn('snapshot'), toolTurn('read_text'), textTurn('끝')] };
   const PNG_BASE64 = 'iVBORw0KGgo=';
 

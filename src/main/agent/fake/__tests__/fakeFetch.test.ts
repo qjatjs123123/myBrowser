@@ -136,7 +136,7 @@ describe('createFakeFetch — {{skillNames}}', () => {
   });
 });
 
-describe('createFakeFetch — {{firstImage}} (spec 021)', () => {
+describe('createFakeFetch — {{firstImage}} (spec 022)', () => {
   const ECHO_SCENARIO: TFakeScenario = {
     turns: [{ content: [{ type: 'text', text: '첫 화면 캡처: {{firstImage}}' }] }],
   };

@@ -294,7 +294,7 @@ describe('readEnv — dev 프로필 프록시 주소 (spec 006, spec 007 FR-3)',
     );
   });
 
-  it('MYBROWSER_FIRST_SCREENSHOT 가 없으면 첫 화면 캡처를 켠다 (spec 021)', () => {
+  it('MYBROWSER_FIRST_SCREENSHOT 가 없으면 첫 화면 캡처를 켠다 (spec 022)', () => {
     expect(readEnv(DEV_PROFILE, DEV).isFirstScreenshotEnabled).toBe(true);
   });
 

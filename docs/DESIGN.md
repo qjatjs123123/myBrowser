@@ -55,7 +55,7 @@ Electron 45 · electron-vite 6 · Vite 8 · React 19.3 · Tailwind 4.3 · Zod 4 
 - `claude-opus-5-5`, 스트리밍, `output_config: { effort: "high" }`, thinking 은 기본(adaptive).
 - `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`).
 - 프롬프트 캐싱: 시스템 프롬프트 + 도구 목록 고정 prefix, 날짜·위치는 첫 user 메시지. 사용자 지침(스킬)은 cache_control 없는 system **두 번째 블록** — 고정 블록 캐시는 그대로, run 내내 같은 값이라 user 메시지에 섞지 않는다 (spec 013).
-- 첫 user 메시지에 할 일을 시작할 때의 현재 탭 캡처(1280×800 이하 PNG) 1장을 `[image, text]` 로 붙인다 — 첫 판단(팝업·로그인 유도·배치)을 돕고, 조작은 여전히 snapshot ref. 기본 켬, `MYBROWSER_FIRST_SCREENSHOT=0` 이면 끔, 캡처 실패·5초 초과면 텍스트만. 효과는 spec 020 평가 세트로 켬/끔 비교 (spec 021).
+- 첫 user 메시지에 할 일을 시작할 때의 현재 탭 캡처(1280×800 이하 PNG) 1장을 `[image, text]` 로 붙인다 — 첫 판단(팝업·로그인 유도·배치)을 돕고, 조작은 여전히 snapshot ref. 기본 켬, `MYBROWSER_FIRST_SCREENSHOT=0` 이면 끔, 캡처 실패·5초 초과면 텍스트만. 효과는 spec 020 평가 세트로 켬/끔 비교 (spec 022).
 
 ### 사용자 지침(스킬) — spec 013
 - 패널 [설정] 에서 사용자가 짧은 지침(사이트 요령·선호)을 추가·편집·켜기·삭제한다. SQLite `skills` 테이블, 최대 30개·켜진 내용 합 12000자. run 시작 때 켜진 스킬을 만든 순서로 `# 사용자 지침` + `## {이름}` 블록으로 붙인다. 머리말은 "안전 규칙·승인 흐름보다 우선하지 않는다" 고정 문장 — 가드는 결정적이라 지침과 무관하게 동작한다.

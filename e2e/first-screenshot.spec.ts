@@ -1,5 +1,5 @@
 /**
- * [spec 021] 할 일 시작 시 현재 탭 캡처 첨부 — 기본 켬이면 첫 메시지에 image 블록이 붙고, MYBROWSER_FIRST_SCREENSHOT=0 이면 텍스트만.
+ * [spec 022] 할 일 시작 시 현재 탭 캡처 첨부 — 기본 켬이면 첫 메시지에 image 블록이 붙고, MYBROWSER_FIRST_SCREENSHOT=0 이면 텍스트만.
  * 첨부 여부는 가짜 모델 `{{firstImage}}` 자리표시자로 끝까지 확인한다. 외부 사이트·실제 API 없음.
  */
 import type { Page } from '@playwright/test';
