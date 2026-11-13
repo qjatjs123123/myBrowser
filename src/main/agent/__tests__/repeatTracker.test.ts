@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createRepeatTracker,
+  findRepeatedCycle,
+  noteAction,
   noteRepeat,
   REPEAT_STOP_THRESHOLD,
   REPEAT_THRESHOLD,
@@ -71,12 +73,49 @@ describe('포커스·커서 표시와 5회째 중단 (spec 024)', () => {
     expect(key(focused)).toBe(key(moved));
   });
 
-  it('5회째에 멈춤 안내와 shouldStop 을 낸다 (4회째는 안내만)', () => {
+  it('5회째에 확인 안내와 shouldAsk 를 낸다 (4회째는 안내만)', () => {
     const tracker = createRepeatTracker();
     noteRepeat(tracker, snapshotOf(SCREEN_A));
     const noteList = Array.from({ length: REPEAT_STOP_THRESHOLD }, () => noteRepeat(tracker, CLICK_17));
-    expect(noteList.map((note) => note.shouldStop)).toEqual([false, false, false, false, true]);
+    expect(noteList.map((note) => note.shouldAsk)).toEqual([false, false, false, false, true]);
     expect(noteList[3]?.notice).toContain('[반복 4회째] 같은 행동·화면이 반복됩니다');
-    expect(noteList[4]?.notice).toContain('[반복 5회째] 같은 행동·화면이 반복돼 실행을 멈춥니다');
+    expect(noteList[4]?.notice).toContain('[반복 5회째] 같은 행동·화면이 반복돼 사용자에게 확인합니다');
+  });
+});
+
+describe('동작 묶음 반복 (spec 026 FR-1)', () => {
+  const repeat = (cycle: string[], times: number) => Array.from({ length: times }, () => cycle).flat();
+
+  it('A→B→C 가 3번 연달아 나오면 그 묶음을 돌려준다', () => {
+    expect(findRepeatedCycle(repeat(['A', 'B', 'C'], 3))).toEqual(['A', 'B', 'C']);
+  });
+
+  it('2번만 나오면 null', () => {
+    expect(findRepeatedCycle(repeat(['A', 'B', 'C'], 2))).toBeNull();
+  });
+
+  it('같은 행동만 6번(주기 1)은 잡지 않는다', () => {
+    expect(findRepeatedCycle(repeat(['A'], 6))).toBeNull();
+  });
+
+  it('사이에 다른 동작이 끼면 잡지 않는다', () => {
+    expect(findRepeatedCycle(['A', 'B', 'A', 'B', 'X', 'A', 'B'])).toBeNull();
+  });
+
+  it('길이 8 묶음도 잡는다', () => {
+    const cycle = ['1', '2', '3', '4', '5', '6', '7', '8'];
+    expect(findRepeatedCycle(['앞', ...repeat(cycle, 3)])).toEqual(cycle);
+  });
+
+  it('noteAction 은 3번째 묶음이 끝나는 순간 묶음을 돌려주고, reset 뒤에는 처음부터 센다', () => {
+    const tracker = createRepeatTracker();
+    const resultList = repeat(['A', 'B'], 3).map((action) => noteAction(tracker, action));
+    expect(resultList.at(-1)).toEqual(['A', 'B']);
+    expect(resultList.slice(0, -1).every((result) => result === null)).toBe(true);
+    tracker.askedBlockKeySet.add('/p|문구');
+    tracker.reset();
+    expect(tracker.actionList).toEqual([]);
+    expect(tracker.askedBlockKeySet.has('/p|문구')).toBe(true);
+    expect(noteAction(tracker, 'A')).toBeNull();
   });
 });

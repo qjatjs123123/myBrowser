@@ -1,0 +1,32 @@
+{
+  "turns": [
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:다음)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "text",
+          "text": "다음으로 넘어갔습니다"
+        }
+      ]
+    }
+  ]
+}

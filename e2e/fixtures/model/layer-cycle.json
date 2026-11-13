@@ -1,0 +1,225 @@
+{
+  "turns": [
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(link:출발일)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(link:30)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:레이어닫기)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(link:출발일)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(link:30)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:레이어닫기)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(link:출발일)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(link:30)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:레이어닫기)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(link:출발일)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(link:30)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "click",
+          "input": {
+            "ref": "$ref(button:레이어닫기)"
+          }
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "tool_use",
+          "name": "snapshot",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "content": [
+        {
+          "type": "text",
+          "text": "출발일 고르기를 마쳤습니다"
+        }
+      ]
+    }
+  ]
+}

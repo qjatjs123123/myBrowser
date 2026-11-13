@@ -99,7 +99,6 @@ export const AGENT_MESSAGE = {
   gatewayUnauthorized: '기기 연결이 해제됐습니다 — 다시 구독 연결을 해 주세요',
   gatewayNoCredits: '크레딧이 부족합니다 — [구독 관리]에서 충전해 주세요',
   gatewayRateLimited: '요청이 너무 많습니다 — 잠시 후 다시 시도해 주세요',
-  repeatStop: '같은 행동을 반복해 멈췄습니다 — 화면이 바뀌지 않습니다',
 } as const;
 
 type THaltReason = 'stopped' | 'shutdown' | 'failed';
@@ -326,14 +325,8 @@ function createToolContext(deps: IAgentServiceDeps, session: IRunSession): ITool
     overlay: (cmd) => showOverlay(deps, session, cmd),
     runExclusive: createExclusiveQueue(),
     repeatTracker: createRepeatTracker(),
-    stopForRepeat: () => stopForRepeat(deps, session),
+    stopByUser: () => halt(deps, session, 'stopped'),
   };
-}
-
-/** 같은 화면·같은 행동 5회째 — 도구 호출 한도와 같은 방식으로 run 을 끝낸다 (spec 024 FR-3) */
-function stopForRepeat(deps: IAgentServiceDeps, session: IRunSession): void {
-  endRun(deps, session, { event: 'fail', reason: AGENT_MESSAGE.repeatStop });
-  halt(deps, session, 'failed');
 }
 
 function countToolCall(deps: IAgentServiceDeps, session: IRunSession): boolean {

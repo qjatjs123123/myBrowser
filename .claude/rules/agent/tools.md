@@ -31,6 +31,7 @@ paths:
 - 대기는 **도구 `run` 안의 await** 다 (`ctx.waitForUser` — `agent/waits.ts` 레지스트리). 루프를 멈추거나 다시 시작하지 않는다(히스토리 append-only). 대기는 run 당 동시에 하나(공용 큐 `ctx.runExclusive`).
 - `ask_user({ question, optionList? })` → `waiting_user` + `agent:event {type:'question'}` → `agent:answer { runId, requestId, answer }` 가 오면 "사용자 답: …" 을 돌려주고 재개. 답 원문은 DB 에 저장하지 않는다.
 - `request_approval({ action, target, reason })` → 승인 창(kind=model, 모델 문장은 "에이전트 설명" 칸에만) → `agent:approve { runId, requestId, decision: 'approved'|'denied' }`. 가드의 승인 요청은 decision `'agent'|'user_done'|'denied'` (`rules/agent/guard.md` 「판정 결과」).
+- 넘기기 질문(spec 026): 반복(위 「컨텍스트·비용」)이나 snapshot·read_text 글에 매크로 경고·보안문자·접속 대기열 문구(`agent/blockScreen.ts`)가 보이면 래퍼가 ask_user 와 같은 질문 step 을 만든다 — 차단 화면은 우회하지 않고 넘기기만, 같은 페이지·문구는 run 에서 한 번만, 둘이 함께 걸리면 차단 질문 하나.
 - 대기 중 타임아웃은 없다 (사용자가 돌아올 때까지). `agent:stop` 이면 `stopped`, 앱 종료면 `shutdown()` → `failed`("앱이 종료됐습니다") — 어느 쪽도 대기 중인 도구를 실행하지 않는다.
 
 ## 프롬프트 (prompts/)
@@ -44,7 +45,7 @@ paths:
 ## 컨텍스트·비용
 - `snapshot` 은 압축(`/url: "#…"` 줄 삭제·빈 generic/cell 접기·연속 비활성 항목 3개 이상은 `(비활성 N개 생략)` 한 줄, `browser/snapshotCompact.ts`) 후 열린 dialog 를 `[열린 대화상자]` 로 맨 앞에 싣고 12k 자 제한. 잘리면 잘림 표시 뒤에 `[잘린 부분의 누를 수 있는 요소]`(이름 있는 button·link·입력 줄 원문, ref 포함, 최대 3k 자 — `browser/snapshotTruncate.ts`, spec 025). 잘리면 `snapshot({ ref })` 부분 보기(그 밖 이전 ref 는 무효) — scroll 은 트리를 더 보여 주지 않는다. ref 는 `e12`·`f2e5`(재이동·iframe) 둘 다 (spec 015).
 - 스크린샷은 뷰포트 1280×800 이하로 축소, 같은 상태에서 연속 스크린샷 금지(도구 설명에 명시).
-- 반복 안내: 같은 화면(ref·`[active]`·`[cursor=pointer]` 를 지운 snapshot) 또는 같은 화면에서의 같은 행동이 3·4회째면 도구 결과 끝에 `[반복 N회째]` 한 줄, **5회째면 run 을 failed("같은 행동을 반복해 멈췄습니다")로 끝낸다** — 행동을 대신 실행하지는 않음 (`agent/repeatTracker.ts`, step 기록엔 없음, spec 024).
+- 반복 안내: 같은 화면(ref·`[active]`·`[cursor=pointer]` 를 지운 snapshot) 또는 같은 화면에서의 같은 행동이 3·4회째면 도구 결과 끝에 `[반복 N회째]` 한 줄, **5회째, 또는 상태 변경 동작 묶음(길이 2~8, 원소가 모두 같은 것 제외)이 3연속이면 사용자에게 묻는다**(질문 카드: 다른 방법으로 계속 / 여기서 멈추기 → stopped) — 행동을 대신 실행하지는 않음 (`agent/repeatTracker.ts`·`agent/tools/handover.ts`, spec 024·026).
 - 클릭 화면 변화: 이동하지 않은 구조 click 결과에 클릭 전후 보이는 글(innerText, 메인+하위 프레임) 비교 요약(`화면 변화: 나타남/사라짐 …` 또는 `화면 변화 없음`)을 붙인다 — 모델에만, step 기록엔 없음. 비교 읽기에 `ariaSnapshot` 을 쓰지 않는다(기본 모드도 aria-ref 표를 초기화한다) (`browser/snapshotDiff.ts`, spec 024).
 - `clear_tool_uses_20250919` 는 `trigger` 3만 입력 토큰·`keep` 3·`clear_at_least` 1만·`exclude_tools: ['ask_user', 'request_approval']` 를 명시한다 (기본 10만 트리거는 snapshot run 에 늦다, spec 015).
 - 시스템 프롬프트는 `buildSystemPrompt({ hasComputerToolset })` — 픽셀 도구가 없는 프로필엔 픽셀 문장을 넣지 않는다.

@@ -13,6 +13,7 @@ import {
 import { BrowserComputerToolset } from '../../computer/toolset';
 import { checkGuard } from '../../guard';
 import { createRepeatTracker } from '../../repeatTracker';
+import { HANDOVER_OPTION } from '../handover';
 import type { TWaitAnswer } from '../../waits';
 import {
   createExclusiveQueue,
@@ -105,7 +106,7 @@ function createContext(): IToolRunContext {
     overlay: vi.fn(async () => undefined),
     runExclusive: createExclusiveQueue(),
     repeatTracker: createRepeatTracker(),
-    stopForRepeat: vi.fn(),
+    stopByUser: vi.fn(),
   };
 }
 
@@ -304,14 +305,110 @@ describe('클릭 화면 변화·반복 중단 (spec 024)', () => {
     expect(ctx.endStep).toHaveBeenLastCalledWith(1, 'ok', '클릭함');
   });
 
-  it('같은 화면에서 같은 click 5회째면 멈춤 안내를 붙이고 stopForRepeat 를 부른다', async () => {
+});
+
+describe('반복·차단 화면 넘기기 (spec 026)', () => {
+  /** 질문 답을 정해 둔 ctx — 질문 요청을 모은다 */
+  function createHandoverContext(answer: string) {
     const ctx = createContext();
+    const questionList: string[] = [];
+    vi.mocked(ctx.waitForUser).mockImplementation(async (request) => {
+      if (request.kind === 'question') questionList.push(request.question.text);
+      return { type: 'answer', answer };
+    });
+    return { ctx, questionList };
+  }
+  const BLOCK_TEXT = 'URL: https://k.com/a / 제목: k\n- paragraph: 매크로, 개발자도구 등 미허가 도구 사용 시 이용이 제한될 수 있습니다.';
+
+  it('같은 화면에서 같은 click 5회째면 묻고, 계속이면 결과 끝에 사용자 확인을 붙이고 횟수를 비운다', async () => {
+    const { ctx, questionList } = createHandoverContext(HANDOVER_OPTION.repeatContinue);
     const click = findRunnable(ctx, 'click');
     await findRunnable(ctx, 'snapshot').run({});
     for (let i = 0; i < 4; i += 1) await click.run({ ref: 'e1' });
-    expect(ctx.stopForRepeat).not.toHaveBeenCalled();
-    expect(await click.run({ ref: 'e1' })).toMatch(/\[반복 5회째\] 같은 행동·화면이 반복돼 실행을 멈춥니다$/);
-    expect(ctx.stopForRepeat).toHaveBeenCalledOnce();
+    expect(questionList).toEqual([]);
+    const fifth = await click.run({ ref: 'e1' });
+    expect(questionList).toHaveLength(1);
+    expect(questionList[0]).toContain('같은 동작을 반복하고 있습니다');
+    expect(fifth).toMatch(/\[반복 5회째\] 같은 행동·화면이 반복돼 사용자에게 확인합니다\n\[사용자 확인\] 같은 순서를 반복하지 않는다/);
+    expect(ctx.stopByUser).not.toHaveBeenCalled();
+    expect(await click.run({ ref: 'e1' })).toBe('완료');
+  });
+
+  it('멈추기를 고르면 stopByUser 를 부른다', async () => {
+    const { ctx } = createHandoverContext(HANDOVER_OPTION.repeatStop);
+    const click = findRunnable(ctx, 'click');
+    await findRunnable(ctx, 'snapshot').run({});
+    for (let i = 0; i < 5; i += 1) await click.run({ ref: 'e1' });
+    expect(ctx.stopByUser).toHaveBeenCalledOnce();
+  });
+
+  it('click A → click B 묶음이 3번이면(화면이 달라도) 묻는다', async () => {
+    const { ctx, questionList } = createHandoverContext(HANDOVER_OPTION.repeatContinue);
+    vi.mocked(ctx.driver.resolveTarget).mockImplementation(async (req) => ({
+      role: 'button',
+      name: 'ref' in req && req.ref === 'e1' ? '30' : '레이어닫기',
+      text: '',
+      value: '',
+      href: '',
+      formAction: '',
+      formSubmitText: '',
+      inputType: '',
+      autocomplete: '',
+      fieldName: '',
+      label: '',
+      pageUrl: '',
+    }));
+    let page = 0;
+    vi.mocked(ctx.driver.snapshot).mockImplementation(async () => ({ ok: true, text: `화면 ${String(++page)}` }));
+    for (let round = 0; round < 3; round += 1) {
+      await findRunnable(ctx, 'snapshot').run({});
+      await findRunnable(ctx, 'click').run({ ref: 'e1' });
+      await findRunnable(ctx, 'click').run({ ref: 'e2' });
+    }
+    expect(questionList).toHaveLength(1);
+    expect(questionList[0]).toContain('‘30’ 클릭 → ‘레이어닫기’ 클릭');
+  });
+
+  it('snapshot 에 차단 문구가 있으면 묻고, 같은 페이지·문구는 다시 묻지 않는다 (reset 뒤에도)', async () => {
+    const { ctx, questionList } = createHandoverContext(HANDOVER_OPTION.blockResolved);
+    vi.mocked(ctx.driver.snapshot).mockResolvedValue({ ok: true, text: BLOCK_TEXT });
+    const snapshot = findRunnable(ctx, 'snapshot');
+    const first = await snapshot.run({});
+    expect(questionList[0]).toContain('자동 조작을 막는 화면');
+    expect(first).toContain('[사용자 확인] 같은 순서를 반복하지 않는다. 사용자 답: 해결했어요');
+    await snapshot.run({});
+    expect(questionList).toHaveLength(1);
+  });
+
+  it('질문 step 은 ask_user 로 남고 답 원문은 저장하지 않는다', async () => {
+    const { ctx } = createHandoverContext(HANDOVER_OPTION.blockStop);
+    const beginStep = vi.spyOn(ctx, 'beginStep');
+    vi.mocked(ctx.driver.snapshot).mockResolvedValue({ ok: true, text: BLOCK_TEXT });
+    await findRunnable(ctx, 'snapshot').run({});
+    expect(beginStep).toHaveBeenLastCalledWith(expect.objectContaining({ tool: 'ask_user' }));
+    expect(ctx.endStep).toHaveBeenLastCalledWith(2, 'ok', '[답변 생략]');
+    expect(ctx.stopByUser).toHaveBeenCalledOnce();
+  });
+
+  it('차단 문구와 반복이 한 결과에서 함께 걸리면 차단 질문 하나만 묻고 반복 기록도 비운다', async () => {
+    const { ctx, questionList } = createHandoverContext(HANDOVER_OPTION.blockResolved);
+    vi.mocked(ctx.driver.snapshot).mockResolvedValue({ ok: true, text: BLOCK_TEXT });
+    vi.mocked(ctx.driver.getPageInfo).mockImplementation(async () => ({ url: `https://k.com/${String(Math.random())}`, title: '' }));
+    const snapshot = findRunnable(ctx, 'snapshot');
+    for (let i = 0; i < 4; i += 1) await snapshot.run({});
+    questionList.length = 0;
+    await snapshot.run({});
+    expect(questionList).toHaveLength(1);
+    expect(questionList[0]).toContain('자동 조작을 막는 화면');
+    expect(ctx.repeatTracker.actionList).toEqual([]);
+  });
+
+  it('질문 중 중지되면(cancelled) 사용자 확인을 붙이지 않는다', async () => {
+    const ctx = createContext();
+    vi.mocked(ctx.waitForUser).mockResolvedValue({ type: 'cancelled', reason: 'stopped' });
+    vi.mocked(ctx.driver.snapshot).mockResolvedValue({ ok: true, text: BLOCK_TEXT });
+    const result = await findRunnable(ctx, 'snapshot').run({});
+    expect(result).not.toContain('[사용자 확인]');
   });
 });
 
