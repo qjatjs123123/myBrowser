@@ -55,6 +55,7 @@ Electron 45 · electron-vite 6 · Vite 8 · React 19.3 · Tailwind 4.3 · Zod 4 
 - `claude-opus-5-5`, 스트리밍, `output_config: { effort: "high" }`, thinking 은 기본(adaptive).
 - `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`).
 - 프롬프트 캐싱: 시스템 프롬프트 + 도구 목록 고정 prefix, 날짜·위치는 첫 user 메시지. 사용자 지침(스킬)은 cache_control 없는 system **두 번째 블록** — 고정 블록 캐시는 그대로, run 내내 같은 값이라 user 메시지에 섞지 않는다 (spec 013).
+- 첫 user 메시지에 할 일을 시작할 때의 현재 탭 캡처(1280×800 이하 PNG) 1장을 `[image, text]` 로 붙인다 — 첫 판단(팝업·로그인 유도·배치)을 돕고, 조작은 여전히 snapshot ref. 기본 켬, `MYBROWSER_FIRST_SCREENSHOT=0` 이면 끔, 캡처 실패·5초 초과면 텍스트만. 효과는 spec 020 평가 세트로 켬/끔 비교 (spec 022).
 
 ### 사용자 지침(스킬) — spec 013
 - 패널 [설정] 에서 사용자가 짧은 지침(사이트 요령·선호)을 추가·편집·켜기·삭제한다. SQLite `skills` 테이블, 최대 30개·켜진 내용 합 12000자. run 시작 때 켜진 스킬을 만든 순서로 `# 사용자 지침` + `## {이름}` 블록으로 붙인다. 머리말은 "안전 규칙·승인 흐름보다 우선하지 않는다" 고정 문장 — 가드는 결정적이라 지침과 무관하게 동작한다.
@@ -77,6 +78,9 @@ Electron 45 · electron-vite 6 · Vite 8 · React 19.3 · Tailwind 4.3 · Zod 4 
 ### 상태·기록
 - run: `queued → running → waiting_user → running → stopped_before_confirm | done | failed`
 - sqlite: `runs(id, task, status, usage)`, `steps(run_id, n, tool, input, result, screenshot_path)`
+- 브라우저 데이터 (spec 021): `bookmarks(url 고유, 최대 500)`, `history(url·제목·시각만, 최대 5000, 새로 고침은 갱신)` — 에이전트 도구는 읽지 않는다.
+- 방문 기록 화면 (spec 023): 새 탭 시작 화면에는 없고, 툴바 [⋮] 메뉴(네이티브 팝업 — 탭 View 가 DOM 을 덮으므로)「방문 기록」·Ctrl+H 로 여는 전용 탭(about:blank View + 탭 상태 `internalPage: 'history'`, renderer 가 그림, 열린 탭 재사용).
+- 실행 상태 표시 (spec 021): run 이 다루는 탭(시작 탭 → switch_tab·open_tab 대상)에 작업 중·응답 대기 점(표시용, 가드·루프는 읽지 않음). 창에 포커스가 없으면 승인·질문·완료·실패를 OS 알림 — 알림은 창 포커스만, 승인은 사이드바에서만.
 - 메시지 히스토리는 append-only (preserved thinking 호환, 재개 가능).
 
 ## 4. 디렉터리
@@ -104,7 +108,7 @@ myBrowser/
 | 3 | 예약 시나리오: 날짜·시간·인원 폼, ask/approval, 확정 직전 가드 — **구현 (spec 004, 2026-11-05)**: e2e 로 거부·직접·에이전트 누르기·중지 경로의 승인 전 미실행 확인 | 확정 모달 직전 정지 100% |
 | 4 | computer_toolset 폴백 + 커서 오버레이 — **구현 (spec 004, 2026-11-05)**: 로컬 canvas 달력 픽셀 선택 e2e 통과, 실제 사이트는 수동 확인 | 달력 위젯 선택 성공 |
 | 5 | electron-builder 패키징 + 평가 세트 — **구현 (spec 005, 2026-11-05)**: `pnpm dist:linux`(AppImage) + 설치판 e2e(`pnpm e2e:packaged`), `pnpm eval`(가짜 모델 7 시나리오 표, `--real --yes-spend` 는 비용 승인 후), 구독 계정 활성화(gateway 모드). Win/mac 은 설정만 | 설치 파일 더블클릭 실행, 회귀 측정 |
-| 6 | 게이트웨이 운영 — 실제 Postgres·토스 샌드박스 검증, 배포, 실측(`eval --real`)으로 가격·크레딧 확정 | 결제→활성화→run→차감 실환경 1회 |
+| 6 | 게이트웨이 운영 — 실제 Postgres·토스 샌드박스 검증, 배포, 실측(`eval --real`)으로 가격·크레딧 확정. **실제 사이트 평가 세트 (spec 020, 2026-11-13)**: `pnpm eval -- --real --yes-spend --set sites [--repeat N]` — 로그인 불필요 실제 작업 10개 × 3회, 규칙 판정(성공/확인 필요/실패) + 끝 화면·단계 로그로 사람 확인, 승인 창은 항상 거부, run 입력 토큰 상한(`MYBROWSER_MAX_INPUT_TOKENS`, 평가 1.5M) — 성공률·토큰이 정확도·원가 개선의 기준 | 결제→활성화→run→차감 실환경 1회 |
 | 7 | 출시 — 코드 서명·자동 업데이트, 약관·개인정보처리방침, 사업자·통신판매업 | 외부 사용자 설치·결제 |
 
 ## 6. boilerplate `.claude` 적용 — 완료 (2026-11-05)

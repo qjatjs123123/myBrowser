@@ -35,7 +35,7 @@ paths:
 
 ## 저장 (store/)
 - 내장 `node:sqlite`(`DatabaseSync`), 동기 API — better-sqlite3 는 쓰지 않는다(네이티브 rebuild 가 vitest 와 충돌, spec 003). `db.ts` 가 열고 `migrations/{NNN}_{snake}.sql` 을 `?raw` import 로 순서대로 적용(`user_version`).
-- 테이블: `runs`, `steps`, `skills`(spec 013), `settings`. 접근은 `repos/{table}.ts` 의 함수로만, SQL 은 repos 안에만.
+- 테이블: `runs`, `steps`, `skills`(spec 013), `bookmarks`·`history`(spec 021), `settings`. DB 는 `will-quit`(창·탭이 모두 닫힌 뒤)에 닫는다 — 늦게 오는 탭 이벤트는 닫힌 DB 를 건드리지 않게 확인한다. 접근은 `repos/{table}.ts` 의 함수로만, SQL 은 repos 안에만.
 - 스크린샷은 DB 가 아니라 `userData/screenshots/{runId}/{n}.png`, DB 에는 경로만.
 
 ## 테스트

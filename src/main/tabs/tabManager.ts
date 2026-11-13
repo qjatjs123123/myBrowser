@@ -1,14 +1,40 @@
-import type { TTabState, TTabsSnapshot } from '@shared/ipc/tabs';
+import type {
+  TAgentActivity,
+  TFindUpdatedEvent,
+  TInternalPage,
+  TTabState,
+  TTabsSnapshot,
+  TZoomDirection,
+} from '@shared/ipc/tabs';
 
-import type { ITabHost, ITabRect, ITabView, TTabViewFactory } from './tabType';
+import type { ITabFindOptions, ITabHost, ITabRect, ITabView, TTabViewFactory } from './tabType';
 import { isAllowedTabUrl } from './urlPolicy';
+import { getNextZoomPercent } from './zoom';
 
 const NEW_TAB_URL = 'about:blank';
 const NEW_TAB_TITLE = '새 탭';
+/** 내부 페이지 탭 제목 (spec 023) */
+const INTERNAL_PAGE_TITLE: Readonly<Record<TInternalPage, string>> = { history: '방문 기록' };
+const HTTP_URL_PATTERN = /^https?:\/\//;
+
+/** 에이전트가 일하는 탭 하나 — 표시용 (spec 021 SR-4) */
+interface IAgentMark {
+  tabId: string;
+  activity: TAgentActivity;
+}
+
+/** 로드가 끝난 http(s) 페이지 — 방문 기록용 */
+export interface ITabPageLoaded {
+  tabId: string;
+  url: string;
+  title: string;
+}
 
 interface ITabEntry {
   id: string;
   view: ITabView;
+  /** 새 탭 자리에 renderer 가 그릴 내부 페이지 — View 가 새 탭 url 을 떠나면 지운다 (spec 023) */
+  internalPage: TInternalPage | null;
 }
 
 export interface ITabManagerOptions {
@@ -17,6 +43,10 @@ export interface ITabManagerOptions {
   /** 생성·닫기·전환·View 상태 변경마다 전체 스냅샷으로 호출된다 */
   onChanged: (snapshot: TTabsSnapshot) => void;
   createId?: () => string;
+  /** http(s) 메인 프레임 로드가 끝날 때마다 (spec 021 FR-4) */
+  onPageLoaded?: (page: ITabPageLoaded) => void;
+  /** 페이지 내 찾기 결과 */
+  onFindUpdated?: (event: TFindUpdatedEvent) => void;
 }
 
 /**
@@ -28,6 +58,7 @@ export class TabManager {
   private activeTabId: string | null = null;
   private bounds: ITabRect | null = null;
   private cornerRadius = 0;
+  private agentMark: IAgentMark | null = null;
   private readonly createId: () => string;
 
   constructor(private readonly options: ITabManagerOptions) {
@@ -36,17 +67,17 @@ export class TabManager {
 
   /** 탭을 만들어 활성화한다 — url 이 없거나 허용되지 않으면 새 탭(about:blank) */
   createTab(url?: string): string {
-    const id = this.createId();
-    const view = this.options.createView();
-    view.setBorderRadius(this.cornerRadius);
-    view.onStateChanged(() => this.refresh());
-    view.onOpenWindow((popupUrl) => this.handleOpenWindow(popupUrl));
-    this.entryList.push({ id, view });
-    this.options.host.addChildView(view.nativeView);
-    this.activeTabId = id;
-    view.load(url !== undefined && isAllowedTabUrl(url) ? url : NEW_TAB_URL);
-    this.refresh();
-    return id;
+    return this.addTab(url !== undefined && isAllowedTabUrl(url) ? url : NEW_TAB_URL, null);
+  }
+
+  /** 방문 기록 페이지 탭을 연다 — 이미 열린 것이 있으면 그 탭을 활성화한다 (spec 023 FR-4) */
+  openHistoryPage(): string {
+    const existing = this.entryList.find(
+      (entry) => entry.internalPage === 'history' && isNewTabUrl(entry.view.getState().url),
+    );
+    if (!existing) return this.addTab(NEW_TAB_URL, 'history');
+    this.activateTab(existing.id);
+    return existing.id;
   }
 
   /** 탭을 닫는다 — 활성 탭이면 오른쪽→왼쪽 이웃을 활성, 마지막 탭이면 새 탭 1개를 연다 */
@@ -57,6 +88,7 @@ export class TabManager {
     this.entryList.splice(index, 1);
     this.options.host.removeChildView(entry.view.nativeView);
     entry.view.destroy();
+    if (this.agentMark?.tabId === id) this.agentMark = null;
     if (this.activeTabId === id) {
       this.activeTabId = (this.entryList[index] ?? this.entryList[index - 1])?.id ?? null;
     }
@@ -102,6 +134,31 @@ export class TabManager {
     this.findView(id)?.stop();
   }
 
+  /** 배율을 한 단계 움직인다 — 같은 호스트 탭도 바뀌므로 전체 스냅샷을 다시 보낸다 (spec 021 FR-10) */
+  zoom(id: string, direction: TZoomDirection): void {
+    const view = this.findView(id);
+    if (!view) return;
+    view.setZoomPercent(getNextZoomPercent(view.getState().zoomPercent, direction));
+    this.refresh();
+  }
+
+  /** 페이지 내 찾기 — 결과는 onFindUpdated 로 (FR-8) */
+  find(id: string, text: string, options: ITabFindOptions): void {
+    this.findView(id)?.findInPage(text, options);
+  }
+
+  stopFind(id: string): void {
+    this.findView(id)?.stopFindInPage();
+  }
+
+  /** 에이전트 표시 — 한 번에 한 탭만, null 이면 지운다 (FR-12). 없는 탭이면 지운다 */
+  setAgentActivity(id: string | null, activity: TAgentActivity | null): void {
+    const next = id !== null && activity !== null && this.hasTab(id) ? { tabId: id, activity } : null;
+    if (next?.tabId === this.agentMark?.tabId && next?.activity === this.agentMark?.activity) return;
+    this.agentMark = next;
+    this.refresh();
+  }
+
   /** 콘텐츠 영역 rect 를 기억하고 활성 View 에 적용한다 — 이후 전환에도 다시 적용된다 */
   setBounds(rect: ITabRect): void {
     this.bounds = rect;
@@ -131,13 +188,42 @@ export class TabManager {
   /** renderer 로 보낼 전체 탭 목록 — isNewTab·'새 탭' 제목을 여기서 계산한다 */
   getSnapshot(): TTabsSnapshot {
     return {
-      tabList: this.entryList.map((entry) => toTabState(entry)),
+      tabList: this.entryList.map((entry) => toTabState(entry, this.agentMark)),
       activeTabId: this.activeTabId,
     };
   }
 
   private findView(id: string): ITabView | undefined {
     return this.entryList.find((entry) => entry.id === id)?.view;
+  }
+
+  /** 찾기 결과·로드 완료(http(s) 만 — SR-3)·Ctrl+휠을 이 탭 id 로 옮긴다 */
+  private attachPageEvents(id: string, view: ITabView): void {
+    view.onFindUpdated((result) => this.options.onFindUpdated?.({ tabId: id, ...result }));
+    view.onPageLoaded((page) => {
+      if (HTTP_URL_PATTERN.test(page.url)) this.options.onPageLoaded?.({ tabId: id, ...page });
+    });
+    view.onZoomWheel((direction) => this.zoom(id, direction));
+  }
+
+  private addTab(url: string, internalPage: TInternalPage | null): string {
+    const id = this.createId();
+    const view = this.options.createView();
+    const entry: ITabEntry = { id, view, internalPage };
+    view.setBorderRadius(this.cornerRadius);
+    view.onStateChanged(() => {
+      // 새 탭 url 을 떠나면 내부 페이지도 끝 — 뒤로 와도 일반 시작 화면 (FR-5)
+      if (!isNewTabUrl(view.getState().url)) entry.internalPage = null;
+      this.refresh();
+    });
+    view.onOpenWindow((popupUrl) => this.handleOpenWindow(popupUrl));
+    this.attachPageEvents(id, view);
+    this.entryList.push(entry);
+    this.options.host.addChildView(view.nativeView);
+    this.activeTabId = id;
+    view.load(url);
+    this.refresh();
+    return id;
   }
 
   private handleOpenWindow(url: string): void {
@@ -168,9 +254,18 @@ function isNewTabUrl(url: string): boolean {
   return url === '' || url === NEW_TAB_URL;
 }
 
-function toTabState({ id, view }: ITabEntry): TTabState {
+function toTabState({ id, view, internalPage }: ITabEntry, agentMark: IAgentMark | null): TTabState {
   const state = view.getState();
   const isNewTab = isNewTabUrl(state.url);
-  const title = isNewTab ? NEW_TAB_TITLE : state.title || state.url;
-  return { id, ...state, title, isNewTab };
+  const page = isNewTab ? internalPage : null;
+  const title = toTabTitle(state, isNewTab, page);
+  const agentActivity = agentMark?.tabId === id ? agentMark.activity : null;
+  return { id, ...state, title, isNewTab, agentActivity, internalPage: page };
+}
+
+/** 내부 페이지면 그 이름, 새 탭이면 '새 탭', 아니면 페이지 제목(없으면 url) */
+function toTabTitle(state: { url: string; title: string }, isNewTab: boolean, page: TInternalPage | null): string {
+  if (page) return INTERNAL_PAGE_TITLE[page];
+  if (isNewTab) return NEW_TAB_TITLE;
+  return state.title || state.url;
 }

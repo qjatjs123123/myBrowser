@@ -26,6 +26,9 @@ function createTab(overrides: Partial<TTabState> = {}): TTabState {
     canGoBack: false,
     canGoForward: false,
     isNewTab: true,
+    zoomPercent: 100,
+    agentActivity: null,
+    internalPage: null,
     ...overrides,
   };
 }
@@ -139,5 +142,99 @@ describe('BrowserChrome', () => {
     });
     render(<BrowserChrome />);
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('탭 내부 오류'));
+  });
+});
+
+describe('BrowserChrome 북마크·찾기·배율 (spec 021)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function renderWithPageTab(tab: TTabState = PAGE_TAB) {
+    givenSnapshot({ tabList: [tab], activeTabId: tab.id });
+    render(<BrowserChrome />);
+    await findAddressBar(tab.url);
+  }
+
+  it('[북마크] 를 누르면 활성 탭을 북마크에 넣는다', async () => {
+    await renderWithPageTab();
+    fireEvent.click(screen.getByRole('button', { name: '북마크' }));
+    await waitFor(() =>
+      expect(window.api.bookmarks.add).toHaveBeenCalledWith({ url: 'https://a.com/', title: 'A 사이트' }),
+    );
+  });
+
+  it('toggleBookmark 단축키도 활성 탭을 북마크에 넣는다', async () => {
+    await renderWithPageTab();
+    act(() => getPressedListener()({ action: 'toggleBookmark' }));
+    await waitFor(() => expect(window.api.bookmarks.add).toHaveBeenCalled());
+  });
+
+  it('북마크 추가가 실패하면 main 의 메시지로 toast 한다', async () => {
+    vi.mocked(window.api.bookmarks.add).mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'LIMIT', message: '북마크는 최대 500개까지 저장할 수 있습니다' },
+    });
+    await renderWithPageTab();
+    fireEvent.click(screen.getByRole('button', { name: '북마크' }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('북마크는 최대 500개까지 저장할 수 있습니다'));
+  });
+
+  it('openFindBar 단축키면 찾기 줄이 열린다', async () => {
+    await renderWithPageTab();
+    act(() => getPressedListener()({ action: 'openFindBar' }));
+    expect(screen.getByRole('search', { name: '페이지에서 찾기' })).toBeInTheDocument();
+  });
+
+  it('새 탭에서는 openFindBar 로 찾기 줄이 열리지 않는다', async () => {
+    givenSnapshot({ tabList: [createTab()], activeTabId: 'tab-1' });
+    render(<BrowserChrome />);
+    await screen.findByRole('textbox', { name: '새 탭 검색' });
+    act(() => getPressedListener()({ action: 'openFindBar' }));
+    expect(screen.queryByRole('search', { name: '페이지에서 찾기' })).not.toBeInTheDocument();
+  });
+
+  it('배율이 100% 가 아니면 배율 버튼을 누를 때 100% 로 되돌린다', async () => {
+    await renderWithPageTab({ ...PAGE_TAB, zoomPercent: 125 });
+    fireEvent.click(screen.getByRole('button', { name: /확대\/축소 125%/ }));
+    expect(window.api.tabs.zoom).toHaveBeenCalledWith({ tabId: 'tab-2', direction: 'reset' });
+  });
+
+  it('focusHistorySearch 단축키면 방문 기록 페이지의 검색에 포커스한다 (spec 023)', async () => {
+    givenSnapshot({ tabList: [createTab({ title: '방문 기록', internalPage: 'history' })], activeTabId: 'tab-1' });
+    render(<BrowserChrome />);
+    const historyInput = await screen.findByRole('textbox', { name: '방문 기록 검색' });
+    act(() => getPressedListener()({ action: 'focusHistorySearch' }));
+    expect(historyInput).toHaveFocus();
+  });
+
+  it('internalPage 가 history 면 시작 화면 대신 방문 기록 페이지를 그린다 (spec 023)', async () => {
+    givenSnapshot({ tabList: [createTab({ title: '방문 기록', internalPage: 'history' })], activeTabId: 'tab-1' });
+    render(<BrowserChrome />);
+    expect(await screen.findByRole('heading', { name: '방문 기록', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: '새 탭 검색' })).not.toBeInTheDocument();
+  });
+
+  it('일반 새 탭에는 방문 기록이 없다 (spec 023 FR-1)', async () => {
+    givenSnapshot({ tabList: [createTab()], activeTabId: 'tab-1' });
+    render(<BrowserChrome />);
+    await screen.findByRole('textbox', { name: '새 탭 검색' });
+    expect(screen.queryByRole('textbox', { name: '방문 기록 검색' })).not.toBeInTheDocument();
+  });
+
+  it('[메뉴] 를 누르면 버튼 위치로 app:showMenu 를 부르고, 실패하면 toast 로 알린다 (spec 023)', async () => {
+    vi.mocked(window.api.app.showMenu).mockResolvedValue({
+      ok: false,
+      error: { code: 'INVALID_INPUT', message: '요청 형식이 올바르지 않습니다' },
+    });
+    givenSnapshot({ tabList: [createTab()], activeTabId: 'tab-1' });
+    render(<BrowserChrome />);
+    fireEvent.click(await screen.findByRole('button', { name: '메뉴' }));
+    expect(window.api.app.showMenu).toHaveBeenCalledWith({ x: expect.any(Number), y: expect.any(Number) });
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('요청 형식이 올바르지 않습니다'));
   });
 });

@@ -14,10 +14,13 @@ function createFakeIpcMain() {
 describe('registerIpc', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('app:getInfo 를 등록하고 test:* 채널은 등록하지 않는다', () => {
+  it('app:getInfo·app:showMenu 를 등록하고 test:* 채널은 등록하지 않는다', () => {
     const { ipcMain, listenerMap } = createFakeIpcMain();
-    registerIpc(ipcMain, createAppHandlers({ getName: () => 'myBrowser', getVersion: () => '0.1.0', mode: 'test' }));
-    expect([...listenerMap.keys()]).toEqual([IPC.app.getInfo]);
+    registerIpc(
+      ipcMain,
+      createAppHandlers({ getName: () => 'myBrowser', getVersion: () => '0.1.0', mode: 'test', showMenu: vi.fn() }),
+    );
+    expect([...listenerMap.keys()]).toEqual([IPC.app.getInfo, IPC.app.showMenu]);
     expect([...listenerMap.keys()].some((channel) => channel.startsWith('test:'))).toBe(false);
   });
 

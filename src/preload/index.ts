@@ -16,6 +16,7 @@ function subscribe<T>(channel: string, cb: (payload: T) => void): TUnsubscribe {
 const api: IApi = {
   app: {
     getInfo: () => ipcRenderer.invoke(IPC.app.getInfo),
+    showMenu: (req) => ipcRenderer.invoke(IPC.app.showMenu, req),
   },
   tabs: {
     list: () => ipcRenderer.invoke(IPC.tabs.list),
@@ -29,6 +30,10 @@ const api: IApi = {
     stop: (req) => ipcRenderer.invoke(IPC.tabs.stop, req),
     setBounds: (req) => ipcRenderer.invoke(IPC.tabs.setBounds, req),
     onChanged: (cb) => subscribe(IPC.tabs.changed, cb),
+    zoom: (req) => ipcRenderer.invoke(IPC.tabs.zoom, req),
+    find: (req) => ipcRenderer.invoke(IPC.tabs.find, req),
+    stopFind: (req) => ipcRenderer.invoke(IPC.tabs.stopFind, req),
+    onFindUpdated: (cb) => subscribe(IPC.tabs.findUpdated, cb),
   },
   shortcut: {
     onPressed: (cb) => subscribe(IPC.shortcut.pressed, cb),
@@ -66,6 +71,16 @@ const api: IApi = {
     create: (req) => ipcRenderer.invoke(IPC.skills.create, req),
     update: (req) => ipcRenderer.invoke(IPC.skills.update, req),
     delete: (req) => ipcRenderer.invoke(IPC.skills.delete, req),
+  },
+  bookmarks: {
+    list: () => ipcRenderer.invoke(IPC.bookmarks.list),
+    add: (req) => ipcRenderer.invoke(IPC.bookmarks.add, req),
+    remove: (req) => ipcRenderer.invoke(IPC.bookmarks.remove, req),
+  },
+  history: {
+    list: (req) => ipcRenderer.invoke(IPC.history.list, req),
+    remove: (req) => ipcRenderer.invoke(IPC.history.remove, req),
+    clear: () => ipcRenderer.invoke(IPC.history.clear),
   },
 };
 

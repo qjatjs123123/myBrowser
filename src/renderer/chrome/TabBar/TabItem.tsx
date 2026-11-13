@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 
-import type { TTabState } from '@shared/ipc/tabs';
+import type { TAgentActivity, TTabState } from '@shared/ipc/tabs';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -49,6 +49,7 @@ export function TabItem({ tab, isActive, hasSeparator, onSelect, onClose }: ITab
         <TabIcon faviconUrl={tab.faviconUrl} isLoading={tab.isLoading} />
         <span className="truncate">{tab.title}</span>
       </button>
+      {tab.agentActivity && <AgentActivityDot activity={tab.agentActivity} />}
       <Button
         variant="ghost"
         aria-label={`${tab.title} 탭 닫기`}
@@ -61,5 +62,26 @@ export function TabItem({ tab, isActive, hasSeparator, onSelect, onClose }: ITab
         <X className="size-4" />
       </Button>
     </div>
+  );
+}
+
+/** 표시 이름 — 탭 이름(제목)과 별개인 형제 요소라 탭 접근 이름은 그대로다 (spec 021 FR-12) */
+const AGENT_ACTIVITY_LABEL: Record<TAgentActivity, string> = {
+  working: '에이전트 작업 중',
+  waiting: '에이전트 응답 대기',
+};
+
+/** 에이전트가 이 탭에서 일하는 중(깜빡이는 점)·사용자 응답 대기(주황 점) */
+function AgentActivityDot({ activity }: { activity: TAgentActivity }) {
+  const label = AGENT_ACTIVITY_LABEL[activity];
+  return (
+    <span role="img" aria-label={label} title={label} className="flex size-4 shrink-0 items-center justify-center">
+      <span
+        className={cn(
+          'size-2 rounded-full',
+          activity === 'working' ? 'animate-pulse bg-muted-foreground' : 'bg-warning',
+        )}
+      />
+    </span>
   );
 }

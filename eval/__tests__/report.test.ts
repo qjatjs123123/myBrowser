@@ -10,11 +10,14 @@ import { createRunRepo } from '@main/store/repos/runs';
 import {
   convertToMarkdown,
   getExitCode,
-  getResultFileName,
+  getResultDirName,
+  getSiteExitCode,
   isPassed,
   parseResultLines,
   readRunMetrics,
+  readStepList,
   writeReportJson,
+  writeSiteReportJson,
   type TEvalResult,
 } from '../report';
 
@@ -90,10 +93,10 @@ describe('convertToMarkdown', () => {
 });
 
 describe('writeReportJson', () => {
-  it('YYYYMMDD-HHmmss.json 에 결과·모드·종료 코드를 쓴다', () => {
+  it('결과 디렉터리의 report.json 에 결과·모드·종료 코드를 쓴다', () => {
     const createdAt = new Date(2026, 10, 5, 9, 3, 7);
     const path = writeReportJson({ dir, resultList: [createResult()], isReal: false, createdAt });
-    expect(path).toBe(join(dir, '20261105-090307.json'));
+    expect(path).toBe(join(dir, 'report.json'));
     expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({
       mode: 'fake',
       exitCode: 0,
@@ -101,8 +104,33 @@ describe('writeReportJson', () => {
     });
   });
 
-  it('파일 이름은 두 자리로 채운다', () => {
-    expect(getResultFileName(new Date(2026, 0, 2, 3, 4, 5))).toBe('20260102-030405.json');
+  it('결과 디렉터리 이름은 YYYYMMDD-HHmmss 이고 두 자리로 채운다', () => {
+    expect(getResultDirName(new Date(2026, 0, 2, 3, 4, 5))).toBe('20260102-030405');
+  });
+});
+
+describe('writeSiteReportJson (spec 020)', () => {
+  it('결과 디렉터리의 report.json 에 세트·집계·결과를 쓴다', () => {
+    const createdAt = new Date(2026, 10, 13, 10, 0, 0);
+    const summary = { total: { runs: 1 } };
+    const path = writeSiteReportJson({ dir, resultList: [{ id: 'a' }], summary, exitCode: 0, createdAt });
+    expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({
+      mode: 'real',
+      set: 'sites',
+      exitCode: 0,
+      summary,
+      resultList: [{ id: 'a' }],
+    });
+  });
+});
+
+describe('getSiteExitCode (spec 020)', () => {
+  it('결과 줄 수가 시나리오 수 × 반복과 같으면 0 이다', () => {
+    expect(getSiteExitCode({ lineCount: 30, scenarioCount: 10, repeat: 3 })).toBe(0);
+  });
+
+  it('결과 줄이 모자라면 1 이다', () => {
+    expect(getSiteExitCode({ lineCount: 29, scenarioCount: 10, repeat: 3 })).toBe(1);
   });
 });
 
@@ -135,6 +163,7 @@ describe('readRunMetrics', () => {
 
     expect(readRunMetrics(dbPath)).toEqual({
       status: 'done',
+      answer: null,
       toolCalls: 2,
       inputTokens: 30,
       outputTokens: 20,
@@ -154,5 +183,69 @@ describe('readRunMetrics', () => {
     createRunRepo(db).createRun({ id: 'r1', task: 't', status: 'running', createdAt: '2026-11-05T10:00:00.000Z' });
     db.close();
     expect(readRunMetrics(dbPath)).toMatchObject({ inputTokens: 0, outputTokens: 0, durationMs: null });
+  });
+});
+
+describe('readRunMetrics·readStepList — 답과 단계 로그 (spec 020)', () => {
+  /** run 1건(단계 2개)을 쓴 DB 경로 */
+  function createDb(patch: { summary?: string; reason?: string; status: 'done' | 'failed' }): string {
+    const dbPath = join(dir, 'detail.db');
+    const db = openDatabase(dbPath);
+    const repo = createRunRepo(db);
+    repo.createRun({ id: 'r1', task: 't', status: 'queued', createdAt: '2026-11-05T10:00:00.000Z' });
+    repo.upsertStep('r1', { n: 1, tool: 'navigate', summary: '이동', status: 'ok', inputJson: '{}', createdAt: 'x' });
+    repo.upsertStep('r1', { n: 2, tool: 'click', summary: '누름', status: 'error', inputJson: '{}', createdAt: 'x' });
+    repo.updateRun('r1', patch);
+    db.close();
+    return dbPath;
+  }
+
+  it('완료면 summary 를 답으로 읽는다', () => {
+    expect(readRunMetrics(createDb({ status: 'done', summary: 'KTX 05:13' }))?.answer).toBe('KTX 05:13');
+  });
+
+  it('실패면 reason 을 답으로 읽는다', () => {
+    const dbPath = createDb({ status: 'failed', reason: '입력 토큰 한도(15)를 넘었습니다' });
+    expect(readRunMetrics(dbPath)?.answer).toBe('입력 토큰 한도(15)를 넘었습니다');
+  });
+
+  it('단계 로그를 n 순서로 n·도구·상태·요약만 읽는다', () => {
+    expect(readStepList(createDb({ status: 'done' }))).toEqual([
+      { n: 1, tool: 'navigate', status: 'ok', summary: '이동' },
+      { n: 2, tool: 'click', status: 'error', summary: '누름' },
+    ]);
+  });
+
+  it('run 이 없으면 빈 목록이다', () => {
+    const dbPath = join(dir, 'empty-steps.db');
+    openDatabase(dbPath).close();
+    expect(readStepList(dbPath)).toEqual([]);
+  });
+});
+
+describe('report.json 의 첫 화면 캡처 기록 (spec 022)', () => {
+  it('writeReportJson 에 firstScreenshot 을 주면 그 값을 쓴다', () => {
+    const createdAt = new Date(2026, 10, 13, 10, 0, 0);
+    const path = writeReportJson({
+      dir,
+      resultList: [createResult()],
+      isReal: false,
+      createdAt,
+      firstScreenshot: false,
+    });
+    expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({ firstScreenshot: false });
+  });
+
+  it('writeSiteReportJson 에 firstScreenshot 을 주면 그 값을 쓴다', () => {
+    const createdAt = new Date(2026, 10, 13, 10, 0, 0);
+    const path = writeSiteReportJson({
+      dir,
+      resultList: [],
+      summary: {},
+      exitCode: 0,
+      createdAt,
+      firstScreenshot: true,
+    });
+    expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({ firstScreenshot: true });
   });
 });

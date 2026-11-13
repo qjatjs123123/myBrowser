@@ -3,7 +3,7 @@
  * 규칙: .claude/rules/electron/ipc.md 「채널명」
  */
 export const IPC = {
-  app: { getInfo: 'app:getInfo' },
+  app: { getInfo: 'app:getInfo', showMenu: 'app:showMenu' },
   tabs: {
     list: 'tabs:list',
     create: 'tabs:create',
@@ -16,6 +16,11 @@ export const IPC = {
     stop: 'tabs:stop',
     setBounds: 'tabs:setBounds',
     changed: 'tabs:changed',
+    /** 확대/축소·페이지 내 찾기 (spec 021) */
+    zoom: 'tabs:zoom',
+    find: 'tabs:find',
+    stopFind: 'tabs:stopFind',
+    findUpdated: 'tabs:findUpdated',
   },
   shortcut: { pressed: 'shortcut:pressed' },
   agent: {
@@ -56,6 +61,18 @@ export const IPC = {
     create: 'skills:create',
     update: 'skills:update',
     delete: 'skills:delete',
+  },
+  /** 북마크 (spec 021) — 응답은 최신 추가 순 전체 목록 */
+  bookmarks: {
+    list: 'bookmarks:list',
+    add: 'bookmarks:add',
+    remove: 'bookmarks:remove',
+  },
+  /** 방문 기록 (spec 021) — 기록은 main 이 탭 로드 완료 때 직접 남긴다 */
+  history: {
+    list: 'history:list',
+    remove: 'history:remove',
+    clear: 'history:clear',
   },
 } as const;
 

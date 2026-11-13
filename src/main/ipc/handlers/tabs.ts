@@ -5,6 +5,7 @@ import { fail, ok, type TIpcResult } from '@shared/ipc/result';
 import {
   CreateTabRequestSchema,
   CreateTabResponseSchema,
+  FindInPageRequestSchema,
   ListTabsResponseSchema,
   NavigateRequestSchema,
   SetBoundsRequestSchema,
@@ -12,6 +13,8 @@ import {
   type TCreateTabResponse,
   type TListTabsResponse,
   type TTabsSnapshot,
+  type TZoomDirection,
+  ZoomTabRequestSchema,
 } from '@shared/ipc/tabs';
 
 /** tabs:list 는 요청 인자가 없다 */
@@ -33,12 +36,15 @@ export interface ITabsHandlerTarget {
   stop(id: string): void;
   setBounds(rect: { x: number; y: number; width: number; height: number }): void;
   hasTab(id: string): boolean;
+  zoom(id: string, direction: TZoomDirection): void;
+  find(id: string, text: string, options: { isForward: boolean; isNext: boolean }): void;
+  stopFind(id: string): void;
 }
 
-type TTabMethod = 'closeTab' | 'activateTab' | 'goBack' | 'goForward' | 'reload' | 'stop';
+type TTabMethod = 'closeTab' | 'activateTab' | 'goBack' | 'goForward' | 'reload' | 'stop' | 'stopFind';
 
 /**
- * [tabs 핸들러] 계약의 invoke 10채널 — safeParse → 탭 존재 확인 → TabManager 호출 → 봉투.
+ * [tabs 핸들러] 계약의 invoke 13채널(확대·찾기 3채널은 spec 021) — safeParse → 탭 존재 확인 → TabManager 호출 → 봉투.
  * 규칙: .claude/rules/electron/ipc.md 「핸들러」 — 로직은 TabManager 에
  */
 export function createTabsHandlers(tabManager: ITabsHandlerTarget) {
@@ -54,7 +60,27 @@ export function createTabsHandlers(tabManager: ITabsHandlerTarget) {
     [IPC.tabs.reload]: byTabId('reload'),
     [IPC.tabs.stop]: byTabId('stop'),
     [IPC.tabs.setBounds]: (raw: unknown) => setBounds(tabManager, raw),
+    [IPC.tabs.zoom]: (raw: unknown) => zoomTab(tabManager, raw),
+    [IPC.tabs.find]: (raw: unknown) => findInTab(tabManager, raw),
+    [IPC.tabs.stopFind]: byTabId('stopFind'),
   };
+}
+
+function zoomTab(tabManager: ITabsHandlerTarget, raw: unknown): TIpcResult<null> {
+  const parsed = ZoomTabRequestSchema.safeParse(raw);
+  if (!parsed.success) return fail('INVALID_INPUT', INVALID_MESSAGE, parsed.error.issues);
+  if (!tabManager.hasTab(parsed.data.tabId)) return fail('NOT_FOUND', NOT_FOUND_MESSAGE);
+  tabManager.zoom(parsed.data.tabId, parsed.data.direction);
+  return ok(null);
+}
+
+function findInTab(tabManager: ITabsHandlerTarget, raw: unknown): TIpcResult<null> {
+  const parsed = FindInPageRequestSchema.safeParse(raw);
+  if (!parsed.success) return fail('INVALID_INPUT', INVALID_MESSAGE, parsed.error.issues);
+  const { tabId, text, isForward, isNext } = parsed.data;
+  if (!tabManager.hasTab(tabId)) return fail('NOT_FOUND', NOT_FOUND_MESSAGE);
+  tabManager.find(tabId, text, { isForward, isNext });
+  return ok(null);
 }
 
 function listTabs(tabManager: ITabsHandlerTarget, raw: unknown): TIpcResult<TListTabsResponse> {

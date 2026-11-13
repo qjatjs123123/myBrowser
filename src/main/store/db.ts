@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import sql001 from './migrations/001_runs_steps.sql?raw';
 import sql002 from './migrations/002_skills.sql?raw';
+import sql003 from './migrations/003_bookmarks_history.sql?raw';
 
 interface IMigration {
   version: number;
@@ -12,6 +13,7 @@ interface IMigration {
 export const MIGRATION_LIST: readonly IMigration[] = [
   { version: 1, sql: sql001 },
   { version: 2, sql: sql002 },
+  { version: 3, sql: sql003 },
 ];
 
 function readUserVersion(db: DatabaseSync): number {

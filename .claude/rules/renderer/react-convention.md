@@ -17,7 +17,7 @@ paths:
 
 ## 위치
 ```
-src/renderer/chrome/{BrowserChrome,TabBar,AddressBar,NavButtons,NewTabPage,AgentToggleButton,WindowControls,WindowResizeEdges,SidebarResizer}/index.tsx     상단바·탭 영역
+src/renderer/chrome/{BrowserChrome,TabBar,AddressBar,NavButtons,NewTabPage,HistoryPage,MoreMenuButton,FindBar,BookmarkButton,ZoomBadge,AgentToggleButton,WindowControls,WindowResizeEdges,SidebarResizer}/index.tsx     상단바·탭 영역
 src/renderer/sidebar/{AgentPanel,SidebarHeader,Conversation,Timeline,RunResult,ApprovalPanel,QuestionCard,ChoiceList,AccountCard,AppInfoFooter,RunHistory,Settings}/index.tsx     에이전트 패널
 src/renderer/components/ui/*.tsx            shadcn (CLI 생성, 규칙 예외 — 평평한 kebab 파일)
 src/renderer/components/shared/<Name>/      chrome·sidebar 둘 다 쓰는 복합 부품 (필요할 때만)

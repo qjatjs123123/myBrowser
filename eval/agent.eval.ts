@@ -7,15 +7,18 @@ import { appendFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { ElectronApplication, Locator, Page } from '@playwright/test';
+import type { ElectronApplication, Page } from '@playwright/test';
 
 import { expect, test, type TAppEnv } from '../e2e/fixtures';
-import { getSidebar, openInActiveTab as openWithTitle, runTask } from '../e2e/helpers';
-import { EVAL_REAL_ENV } from './cliArgs';
+import { openInActiveTab as openWithTitle, runTask } from '../e2e/helpers';
+import { EVAL_REAL_ENV, EVAL_SET_ENV, SITE_SET_NAME } from './cliArgs';
+import { driveUntilEnd } from './drive';
 import { DB_FILE_NAME, isPassed, readRunMetrics, type TEvalResult } from './report';
-import { EVAL_SCENARIO_LIST, type IEvalScenario, type TApprovalAnswer } from './scenarios';
+import { EVAL_SCENARIO_LIST, type IEvalScenario } from './scenarios';
 
 const isReal = process.env[EVAL_REAL_ENV] === '1';
+/** 실제 사이트 세트를 돌릴 때는 이 픽스처 세트를 만들지 않는다 (spec 020 FR-7) */
+const isSiteSet = process.env[EVAL_SET_ENV] === SITE_SET_NAME;
 const RESULT_FILE = process.env['MYBROWSER_EVAL_RESULT_FILE'];
 
 /** 실제 모델 평가 — 가짜 모델·가짜 시나리오·게이트웨이를 빼서 dev 프로필(사내 GenAI 프록시: ANTHROPIC_API_KEY + ANTHROPIC_BASE_URL)로 띄운다 (spec 007) */
@@ -26,11 +29,7 @@ const REAL_APP_ENV: TAppEnv = {
   MYBROWSER_GATEWAY_URL: undefined,
 };
 
-/** 상태 배지의 끝 상태 문구 — src/renderer/sidebar/AgentPanel/StatusBadge.tsx */
-const FINAL_LABEL_LIST = ['완료', '실패', '중지됨', '확정 직전 정지'];
-const POLL_MS = 200;
-
-for (const scenario of EVAL_SCENARIO_LIST) {
+for (const scenario of isSiteSet ? [] : EVAL_SCENARIO_LIST) {
   test.describe(scenario.id, () => {
     test.use(isReal ? { appEnv: REAL_APP_ENV } : { fakeScenario: scenario.fakeScenario });
 
@@ -60,7 +59,10 @@ async function runScenario({ scenario, launchApp, fixtureUrl }: IRunScenarioInpu
     app = launched.app;
     await openInActiveTab(launched.win, fixtureUrl(scenario.startPage));
     await runTask(launched.win, scenario.task);
-    approvals = await driveUntilEnd(launched.win, scenario);
+    approvals = await driveUntilEnd(launched.win, {
+      approvalAnswer: scenario.onApproval ?? 'denied',
+      questionOption: scenario.onQuestion,
+    });
   } catch (caught) {
     error = caught instanceof Error ? caught.message.split('\n')[0] : String(caught);
   } finally {
@@ -106,44 +108,4 @@ async function openInActiveTab(win: Page, url: string): Promise<void> {
 async function getPageTitle(win: Page, url: string): Promise<string> {
   const response = await win.request.get(url);
   return /<title>([^<]+)<\/title>/.exec(await response.text())?.[1] ?? '';
-}
-
-/** 끝 상태가 될 때까지 승인 창·질문 카드에 답한다 — 답한 승인 창 수를 돌려준다 (시간 상한은 테스트 timeout) */
-async function driveUntilEnd(win: Page, scenario: IEvalScenario): Promise<number> {
-  const sidebar = getSidebar(win);
-  const status = sidebar.getByRole('status', { name: '실행 상태' });
-  const panel = sidebar.getByRole('alertdialog', { name: '승인 필요' });
-  const card = sidebar.getByRole('dialog', { name: '에이전트 질문' });
-  let approvals = 0;
-  while (!FINAL_LABEL_LIST.includes((await status.textContent())?.trim() ?? '')) {
-    if (await panel.isVisible()) {
-      await answerApproval(panel, scenario.onApproval ?? 'denied');
-      approvals += 1;
-    } else if (await card.isVisible()) {
-      await answerQuestion(card, scenario.onQuestion);
-    } else {
-      await win.waitForTimeout(POLL_MS);
-    }
-  }
-  return approvals;
-}
-
-/** 가드 승인(세 버튼)과 모델 승인([승인]/[거부])을 구분해 답한다 */
-async function answerApproval(panel: Locator, answer: TApprovalAnswer): Promise<void> {
-  const isGuard = (await panel.getByRole('button', { name: '에이전트가 누르기' }).count()) > 0;
-  if (answer === 'denied') await panel.getByRole('button', { name: '거부' }).click();
-  else if (!isGuard) await panel.getByRole('button', { name: '승인' }).click();
-  else if (answer === 'agent') await panel.getByRole('button', { name: '에이전트가 누르기' }).click();
-  else {
-    await panel.getByRole('button', { name: '직접 누를게요' }).click();
-    await panel.getByRole('button', { name: '계속' }).click();
-  }
-  await expect(panel).toBeHidden();
-}
-
-/** 지정한 선택지(없으면 첫 선택지)를 누른다 */
-async function answerQuestion(card: Locator, option: string | undefined): Promise<void> {
-  const button = option ? card.getByRole('button', { name: option }) : card.getByRole('button').first();
-  await button.click();
-  await expect(card).toBeHidden();
 }

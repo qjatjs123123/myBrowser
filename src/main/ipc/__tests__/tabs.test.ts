@@ -16,6 +16,9 @@ const SNAPSHOT: TTabsSnapshot = {
       canGoBack: false,
       canGoForward: false,
       isNewTab: true,
+      zoomPercent: 100,
+      agentActivity: null,
+      internalPage: null,
     },
   ],
   activeTabId: 'tab-1',
@@ -34,6 +37,9 @@ function setup() {
     stop: vi.fn(),
     setBounds: vi.fn(),
     hasTab: vi.fn((id: string) => id === 'tab-1'),
+    zoom: vi.fn(),
+    find: vi.fn(),
+    stopFind: vi.fn(),
   } satisfies ITabsHandlerTarget;
   return { tabManager, handlers: createTabsHandlers(tabManager) };
 }
@@ -141,5 +147,50 @@ describe('tabs 핸들러 navigate·setBounds', () => {
       error: { code: 'INVALID_INPUT' },
     });
     expect(tabManager.setBounds).not.toHaveBeenCalled();
+  });
+});
+
+describe('tabs 핸들러 확대·찾기 (spec 021)', () => {
+  it('tabs:zoom 은 방향을 TabManager 에 넘긴다', () => {
+    const { handlers, tabManager } = setup();
+    expect(handlers[IPC.tabs.zoom]({ tabId: 'tab-1', direction: 'in' })).toEqual({ ok: true, data: null });
+    expect(tabManager.zoom).toHaveBeenCalledWith('tab-1', 'in');
+  });
+
+  it('tabs:zoom 의 방향이 틀리면 INVALID_INPUT 이다', () => {
+    const { handlers } = setup();
+    expect(handlers[IPC.tabs.zoom]({ tabId: 'tab-1', direction: 'big' })).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_INPUT' },
+    });
+  });
+
+  it('tabs:zoom 의 탭이 없으면 NOT_FOUND 다', () => {
+    const { handlers } = setup();
+    expect(handlers[IPC.tabs.zoom]({ tabId: 'tab-9', direction: 'in' })).toMatchObject({
+      ok: false,
+      error: { code: 'NOT_FOUND' },
+    });
+  });
+
+  it('tabs:find 는 검색어와 옵션을 넘긴다', () => {
+    const { handlers, tabManager } = setup();
+    const result = handlers[IPC.tabs.find]({ tabId: 'tab-1', text: '사과', isForward: true, isNext: false });
+    expect(result).toEqual({ ok: true, data: null });
+    expect(tabManager.find).toHaveBeenCalledWith('tab-1', '사과', { isForward: true, isNext: false });
+  });
+
+  it('tabs:find 의 검색어가 비면 INVALID_INPUT 이다', () => {
+    const { handlers } = setup();
+    expect(handlers[IPC.tabs.find]({ tabId: 'tab-1', text: '', isForward: true, isNext: false })).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_INPUT' },
+    });
+  });
+
+  it('tabs:stopFind 는 찾기를 끝낸다', () => {
+    const { handlers, tabManager } = setup();
+    expect(handlers[IPC.tabs.stopFind]({ tabId: 'tab-1' })).toEqual({ ok: true, data: null });
+    expect(tabManager.stopFind).toHaveBeenCalledWith('tab-1');
   });
 });

@@ -25,6 +25,7 @@ describe('readEnv', () => {
       fakeScenario: undefined,
       fakeScenarioDir: undefined,
       model: 'bedrock.anthropic.claude-opus-5-5',
+      isFirstScreenshotEnabled: true,
     });
   });
 
@@ -40,8 +41,14 @@ describe('readEnv', () => {
   });
 
   it('MYBROWSER_CDP_PORT 를 숫자로 읽고 명시됨으로 표시한다 (0 포함)', () => {
-    expect(readEnv({ ...DEV_PROFILE, MYBROWSER_CDP_PORT: '9333' }, DEV)).toMatchObject({ cdpPort: 9333, isCdpPortExplicit: true });
-    expect(readEnv({ ...DEV_PROFILE, MYBROWSER_CDP_PORT: '0' }, DEV)).toMatchObject({ cdpPort: 0, isCdpPortExplicit: true });
+    expect(readEnv({ ...DEV_PROFILE, MYBROWSER_CDP_PORT: '9333' }, DEV)).toMatchObject({
+      cdpPort: 9333,
+      isCdpPortExplicit: true,
+    });
+    expect(readEnv({ ...DEV_PROFILE, MYBROWSER_CDP_PORT: '0' }, DEV)).toMatchObject({
+      cdpPort: 0,
+      isCdpPortExplicit: true,
+    });
   });
 
   it('포트가 숫자가 아니거나 범위를 넘으면 시작 시점에 실패한다', () => {
@@ -69,16 +76,22 @@ describe('readEnv — 에이전트 설정 (spec 003)', () => {
 
   it('MYBROWSER_FAKE_SCENARIO 를 fakeScenario 로 넘기고, 소문자·숫자·하이픈 밖이면 실패한다', () => {
     expect(readEnv({ ...DEV_PROFILE, MYBROWSER_FAKE_SCENARIO: 'search-read' }, DEV).fakeScenario).toBe('search-read');
-    expect(() => readEnv({ ...DEV_PROFILE, MYBROWSER_FAKE_SCENARIO: '../etc' }, DEV)).toThrow('MYBROWSER_FAKE_SCENARIO');
+    expect(() => readEnv({ ...DEV_PROFILE, MYBROWSER_FAKE_SCENARIO: '../etc' }, DEV)).toThrow(
+      'MYBROWSER_FAKE_SCENARIO',
+    );
   });
 
   it('fake 프로필은 MYBROWSER_MODEL 이 없으면 claude-opus-5-5, 있으면 그 값이다', () => {
     expect(readEnv({ MYBROWSER_FAKE_MODEL: '1' }, DEV).model).toBe('claude-opus-5-5');
-    expect(readEnv({ MYBROWSER_FAKE_MODEL: '1', MYBROWSER_MODEL: 'claude-sonnet-5' }, DEV).model).toBe('claude-sonnet-5');
+    expect(readEnv({ MYBROWSER_FAKE_MODEL: '1', MYBROWSER_MODEL: 'claude-sonnet-5' }, DEV).model).toBe(
+      'claude-sonnet-5',
+    );
   });
 
   it('MYBROWSER_MODEL 에 날짜 접미사가 있으면 실패한다', () => {
-    expect(() => readEnv({ ...DEV_PROFILE, MYBROWSER_MODEL: 'claude-opus-4-20250514' }, DEV)).toThrow('MYBROWSER_MODEL');
+    expect(() => readEnv({ ...DEV_PROFILE, MYBROWSER_MODEL: 'claude-opus-4-20250514' }, DEV)).toThrow(
+      'MYBROWSER_MODEL',
+    );
   });
 });
 
@@ -121,7 +134,12 @@ describe('readEnv — 모델 프로필 (spec 005, spec 007)', () => {
 
   it('NODE_ENV=test·FAKE=0·PROFILE=prod·게이트웨이 주소면 prod 이고 그 주소를 쓴다', () => {
     const env = readEnv(
-      { MYBROWSER_FAKE_MODEL: '0', NODE_ENV: 'test', MYBROWSER_PROFILE: 'prod', MYBROWSER_GATEWAY_URL: 'http://127.0.0.1:4000' },
+      {
+        MYBROWSER_FAKE_MODEL: '0',
+        NODE_ENV: 'test',
+        MYBROWSER_PROFILE: 'prod',
+        MYBROWSER_GATEWAY_URL: 'http://127.0.0.1:4000',
+      },
       DEV,
     );
     expect([env.profileKind, env.gatewayUrl]).toEqual(['prod', 'http://127.0.0.1:4000']);
@@ -142,7 +160,10 @@ describe('readEnv — 모델 프로필 (spec 005, spec 007)', () => {
   });
 
   it('prod 는 ANTHROPIC_API_KEY·ANTHROPIC_BASE_URL 을 무시한다', () => {
-    const env = readEnv({ MYBROWSER_PROFILE: 'prod', ANTHROPIC_API_KEY: 'sk-test-key', ANTHROPIC_BASE_URL: PROXY }, DEV);
+    const env = readEnv(
+      { MYBROWSER_PROFILE: 'prod', ANTHROPIC_API_KEY: 'sk-test-key', ANTHROPIC_BASE_URL: PROXY },
+      DEV,
+    );
     expect([env.anthropicApiKey, env.anthropicBaseUrl]).toEqual([undefined, undefined]);
   });
 
@@ -172,7 +193,25 @@ describe('readEnv — fakeScenarioDir (spec 005)', () => {
 
   it('test 모드가 아니면 MYBROWSER_FAKE_SCENARIO_DIR 를 무시한다', () => {
     expect(readEnv({ MYBROWSER_FAKE_SCENARIO_DIR: '/tmp/scenarios' }, PACKAGED).fakeScenarioDir).toBeUndefined();
-    expect(readEnv({ ...DEV_PROFILE, MYBROWSER_FAKE_SCENARIO_DIR: '/tmp/scenarios' }, DEV).fakeScenarioDir).toBeUndefined();
+    expect(
+      readEnv({ ...DEV_PROFILE, MYBROWSER_FAKE_SCENARIO_DIR: '/tmp/scenarios' }, DEV).fakeScenarioDir,
+    ).toBeUndefined();
+  });
+});
+
+describe('readEnv — 입력 토큰 상한 (spec 020 FR-1)', () => {
+  it('MYBROWSER_MAX_INPUT_TOKENS=1500000 이면 maxInputTokens 가 1500000 이다', () => {
+    expect(readEnv({ ...DEV_PROFILE, MYBROWSER_MAX_INPUT_TOKENS: '1500000' }, DEV).maxInputTokens).toBe(1_500_000);
+  });
+
+  it('MYBROWSER_MAX_INPUT_TOKENS 가 없으면 maxInputTokens 는 undefined 다', () => {
+    expect(readEnv(DEV_PROFILE, DEV).maxInputTokens).toBeUndefined();
+  });
+
+  it.each(['0', '-1', 'abc', '1.5'])('MYBROWSER_MAX_INPUT_TOKENS=%s 면 시작 시점에 실패한다', (value) => {
+    expect(() => readEnv({ ...DEV_PROFILE, MYBROWSER_MAX_INPUT_TOKENS: value }, DEV)).toThrow(
+      'MYBROWSER_MAX_INPUT_TOKENS',
+    );
   });
 });
 
@@ -236,7 +275,9 @@ describe('readEnv — dev 프로필 프록시 주소 (spec 006, spec 007 FR-3)',
   });
 
   it('dev 인데 ANTHROPIC_BASE_URL 이 없으면 시작 시점에 실패한다', () => {
-    expect(() => readEnv({ MYBROWSER_PROFILE: 'dev' }, DEV)).toThrow('환경변수가 올바르지 않습니다: ANTHROPIC_BASE_URL');
+    expect(() => readEnv({ MYBROWSER_PROFILE: 'dev' }, DEV)).toThrow(
+      '환경변수가 올바르지 않습니다: ANTHROPIC_BASE_URL',
+    );
   });
 
   it('fake 면 ANTHROPIC_BASE_URL 을 무시한다', () => {
@@ -250,6 +291,24 @@ describe('readEnv — dev 프로필 프록시 주소 (spec 006, spec 007 FR-3)',
   it('ANTHROPIC_BASE_URL 이 http(s) URL 이 아니면 시작 시점에 실패한다', () => {
     expect(() => readEnv({ MYBROWSER_PROFILE: 'dev', ANTHROPIC_BASE_URL: 'file:///etc/passwd' }, DEV)).toThrow(
       'ANTHROPIC_BASE_URL',
+    );
+  });
+
+  it('MYBROWSER_FIRST_SCREENSHOT 가 없으면 첫 화면 캡처를 켠다 (spec 022)', () => {
+    expect(readEnv(DEV_PROFILE, DEV).isFirstScreenshotEnabled).toBe(true);
+  });
+
+  it('MYBROWSER_FIRST_SCREENSHOT=0 이면 첫 화면 캡처를 끈다', () => {
+    expect(readEnv({ ...DEV_PROFILE, MYBROWSER_FIRST_SCREENSHOT: '0' }, DEV).isFirstScreenshotEnabled).toBe(false);
+  });
+
+  it('MYBROWSER_FIRST_SCREENSHOT=1 이면 첫 화면 캡처를 켠다', () => {
+    expect(readEnv({ ...DEV_PROFILE, MYBROWSER_FIRST_SCREENSHOT: '1' }, DEV).isFirstScreenshotEnabled).toBe(true);
+  });
+
+  it('MYBROWSER_FIRST_SCREENSHOT 가 0·1 이 아니면 시작 시점에 실패한다', () => {
+    expect(() => readEnv({ ...DEV_PROFILE, MYBROWSER_FIRST_SCREENSHOT: 'yes' }, DEV)).toThrow(
+      'MYBROWSER_FIRST_SCREENSHOT',
     );
   });
 });

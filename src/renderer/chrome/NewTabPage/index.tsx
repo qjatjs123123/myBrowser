@@ -4,9 +4,14 @@ import { type FormEvent, type RefObject, useEffect, useRef, useState } from 'rea
 import type { TIpcResult } from '@shared/ipc/result';
 import { buildSearchUrl, SEARCH_ENGINE_LIST, type TSearchEngine } from '@shared/utils/addressInput';
 
+import type { TBookmark } from '@shared/ipc/bookmarks';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
+
+import { BookmarkSection } from './BookmarkSection';
+import { ShortcutTile } from './ShortcutTile';
 
 /** 시작 화면 바로가기 — 외부 접속은 사용자가 누를 때만 일어난다 (FR-5) */
 const SHORTCUT_LIST = [
@@ -17,11 +22,16 @@ const SHORTCUT_LIST = [
 interface INewTabPageProps {
   /** 값이 바뀔 때마다 검색창에 포커스 (Ctrl+T) */
   focusSignal: number;
+  /** 최신 추가 순 북마크 (spec 021 FR-3) */
+  bookmarkList: TBookmark[];
   onNavigate: (url: string) => Promise<TIpcResult<null>>;
 }
 
-/** 새 탭 시작 화면 — 검색창 + 엔진별 검색 버튼 + 바로가기. 빈 입력은 무시하고 Enter 는 네이버 검색 */
-export function NewTabPage({ focusSignal, onNavigate }: INewTabPageProps) {
+/**
+ * 새 탭 시작 화면 — 검색창 + 엔진별 검색 버튼 + 바로가기, 그 아래 북마크 (spec 021). 방문 기록은 전용 페이지(spec 023).
+ * 빈 입력은 무시하고 Enter 는 네이버 검색
+ */
+export function NewTabPage({ focusSignal, bookmarkList, onNavigate }: INewTabPageProps) {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   useFocusSignal(inputRef, focusSignal);
@@ -69,33 +79,10 @@ export function NewTabPage({ focusSignal, onNavigate }: INewTabPageProps) {
           <ShortcutTile key={shortcut.url} {...shortcut} onSelect={() => navigate(shortcut.url)} />
         ))}
       </nav>
+      <div className="mt-10 flex w-full max-w-xl flex-col gap-8 pb-10">
+        <BookmarkSection bookmarkList={bookmarkList} onSelect={navigate} />
+      </div>
     </div>
-  );
-}
-
-interface IShortcutTileProps {
-  label: string;
-  initial: string;
-  onSelect: () => void;
-}
-
-/** 바로가기 타일 — 48px 원 안의 첫 글자 + 라벨. 접근 이름은 라벨만 */
-function ShortcutTile({ label, initial, onSelect }: IShortcutTileProps) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      onClick={onSelect}
-      className="h-auto w-20 flex-col gap-2 rounded-lg px-1 py-2 text-xs font-normal"
-    >
-      <span
-        aria-hidden
-        className="flex size-12 items-center justify-center rounded-full bg-muted text-base font-semibold text-muted-foreground"
-      >
-        {initial}
-      </span>
-      {label}
-    </Button>
   );
 }
 

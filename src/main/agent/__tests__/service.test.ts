@@ -1,18 +1,19 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { IRunStore, TRunRecord, TStepRecord, TStepUpsert } from '@shared/agent/run';
 import type { TFakeScenario, TFakeTurn } from '@shared/agent/fakeScenario';
 import { AgentEventSchema, type TAgentEvent } from '@shared/ipc/agent';
 import type { TSkill } from '@shared/ipc/skills';
-import type { IBrowserDriver, IGuardTarget, TActionResult } from '@shared/tools';
+import type { IBrowserDriver, IGuardTarget, TActionResult, TScreenshotResult } from '@shared/tools';
 
 import { createFakeFetch, type TFakeRequestBody } from '../fake/fakeFetch';
 import { GUARD_MESSAGE } from '../guard';
 import { DEFAULT_MODEL_REQUEST } from '../loop';
 import { MissingApiKeyError, MissingCredentialError } from '../modelClient';
 import { DEV_MODEL_REQUEST, type IModelProfile } from '../profiles';
-import { AGENT_MESSAGE, createAgentService, type IAgentServiceDeps } from '../service';
+import { FIRST_SCREENSHOT_NOTE } from '../prompts/system';
+import { AGENT_MESSAGE, createAgentService, FIRST_SCREENSHOT_TIMEOUT_MS, type IAgentServiceDeps } from '../service';
 import { DENIED_RESULT, USER_DONE_RESULT } from '../tools';
 
 const SNAPSHOT_TEXT = [
@@ -61,7 +62,12 @@ function createFakeDriver() {
       ref && TARGET_MAP[ref] ? toTarget(TARGET_MAP[ref]) : null,
     ),
     getPageInfo: vi.fn(async () => ({ url: 'https://shop.example.com/', title: '가게' })),
-    takeScreenshot: vi.fn(async () => ({ ok: true as const, pngBase64: '', width: 1280, height: 800 })),
+    takeScreenshot: vi.fn(async (): Promise<TScreenshotResult> => ({
+      ok: true as const,
+      pngBase64: '',
+      width: 1280,
+      height: 800,
+    })),
     clickAt: vi.fn(() => ok('완료')),
     typeRaw: vi.fn(() => ok('완료')),
     pressRaw: vi.fn(() => ok('완료')),
@@ -113,7 +119,7 @@ function setup({ scenario = { turns: [] }, deps = {}, profile = {}, driver = cre
   const fake = createFakeFetch(scenario);
   const { store, callList } = createMemoryStore();
   const eventList: TAgentEvent[] = [];
-  const log = { error: vi.fn() };
+  const log = { error: vi.fn(), warn: vi.fn() };
   let idCount = 0;
   const service = createAgentService({
     profile: {
@@ -980,6 +986,71 @@ describe('AgentService — 호출 상한 ⑧', () => {
   });
 });
 
+describe('AgentService — 입력 토큰 상한 (spec 020 FR-1)', () => {
+  const TURN_INPUT_TOKENS = 600;
+
+  /** 가짜 fetch 응답의 입력 토큰(고정 10)을 턴당 600 으로 바꾼다 */
+  function createUsageFetch(scenario: TFakeScenario) {
+    const fake = createFakeFetch(scenario);
+    const fetch = async (input: string | URL | Request, init?: RequestInit) => {
+      const text = await (await fake.fetch(input, init)).text();
+      const replaced = text.replaceAll('"input_tokens":10', `"input_tokens":${TURN_INPUT_TOKENS}`);
+      return new Response(replaced, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+    };
+    return { fetch, requestList: fake.requestList };
+  }
+
+  function setupWithUsage(maxInputTokens?: number) {
+    const usageFetch = createUsageFetch({
+      turns: [toolTurn('snapshot'), toolTurn('read_text'), toolTurn('snapshot'), textTurn('끝')],
+    });
+    const t = setup({
+      deps: { maxInputTokens },
+      profile: { createClient: () => new Anthropic({ apiKey: 'fake', fetch: usageFetch.fetch, maxRetries: 0 }) },
+    });
+    return { ...t, requestList: usageFetch.requestList };
+  }
+
+  it('누적 입력 토큰이 상한 안이면 다음 턴으로 계속한다', async () => {
+    const t = setupWithUsage(1000);
+    await t.service.start('읽어');
+    await t.waitForEnd();
+    expect(t.driver.snapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('누적 입력 토큰이 상한을 넘으면 한도 사유로 failed 로 끝낸다', async () => {
+    const t = setupWithUsage(1000);
+    await t.service.start('읽어');
+    await t.waitForEnd();
+    expect(t.store.getRun('run-1')).toMatchObject({ status: 'failed', reason: '입력 토큰 한도(1000)를 넘었습니다' });
+  });
+
+  it('상한을 넘으면 그 턴의 도구와 다음 모델 호출을 하지 않는다', async () => {
+    const t = setupWithUsage(1000);
+    await t.service.start('읽어');
+    await t.waitForEnd();
+    expect([t.requestList.length, t.driver.readText.mock.calls.length]).toEqual([2, 0]);
+  });
+
+  it('상한을 넘어 끝난 run 의 usage_json 에 누적 입력 토큰 1200 을 남긴다', async () => {
+    const t = setupWithUsage(1000);
+    await t.service.start('읽어');
+    await t.waitForEnd();
+    expect(t.callList).toContainEqual([
+      'updateRun',
+      'run-1',
+      expect.objectContaining({ status: 'failed', usageJson: expect.stringContaining('"inputTokens":1200') }),
+    ]);
+  });
+
+  it('상한이 없으면 큰 usage 에도 끝까지 계속한다', async () => {
+    const t = setupWithUsage();
+    await t.service.start('읽어');
+    await t.waitForEnd();
+    expect([t.store.getRun('run-1')?.status, t.requestList.length]).toEqual(['done', 4]);
+  });
+});
+
 describe('AgentService — 도구 실패 ⑨', () => {
   it('driver.click 이 ok:false 면 step 은 error 이고 run 은 계속된다', async () => {
     const driver = createFakeDriver();
@@ -1193,5 +1264,89 @@ describe('AgentService — 스킬 (spec 013)', () => {
     await t.waitForEnd();
     const recorded = JSON.stringify([t.callList, t.eventList, t.log.error.mock.calls]);
     expect(recorded).not.toContain(SKILL_BODY);
+  });
+});
+
+describe('AgentService — 첫 화면 캡처 첨부 (spec 022)', () => {
+  const scenario = { turns: [toolTurn('snapshot'), toolTurn('read_text'), textTurn('끝')] };
+  const PNG_BASE64 = 'iVBORw0KGgo=';
+
+  /** 첫 요청의 첫 user 메시지 content */
+  function getFirstContent(requestList: TFakeRequestBody[]): unknown {
+    return (requestList[0]?.messages as { content: unknown }[] | undefined)?.[0]?.content;
+  }
+
+  /** 캡처 결과를 바꾼 가짜 드라이버 */
+  function createDriverWithScreenshot(takeScreenshot: IBrowserDriver['takeScreenshot']) {
+    const driver = createFakeDriver();
+    driver.takeScreenshot.mockImplementation(takeScreenshot);
+    return driver;
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('켬이고 캡처가 성공하면 첫 메시지는 [이미지, 텍스트+안내] 다', async () => {
+    const driver = createDriverWithScreenshot(async () => ({ ok: true, pngBase64: PNG_BASE64, width: 10, height: 10 }));
+    const t = setup({ scenario, driver, deps: { isFirstScreenshotEnabled: true } });
+    await t.service.start('전화번호 찾아줘');
+    await t.waitForEnd();
+    const content = getFirstContent(t.requestList) as Record<string, unknown>[];
+    expect(content[0]).toEqual({
+      type: 'image',
+      source: { type: 'base64', media_type: 'image/png', data: PNG_BASE64 },
+    });
+    expect(content[1]).toMatchObject({ type: 'text' });
+    expect(String(content[1]?.['text'])).toMatch(new RegExp(`할 일: 전화번호 찾아줘\\n\\n${FIRST_SCREENSHOT_NOTE}$`));
+  });
+
+  it('켬이면 도구 턴이 여러 번이어도 캡처는 run 시작 때 1번만 찍는다', async () => {
+    const t = setup({ scenario, deps: { isFirstScreenshotEnabled: true } });
+    await t.service.start('전화번호 찾아줘');
+    await t.waitForEnd();
+    expect(t.requestList.length).toBe(3);
+    expect(t.driver.takeScreenshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('켬이고 캡처가 실패하면 텍스트만 보내고 run 은 계속되며 사유만 warn 한다', async () => {
+    const driver = createDriverWithScreenshot(async () => ({ ok: false, reason: '페이지 없음' }));
+    const t = setup({ scenario, driver, deps: { isFirstScreenshotEnabled: true } });
+    await t.service.start('전화번호 찾아줘');
+    await t.waitForEnd();
+    expect(typeof getFirstContent(t.requestList)).toBe('string');
+    expect(t.eventList).toContainEqual(expect.objectContaining({ type: 'status', status: 'done' }));
+    expect(t.log.warn).toHaveBeenCalledTimes(1);
+    expect(t.log.warn.mock.calls[0]?.[2]).toEqual({ reason: '페이지 없음' });
+  });
+
+  it('켬이고 캡처가 throw 하면 텍스트만 보내고 run 은 계속된다', async () => {
+    const driver = createDriverWithScreenshot(async () => {
+      throw new Error('CDP 끊김');
+    });
+    const t = setup({ scenario, driver, deps: { isFirstScreenshotEnabled: true } });
+    await t.service.start('전화번호 찾아줘');
+    await t.waitForEnd();
+    expect(typeof getFirstContent(t.requestList)).toBe('string');
+    expect(t.eventList).toContainEqual(expect.objectContaining({ type: 'status', status: 'done' }));
+  });
+
+  it('켬이고 캡처가 끝나지 않으면 시간 초과 뒤 텍스트만 보내고 run 은 계속된다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const driver = createDriverWithScreenshot(() => new Promise(() => undefined));
+    const t = setup({ scenario, driver, deps: { isFirstScreenshotEnabled: true } });
+    await t.service.start('전화번호 찾아줘');
+    await vi.advanceTimersByTimeAsync(FIRST_SCREENSHOT_TIMEOUT_MS);
+    await t.waitForEnd();
+    expect(typeof getFirstContent(t.requestList)).toBe('string');
+    expect(t.log.warn.mock.calls[0]?.[2]).toEqual({ reason: '시간 초과' });
+  });
+
+  it('끄면 캡처를 찍지 않는다', async () => {
+    const t = setup({ scenario, deps: { isFirstScreenshotEnabled: false } });
+    await t.service.start('전화번호 찾아줘');
+    await t.waitForEnd();
+    expect(t.driver.takeScreenshot).not.toHaveBeenCalled();
+    expect(typeof getFirstContent(t.requestList)).toBe('string');
   });
 });

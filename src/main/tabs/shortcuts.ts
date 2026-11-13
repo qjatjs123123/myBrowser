@@ -1,4 +1,5 @@
 import type { TShortcutPressedEvent } from '@shared/ipc/shortcut';
+import type { TZoomDirection } from '@shared/ipc/tabs';
 
 import type { IPreventableEvent } from './electronTabView';
 
@@ -12,7 +13,13 @@ export type TShortcutAction =
   | 'goForward'
   | 'nextTab'
   | 'prevTab'
-  | 'toggleSidebar';
+  | 'toggleSidebar'
+  | 'openFindBar'
+  | 'toggleBookmark'
+  | 'openHistory'
+  | 'zoomIn'
+  | 'zoomOut'
+  | 'zoomReset';
 
 /** before-input-event 의 input 중 판정에 필요한 부분 (Electron `Input` 과 호환) */
 export interface IShortcutInput {
@@ -27,11 +34,14 @@ export interface IShortcutInput {
 /** 단축키가 다루는 TabManager 의 공개 메서드 */
 export interface IShortcutTabTarget {
   createTab(url?: string): string;
+  /** 방문 기록 페이지 탭 — 열린 것이 있으면 그 탭 (spec 023) */
+  openHistoryPage(): string;
   closeTab(id: string): void;
   cycleTab(delta: 1 | -1): void;
   reload(id: string): void;
   goBack(id: string): void;
   goForward(id: string): void;
+  zoom(id: string, direction: TZoomDirection): void;
   getActiveTabId(): string | null;
 }
 
@@ -57,12 +67,27 @@ const PRIMARY_KEY_ACTION: Readonly<Record<string, TShortcutAction>> = {
   l: 'focusAddressBar',
   r: 'reload',
   tab: 'nextTab',
+  f: 'openFindBar',
+  d: 'toggleBookmark',
+  h: 'openHistory',
+  '=': 'zoomIn',
+  '+': 'zoomIn',
+  '-': 'zoomOut',
+  '0': 'zoomReset',
 };
 
 /** 주 수식키 + Shift + 키 — 이 밖의 Shift 조합(Ctrl+Shift+T 등)은 단축키가 아니다 */
 const PRIMARY_SHIFT_KEY_ACTION: Readonly<Record<string, TShortcutAction>> = {
   tab: 'prevTab',
   a: 'toggleSidebar',
+  // Ctrl+Shift+= 는 key 가 '+' 다 (spec 021 FR-10)
+  '+': 'zoomIn',
+};
+
+/** mac 은 Cmd+H 가 OS 의 앱 숨기기라 기록은 Cmd+Shift+H (spec 021 FR-6) */
+const MAC_KEY_OVERRIDE: Readonly<Record<string, TShortcutAction | null>> = {
+  h: null,
+  'shift+h': 'openHistory',
 };
 
 /** Alt + 키 */
@@ -73,7 +98,7 @@ const ALT_KEY_ACTION: Readonly<Record<string, TShortcutAction>> = {
 
 /**
  * [단축키 판정] 키 입력 → 동작. keyDown 만, darwin 은 Cmd·그 외 Ctrl 이 주 수식키.
- * 다른 수식키가 섞이면 null — 단 주 수식키+Shift+Tab 은 prevTab, +Shift+A 는 toggleSidebar.
+ * 다른 수식키가 섞이면 null — 단 주 수식키+Shift+Tab 은 prevTab, +Shift+A 는 toggleSidebar, +Shift+'+' 는 zoomIn.
  */
 export function toShortcutAction(input: IShortcutInput, platform: NodeJS.Platform): TShortcutAction | null {
   if (input.type !== 'keyDown') return null;
@@ -84,6 +109,8 @@ export function toShortcutAction(input: IShortcutInput, platform: NodeJS.Platfor
   if (isOtherModifier) return null;
   if (input.alt) return isPrimary || input.shift ? null : (ALT_KEY_ACTION[key] ?? null);
   if (!isPrimary) return null;
+  const macKey = input.shift ? `shift+${key}` : key;
+  if (isMac && macKey in MAC_KEY_OVERRIDE) return MAC_KEY_OVERRIDE[macKey] ?? null;
   if (input.shift) return PRIMARY_SHIFT_KEY_ACTION[key] ?? null;
   return PRIMARY_KEY_ACTION[key] ?? null;
 }
@@ -98,7 +125,7 @@ export function createShortcutRunner(options: IShortcutRunnerOptions): TShortcut
 }
 
 /**
- * 크롬(renderer) 쪽 동작 — 새 탭은 시작 화면 검색창, 주소창 포커스, 사이드바 토글.
+ * 크롬(renderer) 쪽 동작 — 새 탭은 시작 화면 검색창, 주소창 포커스, 사이드바 토글, 찾기 줄·북마크·방문 기록(spec 021).
  * toggleSidebar 는 탭·포커스를 건드리지 않고 renderer 에 알리기만 한다 (패널 상태는 renderer 가 들고 있다)
  */
 function createFocusActions({ tabManager, emitShortcut, focusChrome }: IShortcutRunnerOptions) {
@@ -113,6 +140,17 @@ function createFocusActions({ tabManager, emitShortcut, focusChrome }: IShortcut
       emitShortcut('focusAddressBar');
     },
     toggleSidebar: () => emitShortcut('toggleSidebar'),
+    openFindBar: () => {
+      focusChrome();
+      emitShortcut('openFindBar');
+    },
+    // 북마크 토글은 포커스를 옮기지 않는다 — 페이지에서 Ctrl+D 해도 페이지 입력 위치가 그대로
+    toggleBookmark: () => emitShortcut('toggleBookmark'),
+    openHistory: () => {
+      tabManager.openHistoryPage();
+      focusChrome();
+      emitShortcut('focusHistorySearch');
+    },
   };
 }
 
@@ -127,6 +165,9 @@ function createTabActions(tabManager: IShortcutTabTarget) {
     reload: runOnActive((id) => tabManager.reload(id)),
     goBack: runOnActive((id) => tabManager.goBack(id)),
     goForward: runOnActive((id) => tabManager.goForward(id)),
+    zoomIn: runOnActive((id) => tabManager.zoom(id, 'in')),
+    zoomOut: runOnActive((id) => tabManager.zoom(id, 'out')),
+    zoomReset: runOnActive((id) => tabManager.zoom(id, 'reset')),
     nextTab: () => tabManager.cycleTab(1),
     prevTab: () => tabManager.cycleTab(-1),
   };

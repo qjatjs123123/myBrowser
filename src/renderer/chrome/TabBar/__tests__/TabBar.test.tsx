@@ -21,6 +21,9 @@ function createTab(overrides: Partial<TTabState> = {}): TTabState {
     canGoBack: false,
     canGoForward: false,
     isNewTab: true,
+    zoomPercent: 100,
+    agentActivity: null,
+    internalPage: null,
     ...overrides,
   };
 }
@@ -31,6 +34,9 @@ const PAGE_TAB = createTab({
   title: 'A 사이트',
   faviconUrl: 'https://a.com/favicon.ico',
   isNewTab: false,
+  zoomPercent: 100,
+  agentActivity: null,
+  internalPage: null,
 });
 
 function renderTabBar(overrides: Partial<Parameters<typeof TabBar>[0]> = {}) {
@@ -141,5 +147,23 @@ describe('TabBar', () => {
       renderTabBar();
       expect(screen.getByTestId('window-top-bar')).toHaveClass('[-webkit-app-region:drag]');
     });
+  });
+});
+
+describe('TabBar 에이전트 표시 (spec 021)', () => {
+  it('작업 중인 탭에 "에이전트 작업 중" 표시가 보이고 탭 이름은 그대로다', () => {
+    renderTabBar({ tabList: [createTab(), { ...PAGE_TAB, agentActivity: 'working' }] });
+    expect(screen.getByRole('img', { name: '에이전트 작업 중' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'A 사이트' })).toBeInTheDocument();
+  });
+
+  it('응답 대기 중인 탭에 "에이전트 응답 대기" 표시가 보인다', () => {
+    renderTabBar({ tabList: [createTab(), { ...PAGE_TAB, agentActivity: 'waiting' }] });
+    expect(screen.getByRole('img', { name: '에이전트 응답 대기' })).toBeInTheDocument();
+  });
+
+  it('표시가 없으면 아무 점도 없다', () => {
+    renderTabBar();
+    expect(screen.queryByRole('img', { name: /에이전트/ })).not.toBeInTheDocument();
   });
 });

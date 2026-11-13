@@ -59,6 +59,9 @@ function setup() {
       canGoBack: false,
       canGoForward: false,
       isNewTab: false,
+      zoomPercent: 100,
+      agentActivity: null,
+      internalPage: null,
     })),
     activeTabId,
   });

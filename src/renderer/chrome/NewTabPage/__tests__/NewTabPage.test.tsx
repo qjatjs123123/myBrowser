@@ -11,12 +11,23 @@ const OK = { ok: true, data: null } as const;
 const ENCODED_QUERY = encodeURIComponent('강남 맛집');
 
 function renderNewTabPage(overrides: Partial<Parameters<typeof NewTabPage>[0]> = {}) {
-  const props = { focusSignal: 0, onNavigate: vi.fn().mockResolvedValue(OK), ...overrides };
+  const props = {
+    focusSignal: 0,
+    bookmarkList: [],
+    onNavigate: vi.fn().mockResolvedValue(OK),
+    ...overrides,
+  };
   const view = render(<NewTabPage {...props} />);
   return { props, view, input: screen.getByRole('textbox', { name: '새 탭 검색' }) };
 }
 
 describe('NewTabPage', () => {
+  it('방문 기록 검색·목록은 그리지 않는다 (spec 023 FR-1)', () => {
+    renderNewTabPage();
+    expect(screen.queryByRole('textbox', { name: '방문 기록 검색' })).not.toBeInTheDocument();
+    expect(window.api.history.list).not.toHaveBeenCalled();
+  });
+
   it('제목 "새 탭" heading 을 가진다', () => {
     renderNewTabPage();
     expect(screen.getByRole('heading', { name: '새 탭' })).toBeInTheDocument();
