@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildFirstUserMessage, buildSystemPrompt } from '../system';
+import { buildFirstUserContent, buildFirstUserMessage, buildSystemPrompt, FIRST_SCREENSHOT_NOTE } from '../system';
 
 const WITH_PIXEL = buildSystemPrompt({ hasComputerToolset: true });
 const WITHOUT_PIXEL = buildSystemPrompt({ hasComputerToolset: false });
@@ -33,17 +33,20 @@ describe('buildSystemPrompt', () => {
       },
     );
 
-    it.each(['[적용]', '부분 snapshot 포함', '[반복] 표시'])('“%s” 레이어·ref·반복 문구를 담는다 (spec 015 FR-6)', (phrase) => {
-      expect(prompt).toContain(phrase);
-    });
+    it.each(['[적용]', '부분 snapshot 포함', '[반복] 표시'])(
+      '“%s” 레이어·ref·반복 문구를 담는다 (spec 015 FR-6)',
+      (phrase) => {
+        expect(prompt).toContain(phrase);
+      },
+    );
 
     it('잘린 snapshot 을 scroll 로 더 읽으라고 하지 않는다', () => {
       expect(prompt).not.toContain('read_text 나 scroll 로 더 읽는다');
     });
 
     it('섹션 순서는 역할 → 도구 순서 → 안전 → 예약 참고 → 출력이다', () => {
-      const indexList = ['# 역할', '# 도구 사용 순서', '# 안전 규칙', '# 한국 예약 사이트 참고', '# 출력 형식'].map((h) =>
-        prompt.indexOf(h),
+      const indexList = ['# 역할', '# 도구 사용 순서', '# 안전 규칙', '# 한국 예약 사이트 참고', '# 출력 형식'].map(
+        (h) => prompt.indexOf(h),
       );
       expect(indexList.every((index, i) => index >= 0 && (i === 0 || index > (indexList[i - 1] ?? 0)))).toBe(true);
     });
@@ -58,9 +61,12 @@ describe('buildSystemPrompt', () => {
     expect(WITH_PIXEL).toContain(phrase);
   });
 
-  it.each(['픽셀 도구', '연달아 찍지 않는다', 'screenshot'])('픽셀 도구가 없으면 “%s” 를 담지 않는다 (spec 015 FR-6)', (phrase) => {
-    expect(WITHOUT_PIXEL).not.toContain(phrase);
-  });
+  it.each(['픽셀 도구', '연달아 찍지 않는다', 'screenshot'])(
+    '픽셀 도구가 없으면 “%s” 를 담지 않는다 (spec 015 FR-6)',
+    (phrase) => {
+      expect(WITHOUT_PIXEL).not.toContain(phrase);
+    },
+  );
 });
 
 describe('buildFirstUserMessage', () => {
@@ -72,5 +78,18 @@ describe('buildFirstUserMessage', () => {
       task: '전화번호 찾아줘',
     });
     expect(message).toBe('오늘: 2026-11-05 (목)\n현재 탭: https://example.com/ — 예시\n\n할 일: 전화번호 찾아줘');
+  });
+});
+
+describe('buildFirstUserContent (spec 021)', () => {
+  it('캡처가 있으면 [이미지, 텍스트+안내] 순서다', () => {
+    expect(buildFirstUserContent({ text: '할 일: 찾아줘', screenshotBase64: 'AAAA' })).toEqual([
+      { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } },
+      { type: 'text', text: `할 일: 찾아줘\n\n${FIRST_SCREENSHOT_NOTE}` },
+    ]);
+  });
+
+  it('캡처가 없으면 텍스트 문자열 그대로다', () => {
+    expect(buildFirstUserContent({ text: '할 일: 찾아줘', screenshotBase64: null })).toBe('할 일: 찾아줘');
   });
 });

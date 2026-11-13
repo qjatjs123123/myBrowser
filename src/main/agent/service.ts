@@ -28,7 +28,7 @@ import { runAgentLoop, type TLoopOutcome } from './loop';
 import { MissingApiKeyError, MissingCredentialError, type IModelClient } from './modelClient';
 import type { IModelProfile } from './profiles';
 import { buildSkillSection } from './prompts/skills';
-import { buildFirstUserMessage, buildSystemPrompt } from './prompts/system';
+import { buildFirstUserContent, buildFirstUserMessage, buildSystemPrompt } from './prompts/system';
 import { createRepeatTracker } from './repeatTracker';
 import { isFinalStatus, transition, type TRunEvent } from './runs';
 import { createExclusiveQueue, createToolList, type IToolRunContext, type TUserRequest } from './tools';
@@ -43,6 +43,7 @@ import {
 
 /** 서비스 로그 — main 의 log 와 같은 모양 */
 export interface IAgentLog {
+  warn(scope: string, message: string, meta?: unknown): void;
   error(scope: string, message: string, meta?: unknown): void;
 }
 
@@ -58,6 +59,8 @@ export interface IAgentServiceDeps {
   maxToolCalls: number;
   /** run 누적 입력 토큰 상한 (spec 020 FR-1) — 넘으면 failed. 없으면 상한 없음 */
   maxInputTokens?: number;
+  /** run 시작 때 현재 탭 캡처를 첫 메시지에 붙인다 (spec 021) — 없으면 붙이지 않는다 */
+  isFirstScreenshotEnabled?: boolean;
   log?: IAgentLog;
   /** 켜진 스킬 읽기 (spec 013) — 없으면 스킬 없이 실행 */
   skills?: Pick<ISkillStore, 'listEnabled'>;
@@ -249,6 +252,8 @@ async function runLoopFor(
   { client, task }: { client: IModelClient; task: string },
 ) {
   const page = await session.driver.getPageInfo();
+  const text = buildFirstUserMessage({ today: deps.now(), pageUrl: page.url, pageTitle: page.title, task });
+  const screenshotBase64 = deps.isFirstScreenshotEnabled ? await captureFirstScreenshot(deps, session) : null;
   return runAgentLoop({
     client,
     model: deps.profile.model,
@@ -256,13 +261,36 @@ async function runLoopFor(
     tools: createToolList(createToolContext(deps, session), { hasComputerToolset: deps.profile.hasComputerToolset }),
     systemPrompt: buildSystemPrompt({ hasComputerToolset: deps.profile.hasComputerToolset }),
     skillSection: buildSkillSection(readEnabledSkillList(deps)),
-    firstUserMessage: buildFirstUserMessage({ today: deps.now(), pageUrl: page.url, pageTitle: page.title, task }),
+    firstUserMessage: buildFirstUserContent({ text, screenshotBase64 }),
     signal: session.controller.signal,
     onFinal: (message) => {
       addUsage(session, message);
       checkInputTokenLimit(deps, session);
     },
   });
+}
+
+/** 첫 화면 캡처가 이 시간 안에 끝나지 않으면 텍스트만 보낸다 (spec 021 FR-3) */
+export const FIRST_SCREENSHOT_TIMEOUT_MS = 5_000;
+const FIRST_SCREENSHOT_TIMEOUT_REASON = '시간 초과';
+
+/** run 시작 때 현재 탭을 1번 찍는다 — 실패·throw·시간 초과면 warn(사유만, SR-2) 후 null (spec 021 FR-1·FR-3) */
+async function captureFirstScreenshot(deps: IAgentServiceDeps, session: IRunSession): Promise<string | null> {
+  const result = await raceTimeout(session.driver.takeScreenshot(), FIRST_SCREENSHOT_TIMEOUT_MS).catch(
+    (error: unknown) => ({ ok: false as const, reason: error instanceof Error ? error.message : String(error) }),
+  );
+  if (result.ok) return result.pngBase64;
+  deps.log?.warn(LOG_SCOPE, '첫 화면 캡처 실패 — 텍스트만 보낸다', { reason: result.reason });
+  return null;
+}
+
+/** 시간 안에 끝나지 않으면 실패 결과 — 늦게 온 결과는 버린다 */
+function raceTimeout<T>(task: Promise<T>, timeoutMs: number): Promise<T | { ok: false; reason: string }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<{ ok: false; reason: string }>((resolveTimeout) => {
+    timer = setTimeout(() => resolveTimeout({ ok: false, reason: FIRST_SCREENSHOT_TIMEOUT_REASON }), timeoutMs);
+  });
+  return Promise.race([task, timeout]).finally(() => clearTimeout(timer));
 }
 
 /** run 시작 때 1회 읽는다 — 실패하면 스킬 없이 진행하고 로그에는 오류만 싣는다 (스킬 내용 금지, SR-3) */

@@ -17,6 +17,7 @@ import {
 import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta/messages/messages';
 
 import type { IModelClient } from './modelClient';
+import type { TFirstUserBlock } from './prompts/system';
 import type { TRunnableTool } from './tools';
 
 /** 루프 결과 — aborted 는 중지·가드 정지·상한 실패로 abort 된 경우 (서비스가 정지 플래그로 상태를 정한다) */
@@ -44,7 +45,8 @@ export interface IRunAgentLoopOptions {
   systemPrompt: string;
   /** 켜진 스킬 블록 (spec 013) — 있으면 cache_control 없는 system 두 번째 블록으로 붙인다 */
   skillSection?: string | null;
-  firstUserMessage: string;
+  /** 첫 user 메시지 content — 문자열 또는 [캡처 이미지, 텍스트] (spec 021) */
+  firstUserMessage: string | TFirstUserBlock[];
   signal: AbortSignal;
   /** 없으면 DEFAULT_MODEL_REQUEST */
   request?: IModelRequestOptions;
