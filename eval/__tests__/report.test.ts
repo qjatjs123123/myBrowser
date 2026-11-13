@@ -222,3 +222,30 @@ describe('readRunMetrics·readStepList — 답과 단계 로그 (spec 020)', () 
     expect(readStepList(dbPath)).toEqual([]);
   });
 });
+
+describe('report.json 의 첫 화면 캡처 기록 (spec 021)', () => {
+  it('writeReportJson 에 firstScreenshot 을 주면 그 값을 쓴다', () => {
+    const createdAt = new Date(2026, 10, 13, 10, 0, 0);
+    const path = writeReportJson({
+      dir,
+      resultList: [createResult()],
+      isReal: false,
+      createdAt,
+      firstScreenshot: false,
+    });
+    expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({ firstScreenshot: false });
+  });
+
+  it('writeSiteReportJson 에 firstScreenshot 을 주면 그 값을 쓴다', () => {
+    const createdAt = new Date(2026, 10, 13, 10, 0, 0);
+    const path = writeSiteReportJson({
+      dir,
+      resultList: [],
+      summary: {},
+      exitCode: 0,
+      createdAt,
+      firstScreenshot: true,
+    });
+    expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({ firstScreenshot: true });
+  });
+});

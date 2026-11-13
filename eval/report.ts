@@ -164,14 +164,18 @@ export function convertToReportJson({
   resultList,
   isReal,
   createdAt,
+  firstScreenshot,
 }: {
   resultList: TEvalResult[];
   isReal: boolean;
   createdAt: Date;
+  /** 첫 화면 캡처 첨부를 켰는가 (spec 021 FR-5) — 주면 기록한다 */
+  firstScreenshot?: boolean;
 }) {
   return {
     createdAt: createdAt.toISOString(),
     mode: isReal ? 'real' : 'fake',
+    ...(firstScreenshot === undefined ? {} : { firstScreenshot }),
     exitCode: getExitCode(resultList),
     resultList: resultList.map((result) => ({ ...result, isPassed: isPassed(result) })),
   };
@@ -193,13 +197,15 @@ export function writeReportJson({
   resultList,
   isReal,
   createdAt,
+  firstScreenshot,
 }: {
   dir: string;
   resultList: TEvalResult[];
   isReal: boolean;
   createdAt: Date;
+  firstScreenshot?: boolean;
 }): string {
-  return writeJson(dir, convertToReportJson({ resultList, isReal, createdAt }));
+  return writeJson(dir, convertToReportJson({ resultList, isReal, createdAt, firstScreenshot }));
 }
 
 /** `{dir}/report.json` 에 JSON 을 쓴다 */
@@ -217,17 +223,21 @@ export function writeSiteReportJson({
   summary,
   exitCode,
   createdAt,
+  firstScreenshot,
 }: {
   dir: string;
   resultList: unknown[];
   summary: unknown;
   exitCode: 0 | 1;
   createdAt: Date;
+  /** 첫 화면 캡처 첨부를 켰는가 (spec 021 FR-5) — 주면 기록한다 */
+  firstScreenshot?: boolean;
 }): string {
   return writeJson(dir, {
     createdAt: createdAt.toISOString(),
     mode: 'real',
     set: 'sites',
+    ...(firstScreenshot === undefined ? {} : { firstScreenshot }),
     exitCode,
     summary,
     resultList,

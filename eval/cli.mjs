@@ -10,6 +10,7 @@
  * 결과: eval/results/{YYYYMMDD-HHmmss}/report.json (sites 세트는 + {id}-{n}.png 끝 화면, {id}-{n}.steps.json 단계 로그).
  * `--real` 이면 .env 의 ANTHROPIC_API_KEY·ANTHROPIC_BASE_URL 두 키만, 셸에 없을 때 앱에 넘긴다 (FR-8 — 값은 출력하지 않는다).
  * 실제 사이트 세트의 승인 창은 모두 [거부] 로 답한다 — 실제 예약·결제·주문은 일어나지 않는다 (SR-1).
+ * 첫 화면 캡처 첨부(spec 021)는 기본 켬 — 끈 쪽과 비교하려면 `MYBROWSER_FIRST_SCREENSHOT=0 pnpm eval -- ...`. report.json 의 firstScreenshot 에 기록된다.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -39,6 +40,8 @@ const DOT_ENV_PATH = join(ROOT, '.env');
 const RESULT_FILE_ENV = 'MYBROWSER_EVAL_RESULT_FILE';
 /** 러너가 스크린샷·단계 로그를 쓰는 결과 디렉터리 (spec 020 FR-4) */
 const OUT_DIR_ENV = 'MYBROWSER_EVAL_OUT_DIR';
+/** 평가 앱은 셸 env 를 물려받는다 — 첫 화면 캡처 켬/끔을 결과에 남긴다 (spec 021 FR-5) */
+const isFirstScreenshot = process.env.MYBROWSER_FIRST_SCREENSHOT !== '0';
 
 const command = resolveEvalCommand({
   argList: process.argv.slice(2),
@@ -80,7 +83,13 @@ function readModelEnv() {
 /** 픽스처 세트 보고 — 기존 표 + report.json, 종료 코드는 playwright 와 기대 판정 중 나쁜 쪽 */
 function reportFixtures(text, childStatus) {
   const resultList = parseResultLines(text);
-  const reportPath = writeReportJson({ dir: outDir, resultList, isReal: command.isReal, createdAt });
+  const reportPath = writeReportJson({
+    dir: outDir,
+    resultList,
+    isReal: command.isReal,
+    createdAt,
+    firstScreenshot: isFirstScreenshot,
+  });
   process.stdout.write(`\n${convertToMarkdown(resultList)}\n\n결과: ${reportPath}\n`);
   return Math.max(childStatus ?? 1, getExitCode(resultList));
 }
@@ -94,7 +103,16 @@ function reportSites(text) {
     scenarioCount: SITE_SCENARIO_LIST.length,
     repeat: Number(command.env[EVAL_REPEAT_ENV]),
   });
-  const reportPath = writeSiteReportJson({ dir: outDir, resultList, summary, exitCode, createdAt });
-  process.stdout.write(`\n${convertSiteToMarkdown(summary)}\n\n결과: ${reportPath}\n`);
+  const reportPath = writeSiteReportJson({
+    dir: outDir,
+    resultList,
+    summary,
+    exitCode,
+    createdAt,
+    firstScreenshot: isFirstScreenshot,
+  });
+  process.stdout.write(
+    `\n${convertSiteToMarkdown(summary)}\n첫 화면 캡처: ${isFirstScreenshot ? '켬' : '끔'}\n\n결과: ${reportPath}\n`,
+  );
   return exitCode;
 }
