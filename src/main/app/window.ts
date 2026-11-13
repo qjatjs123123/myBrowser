@@ -4,6 +4,8 @@ import { BrowserWindow, type BrowserWindowConstructorOptions } from 'electron';
 
 import type { TWindowState } from '@shared/ipc/window';
 
+import type { TPointerFrame } from './windowPointer';
+
 /** 창 최소 크기 — 창 옵션과 Linux 가장자리 크기 조절(spec 016)이 같이 쓴다 */
 export const WINDOW_MIN_SIZE = { width: 900, height: 600 };
 const WINDOW_SIZE = { width: 1280, height: 800, minWidth: WINDOW_MIN_SIZE.width, minHeight: WINDOW_MIN_SIZE.height };
@@ -64,17 +66,36 @@ export function createWindowOptions(preloadPath: string, platform: NodeJS.Platfo
   };
 }
 
-type TWatchableWindow = Pick<BrowserWindow, 'on' | 'isMaximized'>;
+type TWatchableWindow = Pick<BrowserWindow, 'on'>;
 
 /**
- * 최대화·전체 화면 상태가 바뀔 때마다 알린다 (spec 014 FR-2). 값은 이벤트 종류로 정한다 — 창 관리자가 없는 xvfb e2e 에서
- * `emit('maximize')` 로 확인할 수 있게. 전체 화면을 풀 때만 최대화 여부를 읽는다 (최대화한 창을 전체 화면 했다 풀어도 직각 유지).
+ * 창 관리자 최대화 이벤트를 상태로 알린다 (spec 014 FR-2) — 비 Linux. Linux 는 앱 최대화기가 알린다(spec 017).
+ * 값은 이벤트 종류로 정한다 — 창 관리자가 없는 xvfb e2e 에서 `emit('maximize')` 로 확인할 수 있게.
  */
-export function watchWindowState(window: TWatchableWindow, onChange: (state: TWindowState) => void): void {
+export function watchMaximizeEvents(window: TWatchableWindow, onChange: (state: TWindowState) => void): void {
   window.on('maximize', () => onChange({ isMaximized: true }));
-  window.on('enter-full-screen', () => onChange({ isMaximized: true }));
   window.on('unmaximize', () => onChange({ isMaximized: false }));
-  window.on('leave-full-screen', () => onChange({ isMaximized: window.isMaximized() }));
+}
+
+/** 전체 화면이면 직각 — 풀 때는 최대화 여부로 정한다 (최대화한 창을 전체 화면 했다 풀어도 직각 유지, spec 014) */
+export function watchFullScreen(
+  window: TWatchableWindow,
+  onChange: (state: TWindowState) => void,
+  isMaximized: () => boolean,
+): void {
+  window.on('enter-full-screen', () => onChange({ isMaximized: true }));
+  window.on('leave-full-screen', () => onChange({ isMaximized: isMaximized() }));
+}
+
+type TNativeFrameWindow = Pick<BrowserWindow, 'isMaximized' | 'getNormalBounds' | 'unmaximize'>;
+
+/** 창 관리자 최대화를 포인터 세션의 최대화 상태로 — 비 Linux 용 (Linux 는 createBoundsMaximizer, spec 017) */
+export function createNativeFrame(window: TNativeFrameWindow): TPointerFrame {
+  return {
+    isMaximized: () => window.isMaximized(),
+    getNormalBounds: () => window.getNormalBounds(),
+    release: () => window.unmaximize(),
+  };
 }
 
 /** 메인 창을 만들고 renderer 를 불러온다 — 개발 중엔 electron-vite dev 서버, 빌드 후엔 out/renderer */

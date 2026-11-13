@@ -98,14 +98,15 @@ async function readFrameStyle(win: Page): Promise<{ radius: string; bodyBackgrou
   });
 }
 
-/** 메인 창에 최대화 계열 이벤트를 보낸다 — xvfb 에는 창 관리자가 없어 실제 최대화 대신 이벤트로 확인한다 */
-async function emitWindowEvent(app: ElectronApplication, eventName: 'maximize' | 'unmaximize'): Promise<void> {
+/** 메인 창에 최대화 이벤트를 보낸다 — xvfb 에는 창 관리자가 없어 실제 최대화 대신 이벤트로 확인한다 */
+async function emitWindowEvent(app: ElectronApplication, eventName: 'maximize'): Promise<void> {
   await app.evaluate(({ BrowserWindow }, name) => {
     const [mainWindow] = BrowserWindow.getAllWindows();
     mainWindow?.emit(name);
   }, eventName);
 }
 
+// Linux 최대화 상태는 앱 최대화기가 정한다 — 푸는 것은 탭 줄 더블클릭 (spec 017 FR-4·6)
 test('Linux 는 창 모서리가 둥글고 최대화하면 직각, 풀면 다시 둥글다 (spec 014)', async ({ app, win }) => {
   test.skip(process.platform !== 'linux', 'macOS·Windows 는 OS 가 모서리를 그린다');
   const root = win.getByRole('main', { name: '브라우징 영역' });
@@ -116,7 +117,7 @@ test('Linux 는 창 모서리가 둥글고 최대화하면 직각, 풀면 다시
   await expect(root).toHaveAttribute('data-window-frame', 'square');
   expect((await readFrameStyle(win)).radius).toBe('0px');
 
-  await emitWindowEvent(app, 'unmaximize');
+  await doubleClickTopBar(win);
   await expect(root).toHaveAttribute('data-window-frame', 'rounded');
   expect((await readFrameStyle(win)).radius).toBe('10px');
 });
@@ -139,6 +140,21 @@ type TWindowRecord = { boundsList: TBounds[]; maximizeCount: number };
 
 async function readWindowRecord(app: ElectronApplication): Promise<TWindowRecord> {
   return app.evaluate(() => (globalThis as unknown as { __windowRecord: TWindowRecord }).__windowRecord);
+}
+
+/** main 창이 걸친 디스플레이의 작업 영역 */
+async function readWorkArea(app: ElectronApplication): Promise<TBounds> {
+  return app.evaluate(({ BrowserWindow, screen }) => {
+    const [mainWindow] = BrowserWindow.getAllWindows();
+    if (!mainWindow) throw new Error('main 창이 없습니다');
+    return screen.getDisplayMatching(mainWindow.getBounds()).workArea;
+  });
+}
+
+/** 맨 윗줄 빈 곳을 더블클릭한다 — Linux 최대화 토글 (spec 016 FR-2) */
+async function doubleClickTopBar(win: Page): Promise<void> {
+  const point = await getTopBarEmptyPoint(win);
+  await win.mouse.dblclick(point.x, point.y);
 }
 
 /** 맨 윗줄 오른쪽 끝 빈 곳 — 탭·버튼이 없는 자리 */
@@ -199,8 +215,27 @@ test.describe('Linux 창 끌기·더블클릭·크기 조절 (spec 016)', () => 
     await expect(edgeList).toHaveCount(8);
     await emitWindowEvent(app, 'maximize');
     await expect(edgeList).toHaveCount(0);
-    await emitWindowEvent(app, 'unmaximize');
+    await doubleClickTopBar(win);
     await expect(edgeList).toHaveCount(8);
+  });
+
+  // xvfb 는 창 관리자가 없어 maximize 이벤트 뒤 bounds 가 안 바뀐다 → 디스플레이 workArea 로 배치하는 대체 경로 (spec 017 FR-2)
+  test('최대화하면 디스플레이 작업 영역에 setBounds 로 배치하고, 더블클릭하면 처음 bounds 로 돌아간다 (spec 017)', async ({
+    app,
+    win,
+  }) => {
+    const origin = await stubWindowBounds(app);
+    const workArea = await readWorkArea(app);
+    const root = win.getByRole('main', { name: '브라우징 영역' });
+    await emitWindowEvent(app, 'maximize');
+    await expect(root).toHaveAttribute('data-window-frame', 'square');
+    expect((await readWindowRecord(app)).boundsList.at(-1)).toEqual(workArea);
+
+    await doubleClickTopBar(win);
+    await expect(root).toHaveAttribute('data-window-frame', 'rounded');
+    const record = await readWindowRecord(app);
+    expect(record.boundsList.at(-1)).toEqual(origin);
+    expect(record.maximizeCount).toBe(0);
   });
 
   test('최대화가 아니면 탭 콘텐츠 영역은 창 왼쪽 가장자리에서 4px 안쪽이다', async ({ win }) => {

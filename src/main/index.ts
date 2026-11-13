@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 
-import { app, type BrowserWindow, ipcMain, Menu, safeStorage, session } from 'electron';
+import { app, type BrowserWindow, ipcMain, Menu, safeStorage, screen, session } from 'electron';
 
 import { DEVICE_NAME_MAX_LENGTH } from '@shared/account/gateway';
 import { FakeScenarioSchema, type TFakeScenario } from '@shared/agent/fakeScenario';
@@ -24,13 +24,17 @@ import { createCredentialStore } from './app/credentialStore';
 import { createAppMenuTemplate } from './app/menu';
 import {
   createMainWindow,
+  createNativeFrame,
   createWindowControls,
   hasRoundedCorners,
-  watchWindowState,
+  type IWindowControls,
+  watchFullScreen,
+  watchMaximizeEvents,
   WINDOW_CORNER_RADIUS,
   WINDOW_MIN_SIZE,
 } from './app/window';
-import { createWindowPointerSession } from './app/windowPointer';
+import { createBoundsMaximizer } from './app/windowMaximize';
+import { createWindowPointerSession, type TPointerFrame } from './app/windowPointer';
 import { createCdpConnection } from './browser/cdp';
 import { createBrowserDriver } from './browser/driver';
 import { resolveCdpEndpoint } from './browser/endpoint';
@@ -99,7 +103,9 @@ function startBrowser(): void {
     emitShortcut: (action) => emitToSidebar(IPC.shortcut.pressed, ShortcutPressedEventSchema, { action }),
     focusChrome: () => window.webContents.focus(),
   });
-  attachWindowFrame(window, tabManager, (state) => emitToSidebar(IPC.window.stateChanged, WindowStateSchema, state));
+  const windowFrame = attachWindowFrame(window, tabManager, (state) =>
+    emitToSidebar(IPC.window.stateChanged, WindowStateSchema, state),
+  );
   shortcutInput = createShortcutInputHandler(runner, process.platform);
   attachShortcuts(window.webContents, runner, process.platform);
   accountService = createAccountRuntime(tabManager, emitToSidebar);
@@ -113,7 +119,10 @@ function startBrowser(): void {
     ...createTabsHandlers(tabManager),
     ...createAgentHandlers(agentService),
     ...createAccountHandlers(accountService),
-    ...createWindowHandlers(createWindowControls(window), createWindowPointerSession(window, WINDOW_MIN_SIZE)),
+    ...createWindowHandlers(
+      windowFrame.controls,
+      createWindowPointerSession(window, windowFrame.frame, WINDOW_MIN_SIZE),
+    ),
     ...createRunsHandlers(createRunHistoryRepo(runDatabase)),
     ...createSkillsHandlers(skillRepo),
   });
@@ -193,18 +202,40 @@ function getDevBaseUrl(): string {
 
 /**
  * 창 상태 → renderer 이벤트 + 탭 View 모서리 (spec 014). Linux 둥근 창이면 탭 View 를 같은 반지름으로 깎고 최대화 시 직각.
+ * Linux 최대화는 앱 최대화기가 작업 영역에 직접 배치하고 상태를 알린다 (spec 017) — 그 외는 창 관리자 이벤트.
  * 렌더러가 늦게 붙어도 맞도록 첫 로드 때 현재 상태를 1회 보낸다.
  */
-function attachWindowFrame(window: BrowserWindow, tabManager: TabManager, emitState: (state: TWindowState) => void) {
+function attachWindowFrame(
+  window: BrowserWindow,
+  tabManager: TabManager,
+  emitState: (state: TWindowState) => void,
+): { controls: IWindowControls; frame: TPointerFrame } {
   const isRounded = hasRoundedCorners(process.platform);
   const applyState = (state: TWindowState) => {
     emitState(state);
     if (isRounded) tabManager.setCornerRadius(state.isMaximized ? 0 : WINDOW_CORNER_RADIUS);
   };
-  watchWindowState(window, applyState);
+  const windowFrame = isRounded ? createLinuxFrame(window, applyState) : createNativeWindowFrame(window, applyState);
+  watchFullScreen(window, applyState, windowFrame.frame.isMaximized);
   window.webContents.on('did-finish-load', () =>
-    applyState({ isMaximized: window.isMaximized() || window.isFullScreen() }),
+    applyState({ isMaximized: windowFrame.frame.isMaximized() || window.isFullScreen() }),
   );
+  return windowFrame;
+}
+
+/** Linux — 최대화 토글·상태를 작업 영역 최대화기로 (spec 017) */
+function createLinuxFrame(window: BrowserWindow, onChange: (state: TWindowState) => void) {
+  const maximizer = createBoundsMaximizer(window, {
+    onChange,
+    getWorkArea: (bounds) => screen.getDisplayMatching(bounds).workArea,
+  });
+  return { controls: { ...createWindowControls(window), toggleMaximize: maximizer.toggle }, frame: maximizer };
+}
+
+/** macOS·Windows — 창 관리자 최대화 그대로 */
+function createNativeWindowFrame(window: BrowserWindow, onChange: (state: TWindowState) => void) {
+  watchMaximizeEvents(window, onChange);
+  return { controls: createWindowControls(window), frame: createNativeFrame(window) };
 }
 
 interface IAgentRuntimeDeps {
