@@ -8,6 +8,8 @@ import type {
   TStopAgentRequest,
 } from './agent';
 import type { TAppInfo } from './app';
+import type { TBookmarkAddRequest, TBookmarkListResponse, TBookmarkRemoveRequest } from './bookmarks';
+import type { THistoryListRequest, THistoryListResponse, THistoryRemoveRequest } from './history';
 import type { TIpcResult } from './result';
 import type { TRunGetRequest, TRunGetResponse, TRunListResponse } from './runs';
 import type { TShortcutPressedEvent } from './shortcut';
@@ -20,11 +22,14 @@ import type {
 import type {
   TCreateTabRequest,
   TCreateTabResponse,
+  TFindInPageRequest,
+  TFindUpdatedEvent,
   TListTabsResponse,
   TNavigateRequest,
   TSetBoundsRequest,
   TTabRequest,
   TTabsChangedEvent,
+  TZoomTabRequest,
 } from './tabs';
 import type { TWindowPointerMoveRequest, TWindowPointerStartRequest, TWindowState } from './window';
 
@@ -51,6 +56,12 @@ export interface IApi {
     stop: (req: TTabRequest) => Promise<TIpcResult<null>>;
     setBounds: (req: TSetBoundsRequest) => Promise<TIpcResult<null>>;
     onChanged: (cb: (e: TTabsChangedEvent) => void) => TUnsubscribe;
+    /** 확대/축소 (spec 021) — 결과 배율은 tabs:changed 의 zoomPercent 로 온다 */
+    zoom: (req: TZoomTabRequest) => Promise<TIpcResult<null>>;
+    /** 페이지 내 찾기 — 결과 개수는 onFindUpdated 로 온다 */
+    find: (req: TFindInPageRequest) => Promise<TIpcResult<null>>;
+    stopFind: (req: TTabRequest) => Promise<TIpcResult<null>>;
+    onFindUpdated: (cb: (e: TFindUpdatedEvent) => void) => TUnsubscribe;
   };
   shortcut: {
     onPressed: (cb: (e: TShortcutPressedEvent) => void) => TUnsubscribe;
@@ -96,5 +107,17 @@ export interface IApi {
     create: (req: TSkillCreateRequest) => Promise<TIpcResult<TSkillListResponse>>;
     update: (req: TSkillUpdateRequest) => Promise<TIpcResult<TSkillListResponse>>;
     delete: (req: TSkillDeleteRequest) => Promise<TIpcResult<TSkillListResponse>>;
+  };
+  /** 북마크 (spec 021) — 모든 응답은 최신 추가 순 전체 목록 */
+  bookmarks: {
+    list: () => Promise<TIpcResult<TBookmarkListResponse>>;
+    add: (req: TBookmarkAddRequest) => Promise<TIpcResult<TBookmarkListResponse>>;
+    remove: (req: TBookmarkRemoveRequest) => Promise<TIpcResult<TBookmarkListResponse>>;
+  };
+  /** 방문 기록 (spec 021) — 기록은 main 이 남기고 renderer 는 조회·지우기만 */
+  history: {
+    list: (req?: THistoryListRequest) => Promise<TIpcResult<THistoryListResponse>>;
+    remove: (req: THistoryRemoveRequest) => Promise<TIpcResult<null>>;
+    clear: () => Promise<TIpcResult<null>>;
   };
 }

@@ -19,4 +19,10 @@ describe('ShortcutPressedEventSchema', () => {
   it('추가 키가 있으면 실패한다', () => {
     expect(ShortcutPressedEventSchema.safeParse({ action: 'focusAddressBar', extra: 1 }).success).toBe(false);
   });
+
+  it('찾기·북마크·기록 검색 동작이면 통과한다 (spec 021)', () => {
+    for (const action of ['openFindBar', 'toggleBookmark', 'focusHistorySearch']) {
+      expect(ShortcutPressedEventSchema.safeParse({ action }).success).toBe(true);
+    }
+  });
 });

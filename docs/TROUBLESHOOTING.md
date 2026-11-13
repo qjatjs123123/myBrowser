@@ -117,3 +117,8 @@ Claude 는 에러를 만나면 이 문서를 먼저 확인한다. 새 문제를 
 - 증상: 창 내용의 모서리는 둥근데 창 둘레에 사각 그림자·윤곽이 보여 전체가 직각처럼 보인다.
 - 원인: Weston(WSLg 창 관리자)이 프레임 없는 X 창 둘레에 사각 그림자(약 32px 여백, `_NET_FRAME_EXTENTS` 38,38,59,38)를 그린다. 투명 모서리 자체는 정상 — 검은 창 위에 반지름 40px 투명 창을 띄우면 모서리 픽셀이 검정으로 비친다.
 - 결정: WSLg 개발 환경에서만 보이는 외관이라 그대로 둔다. 배포판(Windows `.exe`·macOS)은 OS 가 모서리를 그린다.
+
+## e2e 끝날 때 `[main.error] ... statement has been finalized` (spec 021)
+- 증상: 테스트 흐름은 통과했는데 앱 종료 직후 main 에러 1건으로 실패한다 (`history:list 처리 실패` 또는 `uncaughtException`). 외부 요청 차단 테스트처럼 마지막 탭 로드가 끝나기 전에 테스트가 끝날 때 잘 난다.
+- 원인: `before-quit` 에서 DB 를 닫았는데, 그 뒤에 renderer 조회(IPC)나 탭의 `did-finish-load`(방문 기록 저장)가 와서 닫힌 `DatabaseSync` 문장을 썼다. 탭 `WebContentsView` 는 창보다 늦게 사라져 `will-quit` 뒤에도 로드 완료가 올 수 있다.
+- 해결: DB 는 `will-quit`(창·renderer 가 모두 닫힌 뒤)에 닫고, 탭 이벤트에서 저장하는 곳(`onPageLoaded`)은 `database` 가 null 이면 건너뛴다. 새로 탭 이벤트로 DB 를 쓰는 기능도 같은 확인을 둔다.

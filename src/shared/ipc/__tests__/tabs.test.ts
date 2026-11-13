@@ -4,11 +4,14 @@ import {
   CreateTabRequestSchema,
   CreateTabResponseSchema,
   EmptyResponseSchema,
+  FindInPageRequestSchema,
+  FindUpdatedEventSchema,
   NavigateRequestSchema,
   SetBoundsRequestSchema,
   TabRequestSchema,
   TabsSnapshotSchema,
   TabStateSchema,
+  ZoomTabRequestSchema,
 } from '../tabs';
 
 const VALID_TAB = {
@@ -20,6 +23,8 @@ const VALID_TAB = {
   canGoBack: false,
   canGoForward: false,
   isNewTab: true,
+  zoomPercent: 100,
+  agentActivity: null,
 };
 
 describe('TabRequestSchema', () => {
@@ -150,5 +155,57 @@ describe('TabsSnapshotSchema', () => {
 
   it('추가 키가 있으면 실패한다', () => {
     expect(TabsSnapshotSchema.safeParse({ tabList: [], activeTabId: null, extra: 1 }).success).toBe(false);
+  });
+});
+
+describe('TabStateSchema 의 배율·에이전트 표시 (spec 021)', () => {
+  it('zoomPercent 가 500 을 넘으면 실패한다', () => {
+    expect(TabStateSchema.safeParse({ ...VALID_TAB, zoomPercent: 600 }).success).toBe(false);
+  });
+
+  it('agentActivity 가 working 이면 통과한다', () => {
+    expect(TabStateSchema.safeParse({ ...VALID_TAB, agentActivity: 'working' }).success).toBe(true);
+  });
+
+  it('agentActivity 가 목록 밖 값이면 실패한다', () => {
+    expect(TabStateSchema.safeParse({ ...VALID_TAB, agentActivity: 'done' }).success).toBe(false);
+  });
+});
+
+describe('ZoomTabRequestSchema', () => {
+  it('direction 이 in·out·reset 이면 통과한다', () => {
+    for (const direction of ['in', 'out', 'reset']) {
+      expect(ZoomTabRequestSchema.safeParse({ tabId: 'tab-1', direction }).success).toBe(true);
+    }
+  });
+
+  it('direction 이 목록 밖이면 실패한다', () => {
+    expect(ZoomTabRequestSchema.safeParse({ tabId: 'tab-1', direction: 'max' }).success).toBe(false);
+  });
+});
+
+describe('FindInPageRequestSchema', () => {
+  const VALID_FIND = { tabId: 'tab-1', text: '사과', isForward: true, isNext: false };
+
+  it('찾을 글자가 있으면 통과한다', () => {
+    expect(FindInPageRequestSchema.safeParse(VALID_FIND).success).toBe(true);
+  });
+
+  it('찾을 글자가 비면 실패한다', () => {
+    expect(FindInPageRequestSchema.safeParse({ ...VALID_FIND, text: '' }).success).toBe(false);
+  });
+
+  it('찾을 글자가 201자면 실패한다', () => {
+    expect(FindInPageRequestSchema.safeParse({ ...VALID_FIND, text: 'a'.repeat(201) }).success).toBe(false);
+  });
+});
+
+describe('FindUpdatedEventSchema', () => {
+  it('개수가 0 이상 정수면 통과한다', () => {
+    expect(FindUpdatedEventSchema.safeParse({ tabId: 'tab-1', activeMatch: 0, matchCount: 0 }).success).toBe(true);
+  });
+
+  it('개수가 음수면 실패한다', () => {
+    expect(FindUpdatedEventSchema.safeParse({ tabId: 'tab-1', activeMatch: -1, matchCount: 3 }).success).toBe(false);
   });
 });

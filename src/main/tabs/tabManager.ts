@@ -1,10 +1,25 @@
-import type { TTabState, TTabsSnapshot } from '@shared/ipc/tabs';
+import type { TAgentActivity, TFindUpdatedEvent, TTabState, TTabsSnapshot, TZoomDirection } from '@shared/ipc/tabs';
 
-import type { ITabHost, ITabRect, ITabView, TTabViewFactory } from './tabType';
+import type { ITabFindOptions, ITabHost, ITabRect, ITabView, TTabViewFactory } from './tabType';
 import { isAllowedTabUrl } from './urlPolicy';
+import { getNextZoomPercent } from './zoom';
 
 const NEW_TAB_URL = 'about:blank';
 const NEW_TAB_TITLE = '새 탭';
+const HTTP_URL_PATTERN = /^https?:\/\//;
+
+/** 에이전트가 일하는 탭 하나 — 표시용 (spec 021 SR-4) */
+interface IAgentMark {
+  tabId: string;
+  activity: TAgentActivity;
+}
+
+/** 로드가 끝난 http(s) 페이지 — 방문 기록용 */
+export interface ITabPageLoaded {
+  tabId: string;
+  url: string;
+  title: string;
+}
 
 interface ITabEntry {
   id: string;
@@ -17,6 +32,10 @@ export interface ITabManagerOptions {
   /** 생성·닫기·전환·View 상태 변경마다 전체 스냅샷으로 호출된다 */
   onChanged: (snapshot: TTabsSnapshot) => void;
   createId?: () => string;
+  /** http(s) 메인 프레임 로드가 끝날 때마다 (spec 021 FR-4) */
+  onPageLoaded?: (page: ITabPageLoaded) => void;
+  /** 페이지 내 찾기 결과 */
+  onFindUpdated?: (event: TFindUpdatedEvent) => void;
 }
 
 /**
@@ -28,6 +47,7 @@ export class TabManager {
   private activeTabId: string | null = null;
   private bounds: ITabRect | null = null;
   private cornerRadius = 0;
+  private agentMark: IAgentMark | null = null;
   private readonly createId: () => string;
 
   constructor(private readonly options: ITabManagerOptions) {
@@ -41,6 +61,7 @@ export class TabManager {
     view.setBorderRadius(this.cornerRadius);
     view.onStateChanged(() => this.refresh());
     view.onOpenWindow((popupUrl) => this.handleOpenWindow(popupUrl));
+    this.attachPageEvents(id, view);
     this.entryList.push({ id, view });
     this.options.host.addChildView(view.nativeView);
     this.activeTabId = id;
@@ -57,6 +78,7 @@ export class TabManager {
     this.entryList.splice(index, 1);
     this.options.host.removeChildView(entry.view.nativeView);
     entry.view.destroy();
+    if (this.agentMark?.tabId === id) this.agentMark = null;
     if (this.activeTabId === id) {
       this.activeTabId = (this.entryList[index] ?? this.entryList[index - 1])?.id ?? null;
     }
@@ -102,6 +124,31 @@ export class TabManager {
     this.findView(id)?.stop();
   }
 
+  /** 배율을 한 단계 움직인다 — 같은 호스트 탭도 바뀌므로 전체 스냅샷을 다시 보낸다 (spec 021 FR-10) */
+  zoom(id: string, direction: TZoomDirection): void {
+    const view = this.findView(id);
+    if (!view) return;
+    view.setZoomPercent(getNextZoomPercent(view.getState().zoomPercent, direction));
+    this.refresh();
+  }
+
+  /** 페이지 내 찾기 — 결과는 onFindUpdated 로 (FR-8) */
+  find(id: string, text: string, options: ITabFindOptions): void {
+    this.findView(id)?.findInPage(text, options);
+  }
+
+  stopFind(id: string): void {
+    this.findView(id)?.stopFindInPage();
+  }
+
+  /** 에이전트 표시 — 한 번에 한 탭만, null 이면 지운다 (FR-12). 없는 탭이면 지운다 */
+  setAgentActivity(id: string | null, activity: TAgentActivity | null): void {
+    const next = id !== null && activity !== null && this.hasTab(id) ? { tabId: id, activity } : null;
+    if (next?.tabId === this.agentMark?.tabId && next?.activity === this.agentMark?.activity) return;
+    this.agentMark = next;
+    this.refresh();
+  }
+
   /** 콘텐츠 영역 rect 를 기억하고 활성 View 에 적용한다 — 이후 전환에도 다시 적용된다 */
   setBounds(rect: ITabRect): void {
     this.bounds = rect;
@@ -131,13 +178,22 @@ export class TabManager {
   /** renderer 로 보낼 전체 탭 목록 — isNewTab·'새 탭' 제목을 여기서 계산한다 */
   getSnapshot(): TTabsSnapshot {
     return {
-      tabList: this.entryList.map((entry) => toTabState(entry)),
+      tabList: this.entryList.map((entry) => toTabState(entry, this.agentMark)),
       activeTabId: this.activeTabId,
     };
   }
 
   private findView(id: string): ITabView | undefined {
     return this.entryList.find((entry) => entry.id === id)?.view;
+  }
+
+  /** 찾기 결과·로드 완료(http(s) 만 — SR-3)·Ctrl+휠을 이 탭 id 로 옮긴다 */
+  private attachPageEvents(id: string, view: ITabView): void {
+    view.onFindUpdated((result) => this.options.onFindUpdated?.({ tabId: id, ...result }));
+    view.onPageLoaded((page) => {
+      if (HTTP_URL_PATTERN.test(page.url)) this.options.onPageLoaded?.({ tabId: id, ...page });
+    });
+    view.onZoomWheel((direction) => this.zoom(id, direction));
   }
 
   private handleOpenWindow(url: string): void {
@@ -168,9 +224,10 @@ function isNewTabUrl(url: string): boolean {
   return url === '' || url === NEW_TAB_URL;
 }
 
-function toTabState({ id, view }: ITabEntry): TTabState {
+function toTabState({ id, view }: ITabEntry, agentMark: IAgentMark | null): TTabState {
   const state = view.getState();
   const isNewTab = isNewTabUrl(state.url);
   const title = isNewTab ? NEW_TAB_TITLE : state.title || state.url;
-  return { id, ...state, title, isNewTab };
+  const agentActivity = agentMark?.tabId === id ? agentMark.activity : null;
+  return { id, ...state, title, isNewTab, agentActivity };
 }

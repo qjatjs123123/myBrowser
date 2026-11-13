@@ -9,12 +9,12 @@ import { getApi } from '@/lib/api';
 /** 탭 목록을 처음 불러오지 못한 이유 — 화면에 보일 message 포함 */
 export type TTabsListError = Pick<IIpcError, 'code' | 'message'>;
 
-type TTabActions = Omit<IApi['tabs'], 'list' | 'setBounds' | 'onChanged'>;
+type TTabActions = Omit<IApi['tabs'], 'list' | 'setBounds' | 'onChanged' | 'find' | 'stopFind' | 'onFindUpdated'>;
 
 const EMPTY_SNAPSHOT: TTabsSnapshot = { tabList: [], activeTabId: null };
 const LIST_FAILED_ERROR: TTabsListError = { code: 'INTERNAL', message: '탭 목록을 불러오지 못했습니다' };
 
-/** 탭 조작 — window.api.tabs 의 결과 봉투를 그대로 돌려준다 (toast 는 호출한 컴포넌트가) */
+/** 탭 조작(찾기는 useFindInPage 가 맡는다) — window.api.tabs 의 결과 봉투를 그대로 돌려준다 (toast 는 호출한 컴포넌트가) */
 const TAB_ACTIONS: TTabActions = {
   create: (req) => getApi().tabs.create(req),
   close: (req) => getApi().tabs.close(req),
@@ -24,6 +24,7 @@ const TAB_ACTIONS: TTabActions = {
   goForward: (req) => getApi().tabs.goForward(req),
   reload: (req) => getApi().tabs.reload(req),
   stop: (req) => getApi().tabs.stop(req),
+  zoom: (req) => getApi().tabs.zoom(req),
 };
 
 /**

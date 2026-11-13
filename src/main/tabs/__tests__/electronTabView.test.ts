@@ -7,6 +7,10 @@ interface IMockWebContents {
   on: Mock;
   setWindowOpenHandler: Mock;
   getURL: Mock;
+  getTitle: Mock;
+  setZoomFactor: Mock;
+  findInPage: Mock;
+  stopFindInPage: Mock;
   close: Mock;
   isDestroyed: Mock;
   debugger: { attach: Mock; isAttached: Mock; sendCommand: Mock };
@@ -161,5 +165,72 @@ describe('createElectronTabView 모서리 반지름 (spec 014)', () => {
     const tabView = createElectronTabView({ onInput: vi.fn() });
     tabView.setBorderRadius(10);
     expect((tabView.nativeView as { setBorderRadius: Mock }).setBorderRadius).toHaveBeenCalledWith(10);
+  });
+});
+
+describe('createElectronTabView 찾기·로드·확대 (spec 021)', () => {
+  it('새 검색(isNext=false)은 Electron findNext:true 로 부른다', () => {
+    const { tabView, webContents } = setup();
+    tabView.findInPage('사과', { isForward: true, isNext: false });
+    expect(webContents.findInPage).toHaveBeenCalledWith('사과', { forward: true, findNext: true });
+  });
+
+  it('다음 결과(isNext=true)는 Electron findNext:false 로 부른다', () => {
+    const { tabView, webContents } = setup();
+    tabView.findInPage('사과', { isForward: false, isNext: true });
+    expect(webContents.findInPage).toHaveBeenCalledWith('사과', { forward: false, findNext: false });
+  });
+
+  it('found-in-page 의 마지막 갱신이면 결과를 넘긴다', () => {
+    const { tabView, listenersOf } = setup();
+    const onFindUpdated = vi.fn();
+    tabView.onFindUpdated(onFindUpdated);
+    for (const listener of listenersOf('found-in-page')) {
+      listener({}, { requestId: 1, activeMatchOrdinal: 2, matches: 5, finalUpdate: true });
+    }
+    expect(onFindUpdated).toHaveBeenCalledWith({ activeMatch: 2, matchCount: 5 });
+  });
+
+  it('found-in-page 가 중간 갱신이면 무시한다', () => {
+    const { tabView, listenersOf } = setup();
+    const onFindUpdated = vi.fn();
+    tabView.onFindUpdated(onFindUpdated);
+    for (const listener of listenersOf('found-in-page')) {
+      listener({}, { requestId: 1, activeMatchOrdinal: 1, matches: 2, finalUpdate: false });
+    }
+    expect(onFindUpdated).not.toHaveBeenCalled();
+  });
+
+  it('did-navigate 면 찾기 강조를 지운다', () => {
+    const { webContents, listenersOf } = setup();
+    for (const listener of listenersOf('did-navigate')) listener({}, 'https://b.com/');
+    expect(webContents.stopFindInPage).toHaveBeenCalledWith('clearSelection');
+  });
+
+  it('did-finish-load 면 현재 url·제목을 넘긴다', () => {
+    const { tabView, webContents, listenersOf } = setup();
+    webContents.getURL.mockReturnValue('https://a.com/');
+    webContents.getTitle.mockReturnValue('A');
+    const onPageLoaded = vi.fn();
+    tabView.onPageLoaded(onPageLoaded);
+    for (const listener of listenersOf('did-finish-load')) listener({});
+    expect(onPageLoaded).toHaveBeenCalledWith({ url: 'https://a.com/', title: 'A' });
+  });
+
+  it('zoom-changed 의 in·out 을 그대로 넘긴다', () => {
+    const { tabView, listenersOf } = setup();
+    const onZoomWheel = vi.fn();
+    tabView.onZoomWheel(onZoomWheel);
+    for (const listener of listenersOf('zoom-changed')) {
+      listener({}, 'in');
+      listener({}, 'out');
+    }
+    expect(onZoomWheel.mock.calls).toEqual([['in'], ['out']]);
+  });
+
+  it('배율(%)은 zoomFactor 로 바꿔 적용한다', () => {
+    const { tabView, webContents } = setup();
+    tabView.setZoomPercent(125);
+    expect(webContents.setZoomFactor).toHaveBeenCalledWith(1.25);
   });
 });

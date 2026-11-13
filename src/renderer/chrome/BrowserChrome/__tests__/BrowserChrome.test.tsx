@@ -26,6 +26,8 @@ function createTab(overrides: Partial<TTabState> = {}): TTabState {
     canGoBack: false,
     canGoForward: false,
     isNewTab: true,
+    zoomPercent: 100,
+    agentActivity: null,
     ...overrides,
   };
 }
@@ -139,5 +141,73 @@ describe('BrowserChrome', () => {
     });
     render(<BrowserChrome />);
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('탭 내부 오류'));
+  });
+});
+
+describe('BrowserChrome 북마크·찾기·배율 (spec 021)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function renderWithPageTab(tab: TTabState = PAGE_TAB) {
+    givenSnapshot({ tabList: [tab], activeTabId: tab.id });
+    render(<BrowserChrome />);
+    await findAddressBar(tab.url);
+  }
+
+  it('[북마크] 를 누르면 활성 탭을 북마크에 넣는다', async () => {
+    await renderWithPageTab();
+    fireEvent.click(screen.getByRole('button', { name: '북마크' }));
+    await waitFor(() =>
+      expect(window.api.bookmarks.add).toHaveBeenCalledWith({ url: 'https://a.com/', title: 'A 사이트' }),
+    );
+  });
+
+  it('toggleBookmark 단축키도 활성 탭을 북마크에 넣는다', async () => {
+    await renderWithPageTab();
+    act(() => getPressedListener()({ action: 'toggleBookmark' }));
+    await waitFor(() => expect(window.api.bookmarks.add).toHaveBeenCalled());
+  });
+
+  it('북마크 추가가 실패하면 main 의 메시지로 toast 한다', async () => {
+    vi.mocked(window.api.bookmarks.add).mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'LIMIT', message: '북마크는 최대 500개까지 저장할 수 있습니다' },
+    });
+    await renderWithPageTab();
+    fireEvent.click(screen.getByRole('button', { name: '북마크' }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('북마크는 최대 500개까지 저장할 수 있습니다'));
+  });
+
+  it('openFindBar 단축키면 찾기 줄이 열린다', async () => {
+    await renderWithPageTab();
+    act(() => getPressedListener()({ action: 'openFindBar' }));
+    expect(screen.getByRole('search', { name: '페이지에서 찾기' })).toBeInTheDocument();
+  });
+
+  it('새 탭에서는 openFindBar 로 찾기 줄이 열리지 않는다', async () => {
+    givenSnapshot({ tabList: [createTab()], activeTabId: 'tab-1' });
+    render(<BrowserChrome />);
+    await screen.findByRole('textbox', { name: '새 탭 검색' });
+    act(() => getPressedListener()({ action: 'openFindBar' }));
+    expect(screen.queryByRole('search', { name: '페이지에서 찾기' })).not.toBeInTheDocument();
+  });
+
+  it('배율이 100% 가 아니면 배율 버튼을 누를 때 100% 로 되돌린다', async () => {
+    await renderWithPageTab({ ...PAGE_TAB, zoomPercent: 125 });
+    fireEvent.click(screen.getByRole('button', { name: /확대\/축소 125%/ }));
+    expect(window.api.tabs.zoom).toHaveBeenCalledWith({ tabId: 'tab-2', direction: 'reset' });
+  });
+
+  it('focusHistorySearch 단축키면 새 탭의 방문 기록 검색에 포커스한다', async () => {
+    givenSnapshot({ tabList: [createTab()], activeTabId: 'tab-1' });
+    render(<BrowserChrome />);
+    const historyInput = await screen.findByRole('textbox', { name: '방문 기록 검색' });
+    act(() => getPressedListener()({ action: 'focusHistorySearch' }));
+    expect(historyInput).toHaveFocus();
   });
 });
