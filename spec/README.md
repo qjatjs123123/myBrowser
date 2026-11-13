@@ -21,4 +21,4 @@
 | 016 | 기반 | 브라우저식 창 동작 (Linux) — 탭 줄 끌기 이동·빈 곳 더블클릭 최대화/복원·최대화 중 끌면 복원·가장자리 8방향 크기 조절, 탭 View 4px 여백 (window:pointer*) | src/shared/ipc/window, src/main/{app/windowPointer,ipc/handlers/window}, src/renderer/{hooks/useWindowPointer,chrome/{TabBar,WindowResizeEdges,BrowserChrome},App}, e2e | 010, 014 | ✅ 완료 | 2026-11-09 |
 | 017 | 기반 | Linux 최대화를 모니터 작업 영역 (0,0) 에 직접 배치 — WM 최대화(WSLg 32px 밀림) 대신 측정 후 setBounds, 앱이 최대화 상태 관리·더블클릭 복원 | src/main/app/{windowMaximize,windowPointer,window}, src/main/index, e2e | 014, 016 | ✅ 완료 | 2026-11-13 |
 | 018 | 기반 | Linux 최대화 깜빡임 줄이기 — 모니터별 최대화 bounds 를 실행 동안 기억해 두 번째부터 maximize 없이 바로 배치, 디스플레이 변경 시 비움 | src/main/app/windowMaximize, src/main/index | 017 | ✅ 완료 | 2026-11-13 |
-| 019 | 기반 | 에이전트 입력창 추천 문구 — 현재 탭 사이트·최근 작업 기반 추천을 흐린 글씨(빈 입력 placeholder·치는 중 이어쓰기)로 보이고 Tab 으로 입력 | src/renderer/{utils/taskSuggestion,hooks/useTaskSuggestion,sidebar/AgentPanel}, e2e | 009, 012 | 🚧 진행중 | 2026-11-13 |
+| 019 | 기반 | 에이전트 입력창 추천 문구 — 현재 탭 사이트·최근 작업 기반 추천을 흐린 글씨(빈 입력 placeholder·치는 중 이어쓰기)로 보이고 Tab 으로 입력 | src/renderer/{utils/taskSuggestion,hooks/useTaskSuggestion,sidebar/AgentPanel}, e2e | 009, 012 | ✅ 완료 | 2026-11-13 |

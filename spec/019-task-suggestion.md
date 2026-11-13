@@ -1,6 +1,6 @@
 # Spec: 에이전트 입력창 추천 문구 — 흐린 글씨로 보여주고 Tab 으로 입력
 
-> **상태**: 🚧 진행중
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-13
 > **묶음**: 기반 (단일 묶음 — 직접 방식)
 > **관련 spec**: 009 (할 일 입력), 012 (실행 기록 runs:list)
@@ -70,7 +70,7 @@
 > ⚠️ **게이트 규칙**: 각 Task 는 명시된 **테스트와 검증이 모두 에러 0**이 될 때까지 수정 → 재실행을 반복하고, 전부 통과했을 때만 체크박스를 채우고 **Task 단위로 커밋**한 뒤 다음 Task 로 진행한다.
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: 추천 규칙(순수 함수) + 훅**
+- [x] **Task 1: 추천 규칙(순수 함수) + 훅**
   - **묶음**: 기반
   - **작업**: `taskSuggestion.ts`, `useTaskSuggestion.ts`. `vitest.setup.ts` 에 기본 응답을 둔다 — `tabs.list` → `ok({ tabList: [], activeTabId: null })`, `runs.list` → `ok({ runList: [] })` (skills.list 처럼 구현으로 둬 clearAllMocks 뒤에도 유지). 개별 테스트의 `mockResolvedValue` 는 그대로 우선한다 (Task 2 에서 AgentPanel·App 테스트가 추천 훅 때문에 깨지지 않게)
   - **파일**: `src/renderer/utils/taskSuggestion.ts`, `src/renderer/hooks/useTaskSuggestion.ts`, 각 `__tests__`, `vitest.setup.ts`
@@ -82,7 +82,7 @@
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 입력창 추천 문구 규칙과 훅 (spec 019 Task 1)`
 
-- [ ] **Task 2: 입력창 흐린 추천·Tab 입력 + 조립 + e2e**
+- [x] **Task 2: 입력창 흐린 추천·Tab 입력 + 조립 + e2e**
   - **묶음**: 기반
   - **작업**: FR-2~7 — TaskInput 표시·키 처리, AgentPanel 조립
   - **파일**: `src/renderer/sidebar/AgentPanel/{TaskInput,index}.tsx`, `src/renderer/sidebar/AgentPanel/__tests__/{TaskInput,AgentPanel}.test.tsx`, `e2e/task-suggestion.spec.ts`
@@ -101,3 +101,6 @@
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-13 | 1 | taskSuggestion 21 · useTaskSuggestion 5 · renderer 394 | 검증 반영 커밋 | 직접 방식. vitest.setup tabs.list·runs.list 기본 응답 |
+| 2026-11-13 | 2 | TaskInput 12 · AgentPanel +2(기록 재조회 기준 조정) · task-suggestion e2e 2 | 검증 반영 커밋 | 실제 앱: 흐린 이어쓰기 위치·줄바꿈 확인 |
+| 2026-11-13 | 검증 | make check 1859 · make e2e 61 · 에러 0 | 검증 반영 커밋 | |

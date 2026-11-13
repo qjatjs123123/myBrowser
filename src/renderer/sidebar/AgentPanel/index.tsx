@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from 'react';
 
 import { isRunActive, type TAgentRun, type TDecision } from '@/hooks/useAgentRun';
+import { useTaskSuggestion } from '@/hooks/useTaskSuggestion';
 import { toast } from '@/lib/toast';
 import { ApprovalPanel } from '@/sidebar/ApprovalPanel';
 import { Conversation } from '@/sidebar/Conversation';
@@ -8,6 +9,7 @@ import { QuestionCard } from '@/sidebar/QuestionCard';
 import { RunHistory } from '@/sidebar/RunHistory';
 import { Settings } from '@/sidebar/Settings';
 import { SidebarHeader } from '@/sidebar/SidebarHeader';
+import { findSuggestion } from '@/utils/taskSuggestion';
 
 import { TaskInput } from './TaskInput';
 
@@ -37,6 +39,7 @@ export function AgentPanel({ run, accountSlot, onClose, onRequestHandled }: IAge
   const [isStarting, setIsStarting] = useState(false);
   const [view, setView] = useState<TPanelView>('conversation');
   const isBusy = isStarting || isRunActive(status);
+  const suggestionList = useTaskSuggestion({ isRunActive: isBusy });
   const canStop = runId !== null && !isStarting;
   const canReset = !isBusy && (runId !== null || run.pastTurnList.length > 0);
 
@@ -105,6 +108,7 @@ export function AgentPanel({ run, accountSlot, onClose, onRequestHandled }: IAge
       )}
       <TaskInput
         task={task}
+        suggestion={findSuggestion(task, suggestionList)}
         isBusy={isBusy}
         canStop={canStop}
         onTaskChange={setTask}
