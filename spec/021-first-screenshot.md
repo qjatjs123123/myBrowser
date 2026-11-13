@@ -1,6 +1,6 @@
 # Spec: 할 일 시작 시 현재 탭 캡처 첨부
 
-> **상태**: 📝 계획됨
+> **상태**: ✅ 완료
 > **생성일**: 2026-11-13
 > **묶음**: 기반 (단일 묶음 — 직접 방식)
 > **관련 spec**: 003 (루프), 004 (스크린샷·픽셀), 007 (모델 프로필), 020 (실제 사이트 평가 세트)
@@ -67,7 +67,7 @@ DB 변경 없음
 > ⚠️ **게이트 규칙**: 각 Task 는 명시된 **테스트와 검증이 모두 에러 0**이 될 때까지 수정 → 재실행을 반복하고, 전부 통과했을 때만 체크박스를 채우고 **Task 단위로 커밋**한 뒤 다음 Task 로 진행한다.
 > **vibe-build 로 진행할 때는 `.claude/skills/COMMON.md` §2 가 위 규칙보다 우선한다.**
 
-- [ ] **Task 1: env·첫 메시지 content·service 캡처**
+- [x] **Task 1: env·첫 메시지 content·service 캡처**
   - **묶음**: 기반
   - **작업**: FR-1~4 — env, `buildFirstUserContent`, loop 타입, service 캡처·실패·타임아웃 처리, index.ts 연결. `IAgentLog` 에 `warn(scope: string, message: string, meta?: unknown): void` 를 추가한다(`src/main/log.ts` 의 `log.warn` 과 같은 모양). `service.test.ts` 의 `setup()` 의 log 는 `{ error: vi.fn(), warn: vi.fn() }` 로 바꾼다. 캡처 실패 warn 의 meta 는 `{ reason }` 만 싣고 pngBase64·요청 본문은 넣지 않는다(SR-2).
   - **파일**: `src/main/env.ts`, `src/main/agent/prompts/system.ts`, `src/main/agent/loop.ts`, `src/main/agent/service.ts`, `src/main/index.ts`, `src/main/__tests__/env.test.ts`, `src/main/agent/prompts/__tests__/system.test.ts`, `src/main/agent/__tests__/service.test.ts`
@@ -80,7 +80,7 @@ DB 변경 없음
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 할 일 시작 시 현재 탭 캡처를 첫 메시지에 첨부 (spec 021 Task 1)`
 
-- [ ] **Task 2: 가짜 모델 자리표시자·e2e**
+- [x] **Task 2: 가짜 모델 자리표시자·e2e**
   - **묶음**: 기반
   - **작업**: `{{firstImage}}` 자리표시자, 시나리오 파일, e2e
   - **파일**: `src/main/agent/fake/fakeFetch.ts`, `src/main/agent/fake/__tests__/fakeFetch.test.ts`, `e2e/fixtures/model/first-image-echo.json`, `e2e/first-screenshot.spec.ts`
@@ -92,7 +92,7 @@ DB 변경 없음
   - **통과 기준**: 테스트 + 검증 통과
   - **커밋**: `feat: 가짜 모델 첫 화면 자리표시자와 캡처 첨부 e2e (spec 021 Task 2)`
 
-- [ ] **Task 3: 평가 기록·문서**
+- [x] **Task 3: 평가 기록·문서**
   - **묶음**: 기반
   - **작업**: FR-5, DESIGN.md 한 줄, `eval/cli.mjs` 머리 주석에 끈 쪽 실행법
   - **파일**: `eval/report.ts`, `eval/cli.mjs`, `eval/__tests__/report.test.ts`, `docs/DESIGN.md`
@@ -109,3 +109,8 @@ DB 변경 없음
 
 | 날짜 | Task | 테스트 결과 | 커밋 | 비고 |
 |---|---|---|---|---|
+| 2026-11-13 | 1 | env +4 · system +2 · service +6 (캡처 성공·1회·실패·throw·5초 초과·끔) | bf97f5b | 직접 방식 (워크트리 021-base) |
+| 2026-11-13 | 2 | fakeFetch +2 · e2e/first-screenshot 2 | a358247 | |
+| 2026-11-13 | 3 | report +2 · `pnpm eval` 가짜 7/7 (report.json firstScreenshot: true) | b4fb514 | |
+| 2026-11-13 | 검증 | make check 통과 · make e2e 64 passed · 에러 0 | 검증 반영 커밋 | 검증 2회가 겹쳐 돈 회차에서 agent-approval 1건 창 대기 시간 초과 → 단독 재실행 9/9 통과. 실제 API(사내 프록시가 image 블록을 받는지)는 미확인 |
+
